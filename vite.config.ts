@@ -9,4 +9,10 @@ export default defineConfig({
     tailwindcss(),
     reactRouter(),
   ],
+  ssr: {
+    target: "node",
+  },
+  build: {
+    target: "esnext",
+  },
 });
