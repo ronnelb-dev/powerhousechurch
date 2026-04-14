@@ -20,7 +20,7 @@ export function AttendanceMarkRow({
     ? (fetcher.formData.get("status") as "PRESENT" | "ABSENT")
     : currentStatus;
 
-  const initials = firstName[0] + lastName[0];
+  const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
 
   return (
     <li className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -89,5 +89,3 @@ export function AttendanceMarkRow({
     </li>
   );
 }
-
-export default AttendanceMarkRow;

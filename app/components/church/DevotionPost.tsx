@@ -40,7 +40,7 @@ export function DevotionPost({ post, currentUserId }: DevotionPostProps) {
     : post.likeCount;
 
   const authorInitials =
-    post.author.firstName[0] + post.author.lastName[0];
+    (post.author.firstName.charAt(0) + post.author.lastName.charAt(0)).toUpperCase();
 
   const formattedDate = new Date(post.createdAt).toLocaleDateString("en-PH", {
     month: "long", day: "numeric", year: "numeric",
@@ -171,7 +171,7 @@ export function DevotionPost({ post, currentUserId }: DevotionPostProps) {
                            text-red-700 font-sans mt-0.5"
                 aria-hidden="true"
               >
-                {comment.author.firstName[0]}
+                {comment.author.firstName.charAt(0).toUpperCase()}
               </div>
               <div>
                 <span className="text-xs font-sans font-bold text-gray-700">
@@ -220,5 +220,3 @@ export function DevotionPost({ post, currentUserId }: DevotionPostProps) {
     </article>
   );
 }
-
-export default DevotionPost;

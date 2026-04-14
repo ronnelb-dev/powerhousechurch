@@ -6,8 +6,6 @@
 import {
   useLoaderData,
   Link,
-  useSearchParams,
-  Form,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
@@ -15,7 +13,6 @@ import {
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";
 import { PageHero } from "~/components/ui/PageHero";
-import { SectionHeader } from "~/components/ui/SectionHeader";
 import { EmptyState } from "~/components/ui/EmptyState";
 
 export const meta: MetaFunction = () => [

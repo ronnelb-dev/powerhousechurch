@@ -64,5 +64,3 @@ export function PageHero({ title, subtitle, scripture, bgImage, children }: Page
     </section>
   );
 }
-
-export default PageHero;

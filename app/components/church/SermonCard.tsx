@@ -96,5 +96,3 @@ export function SermonCard({
     </article>
   );
 }
-
-export default SermonCard;
