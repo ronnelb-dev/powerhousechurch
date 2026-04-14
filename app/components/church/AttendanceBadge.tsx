@@ -22,3 +22,5 @@ export function AttendanceBadge({ status }: AttendanceBadgeProps) {
     </span>
   );
 }
+
+export default AttendanceBadge;

@@ -91,3 +91,5 @@ export function PastoralAlert({ members }: PastoralAlertProps) {
     </aside>
   );
 }
+
+export default PastoralAlert;

@@ -220,3 +220,5 @@ export function DevotionPost({ post, currentUserId }: DevotionPostProps) {
     </article>
   );
 }
+
+export default DevotionPost;

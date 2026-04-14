@@ -70,3 +70,5 @@ export function EventCard({ id, title, location, startDate, endDate, imageUrl }:
     </article>
   );
 }
+
+export default EventCard;

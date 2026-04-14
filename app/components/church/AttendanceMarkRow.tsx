@@ -89,3 +89,5 @@ export function AttendanceMarkRow({
     </li>
   );
 }
+
+export default AttendanceMarkRow;

@@ -78,3 +78,5 @@ export function AttendanceHeatmap({ cells, label }: AttendanceHeatmapProps) {
     </div>
   );
 }
+
+export default AttendanceHeatmap; 
