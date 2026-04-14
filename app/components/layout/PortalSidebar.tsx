@@ -126,3 +126,5 @@ export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
     </>
   );
 }
+
+export default PortalSidebar;
