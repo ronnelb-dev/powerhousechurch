@@ -6,7 +6,7 @@ const NAV_LINKS = [
   { to: "/sermons",    label: "Sermons"    },
   { to: "/events",     label: "Events"     },
   { to: "/ministries", label: "Ministries" },
-  { to: "/about",       label: "About"       },
+  { to: "/about",      label: "About"      },
   { to: "/contact",    label: "Contact"    },
 ];
 
@@ -16,15 +16,13 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 20);
+    const onScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
-  const isHome = location.pathname === "/";
   const isActive = (to: string) =>
     to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
 
@@ -32,120 +30,50 @@ export function Navbar() {
     <header
       className={[
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled || menuOpen || !isHome
-          ? "bg-red-900 shadow-lg"
-          : "bg-transparent",
+        isScrolled ? "bg-white shadow-lg" : "bg-white/95 backdrop-blur-sm",
       ].join(" ")}
       role="banner"
     >
       <nav
-        className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"
+        className="max-w-7xl mx-auto px-6"
         aria-label="Main navigation"
       >
-        {/* Logo */}
-        <Link
-          to="/"
-          className="flex flex-col leading-tight group"
-          aria-label="Powerhouse Church — Home"
-        >
-          <span className="font-serif text-white text-lg font-bold tracking-tight
-                           group-hover:text-yellow-300 transition-colors">
-            Powerhouse
-          </span>
-          <span className="text-red-200 text-xs tracking-widest uppercase font-sans
-                           group-hover:text-yellow-200 transition-colors">
-            Church
-          </span>
-        </Link>
+        <div className="flex items-center justify-between h-16 lg:h-20">
 
-        {/* Desktop nav */}
-        <ul className="hidden md:flex items-center gap-1" role="list">
-          {NAV_LINKS.map(({ to, label }) => (
-            <li key={to}>
-              <Link
-                to={to}
-                className={[
-                  "px-3 py-2 rounded-md text-sm font-sans font-bold tracking-wide",
-                  "transition-all duration-150",
-                  isActive(to)
-                    ? "text-white bg-white/10"
-                    : "text-red-100 hover:text-white hover:bg-white/10",
-                ].join(" ")}
-                aria-current={isActive(to) ? "page" : undefined}
-              >
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        {/* Right cluster */}
-        <div className="hidden md:flex items-center gap-3">
-          {/* New Here — the radical welcome CTA */}
+          {/* Logo */}
           <Link
-            to="/new-here"
-            className="px-4 py-2 rounded-full border-2 border-yellow-400
-                       text-yellow-300 text-sm font-sans font-bold tracking-wide
-                       hover:bg-yellow-400 hover:text-red-900 transition-all duration-150"
-            aria-label="New to Powerhouse Church? Start here"
+            to="/"
+            className="flex items-center gap-3"
+            aria-label="Powerhouse Church — Home"
           >
-            New Here?
+            <div className="w-10 h-10 flex-shrink-0">
+              <img
+                src="/logo_red.webp"
+                alt="Powerhouse Church logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-xl lg:text-2xl font-serif font-bold text-gray-900 leading-tight">
+                Powerhouse Church
+              </p>
+              <p className="text-xs text-gray-500 tracking-widest uppercase font-sans hidden lg:block">
+                Christian Fellowship Intl.
+              </p>
+            </div>
           </Link>
-          <Link
-            to="/portal/dashboard"
-            className="px-4 py-2 rounded-md bg-white text-red-800
-                       text-sm font-sans font-bold tracking-wide
-                       hover:bg-red-50 transition-all duration-150"
-          >
-            Member Login
-          </Link>
-        </div>
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden flex flex-col justify-center items-center
-                     w-10 h-10 gap-1.5 rounded-md hover:bg-white/10
-                     transition-colors focus:outline-none focus:ring-2
-                     focus:ring-white/50"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-expanded={menuOpen}
-          aria-controls="mobile-menu"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-        >
-          <span
-            className={`w-5 h-0.5 bg-white transition-all duration-200
-              ${menuOpen ? "rotate-45 translate-y-2" : ""}`}
-          />
-          <span
-            className={`w-5 h-0.5 bg-white transition-all duration-200
-              ${menuOpen ? "opacity-0" : ""}`}
-          />
-          <span
-            className={`w-5 h-0.5 bg-white transition-all duration-200
-              ${menuOpen ? "-rotate-45 -translate-y-2" : ""}`}
-          />
-        </button>
-      </nav>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div
-          id="mobile-menu"
-          className="md:hidden bg-red-900 border-t border-red-800 px-6 py-4"
-          role="navigation"
-          aria-label="Mobile navigation"
-        >
-          <ul className="flex flex-col gap-1" role="list">
+          {/* Desktop nav links */}
+          <ul className="hidden lg:flex items-center gap-1" role="list">
             {NAV_LINKS.map(({ to, label }) => (
               <li key={to}>
                 <Link
                   to={to}
                   className={[
-                    "block px-4 py-3 rounded-lg text-sm font-sans font-bold",
-                    "transition-colors",
+                    "px-3 py-2 rounded-md text-sm font-sans font-bold tracking-wide transition-all duration-150",
                     isActive(to)
-                      ? "bg-white/10 text-white"
-                      : "text-red-100 hover:bg-white/10 hover:text-white",
+                      ? "text-red-800 bg-red-50"
+                      : "text-gray-700 hover:text-red-800 hover:bg-red-50",
                   ].join(" ")}
                   aria-current={isActive(to) ? "page" : undefined}
                 >
@@ -154,25 +82,102 @@ export function Navbar() {
               </li>
             ))}
           </ul>
-          <div className="mt-4 pt-4 border-t border-red-800 flex flex-col gap-3">
+
+          {/* Desktop CTAs */}
+          <div className="hidden lg:flex items-center gap-3">
             <Link
               to="/new-here"
-              className="block text-center px-4 py-3 rounded-full border-2
-                         border-yellow-400 text-yellow-300 text-sm font-bold
-                         hover:bg-yellow-400 hover:text-red-900 transition-all"
+              className="px-4 py-2 rounded-full border-2 border-red-800
+                         text-red-800 text-sm font-sans font-bold tracking-wide
+                         hover:bg-red-800 hover:text-white transition-all duration-150"
+              aria-label="New to Powerhouse Church? Start here"
             >
-              New Here? ✦
+              New Here?
             </Link>
             <Link
               to="/portal/dashboard"
-              className="block text-center px-4 py-3 rounded-lg bg-white
-                         text-red-800 text-sm font-bold hover:bg-red-50 transition-all"
+              className="px-4 py-2 rounded-md bg-red-800 text-white
+                         text-sm font-sans font-bold tracking-wide
+                         hover:bg-red-900 transition-all duration-150"
             >
               Member Login
             </Link>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="lg:hidden p-2 text-gray-700 hover:text-red-800 transition-colors
+                       focus:outline-none focus:ring-2 focus:ring-red-800/30 rounded-md"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+          >
+            {menuOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
         </div>
-      )}
+
+        {/* Mobile menu — smooth max-h transition */}
+        <div
+          id="mobile-menu"
+          className={[
+            "lg:hidden transition-all duration-300 overflow-hidden",
+            menuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0",
+          ].join(" ")}
+          role="navigation"
+          aria-label="Mobile navigation"
+        >
+          <div className="py-4 border-t border-gray-200">
+            <ul className="flex flex-col" role="list">
+              {NAV_LINKS.map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className={[
+                      "block px-4 py-3 text-sm font-sans font-bold transition-colors",
+                      isActive(to)
+                        ? "text-red-800 bg-red-50"
+                        : "text-gray-700 hover:text-red-800 hover:bg-gray-50",
+                    ].join(" ")}
+                    aria-current={isActive(to) ? "page" : undefined}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <div className="px-4 pt-4 flex flex-col gap-3 border-t border-gray-200 mt-2">
+              <Link
+                to="/new-here"
+                className="block text-center px-4 py-3 rounded-full border-2
+                           border-red-800 text-red-800 text-sm font-bold
+                           hover:bg-red-800 hover:text-white transition-all"
+              >
+                New Here? ✦
+              </Link>
+              <Link
+                to="/portal/dashboard"
+                className="block text-center px-4 py-3 rounded-md bg-red-800
+                           text-white text-sm font-bold hover:bg-red-900 transition-all"
+              >
+                Member Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
     </header>
   );
 }

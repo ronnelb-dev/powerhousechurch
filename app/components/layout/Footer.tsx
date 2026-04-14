@@ -1,115 +1,138 @@
 import { Link } from "react-router";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faFacebookF,
+  faInstagram,
+  faYoutube,
+  faTiktok,
+} from '@fortawesome/free-brands-svg-icons'
+import {
+  faEnvelope,
+  faPhone,
+  faMapMarkerAlt,
+} from '@fortawesome/free-solid-svg-icons'
 
 interface FooterProps {
   settings: Record<string, string>;
 }
 
 export function Footer({ settings }: FooterProps) {
-  return (
-    <footer className="bg-red-900 text-red-100 font-sans" role="contentinfo">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+  const churchName = settings["church.name"] ?? "Powerhouse Church";
 
-          {/* Church identity */}
+  const socials = [
+    { key: "social.facebook",  icon: faFacebookF,  label: "Facebook",  href:"https://www.facebook.com/PowerhouseChurchInternational"  },
+    { key: "social.instagram", icon: faInstagram,  label: "Instagram", href: "https://www.instagram.com/_powerhouseintl/" },
+    { key: "social.youtube",   icon: faYoutube,    label: "YouTube",   href: "https://www.youtube.com/@pcf_intl"   },
+    { key: "social.tiktok",    icon: faTiktok,     label: "TikTok",    href: "https://www.tiktok.com/@pcf_intl"    },
+  ];
+
+  return (
+    <footer className="bg-gray-900 text-white py-12" role="contentinfo">
+      <div className="container mx-auto px-4">
+        <div className="grid md:grid-cols-4 gap-8">
+
+          {/* Church Info */}
           <div className="md:col-span-2">
-            <p className="font-serif text-white text-2xl font-bold mb-1">
-              {settings["church.name"] ?? "Powerhouse Church"}
+            <h3 className="text-2xl font-bold mb-4">Powerhouse Church</h3>
+            <p className="text-gray-300 mb-6 leading-relaxed">
+              A community of faith where everyone is welcome to experience God's love, grow in their relationship with
+              Christ, and serve others with purpose.
             </p>
-            <p className="text-yellow-300 text-xs tracking-widest uppercase mb-4">
-              Where Faith Meets Community
-            </p>
-            <p className="text-red-200 text-sm leading-relaxed max-w-sm">
-              A Spirit-filled church committed to making disciples, building
-              community, and declaring the excellencies of Christ in every
-              generation.
-            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <FontAwesomeIcon icon={faMapMarkerAlt} className="w-5 h-5 mr-3 text-red-800" />
+                <span className="text-gray-300">2nd Flr. Sundrel Business Center Bldg Cabuyao City, Laguna</span>
+              </div>
+              <div className="flex items-center">
+                <FontAwesomeIcon icon={faPhone} className="w-5 h-5 mr-3 text-red-800" />
+                <span className="text-gray-300">(555) 123-4567</span>
+              </div>
+              <div className="flex items-center">
+                <FontAwesomeIcon icon={faEnvelope} className="w-5 h-5 mr-3 text-red-800" />
+                <span className="text-gray-300">info@powerhousechurch.org</span>
+              </div>
+            </div>
           </div>
 
-          {/* Service times */}
+          {/* Quick Links */}
           <div>
-            <h3 className="text-white font-bold text-sm tracking-widest
-                           uppercase mb-4 border-b border-red-700 pb-2">
-              Join Us
-            </h3>
-            <ul className="space-y-3 text-sm" role="list">
-              <li>
-                <span className="text-yellow-300 font-bold block">Sunday Services</span>
-                <span className="text-red-200">
-                  {settings["service.sunday1"]} &amp; {settings["service.sunday2"]}
-                </span>
-              </li>
-              <li>
-                <span className="text-yellow-300 font-bold block">Cell Groups</span>
-                <span className="text-red-200">
-                  {settings["service.cellGroupDays"]} · Various Locations
-                </span>
-              </li>
+            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-2" role="list">
+              {[
+                { to: "/about",       label: "About Us"   },
+                { to: "/sermons",     label: "Sermons"  },
+                { to: "/events",      label: "Events"     },
+                { to: "/ministries",  label: "Ministries" },
+                { to: "/contact",     label: "Contact"    },
+              ].map(({ to, label }) => (
+                <li key={to}>
+                  <Link to={to} className="text-gray-300 hover:text-white transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Contact & socials */}
+          {/* Connect */}
           <div>
-            <h3 className="text-white font-bold text-sm tracking-widest
-                           uppercase mb-4 border-b border-red-700 pb-2">
-              Connect
-            </h3>
-            <address className="not-italic text-sm space-y-2 text-red-200 mb-4">
-              <p>{settings["church.address"]}</p>
-              <p>
-                <a
-                  href={`tel:${settings["church.phone"]}`}
-                  className="hover:text-yellow-300 transition-colors"
-                >
-                  {settings["church.phone"]}
-                </a>
-              </p>
-              <p>
-                <a
-                  href={`mailto:${settings["church.email"]}`}
-                  className="hover:text-yellow-300 transition-colors"
-                >
-                  {settings["church.email"]}
-                </a>
-              </p>
-            </address>
-            <div className="flex gap-3" aria-label="Social media links">
-              {[
-                { key: "social.facebook",  label: "Facebook",  abbr: "FB" },
-                { key: "social.youtube",   label: "YouTube",   abbr: "YT" },
-                { key: "social.instagram", label: "Instagram", abbr: "IG" },
-              ].map(({ key, label, abbr }) =>
-                settings[key] ? (
+            <h4 className="text-lg font-semibold mb-4">Connect With Us</h4>
+
+            {/* Social icons */}
+            <div className="flex space-x-4 mb-6" aria-label="Social media links">
+              {socials.map(({ key, icon, label, href }) =>
+                href ? (
                   <a
                     key={key}
-                    href={settings[key]}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full border border-red-600
-                               flex items-center justify-center text-xs font-bold
-                               text-red-200 hover:border-yellow-400 hover:text-yellow-300
-                               transition-all"
-                    aria-label={`Visit our ${label} page`}
+                    className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-church-red transition-colors"
+                    aria-label={`Follow us on ${label}`}
                   >
-                    {abbr}
+                    <FontAwesomeIcon icon={icon} className="w-5 h-5" />
                   </a>
                 ) : null
               )}
+            </div>
+
+            {/* Service times */}
+            <div>
+              <h5 className="font-medium mb-2">Service Times</h5>
+              <p className="text-gray-300 text-sm">
+                Sunday Morning: 9:00 AM
+                <br />
+                Youth Service: 2:00 PM
+                 <br />
+                Midweek: 6:30 PM
+              </p>
             </div>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-red-800 pt-6 flex flex-col md:flex-row
-                        justify-between items-center gap-4 text-xs text-red-400">
-          <p>
-            © {new Date().getFullYear()} {settings["church.name"] ?? "Powerhouse Church"}.
-            All rights reserved.
+        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-gray-400 text-sm">
+            © {new Date().getFullYear()} {churchName}. All rights reserved. Built with love for our community.
           </p>
           <nav aria-label="Footer legal links">
-            <ul className="flex gap-6" role="list">
-              <li><Link to="/new-here" className="hover:text-red-200 transition-colors">New Here?</Link></li>
-              <li><Link to="/prayer-request" className="hover:text-red-200 transition-colors">Prayer Request</Link></li>
-              <li><Link to="/give" className="hover:text-red-200 transition-colors">Give Online</Link></li>
+            <ul className="flex gap-6 text-sm" role="list">
+              <li>
+                <Link to="/new-here" className="text-gray-400 hover:text-white transition-colors">
+                  New Here?
+                </Link>
+              </li>
+              <li>
+                <Link to="/prayer-request" className="text-gray-400 hover:text-white transition-colors">
+                  Prayer Request
+                </Link>
+              </li>
+              <li>
+                <Link to="/give" className="text-gray-400 hover:text-white transition-colors">
+                  Give Online
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
