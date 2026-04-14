@@ -3,7 +3,6 @@ import {
   useLoaderData,
   isRouteErrorResponse,
   useRouteError,
-  Link,
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";

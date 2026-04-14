@@ -2,70 +2,34 @@
   "framework": "react-router",
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm ci",
-  "outputDirectory": "build/client",
-
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key":   "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key":   "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key":   "X-XSS-Protection",
-          "value": "1; mode=block"
-        },
-        {
-          "key":   "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key":   "Permissions-Policy",
-          "value": "geolocation=(), camera=(), microphone=()"
-        }
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), camera=(), microphone=()" }
       ]
     },
     {
       "source": "/build/(.*)",
       "headers": [
-        {
-          "key":   "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
       "source": "/fonts/(.*)",
       "headers": [
-        {
-          "key":   "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
-
-  "rewrites": [
-    {
-      "source": "/robots.txt",
-      "destination": "/robots.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/sitemap.xml"
-    }
-  ],
-
   "git": {
     "deploymentEnabled": {
       "main": true
     }
   },
-
   "regions": ["sin1"]
 }
