@@ -1,26 +1,43 @@
 {
-  "include": [
-    "**/*",
-    "**/.server/**/*",
-    "**/.client/**/*",
-    ".react-router/types/**/*"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".react-router/types/**/*"],
   "compilerOptions": {
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["node", "vite/client"],
+    // Language & environment
+    "lib":    ["ES2022", "DOM", "DOM.Iterable"],
     "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "rootDirs": [".", "./.react-router/types"],
+    "module": "ESNext",
+
+    // Module resolution
+    "moduleResolution":       "bundler",
+    "verbatimModuleSyntax":   true,
+    "noEmit":                 true,
+    "resolveJsonModule":      true,
+    "allowImportingTsExtensions": true,
+
+    // Path aliases — matches vite.config.ts resolve.alias
+    "baseUrl": ".",
     "paths": {
       "~/*": ["./app/*"]
     },
-    "esModuleInterop": true,
-    "verbatimModuleSyntax": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "strict": true
+
+    // Strict mode — enforced across all files
+    "strict":                       true,
+    "noUncheckedIndexedAccess":     true,
+    "exactOptionalPropertyTypes":   false,
+    "noImplicitReturns":            true,
+    "noFallthroughCasesInSwitch":   true,
+    "noUnusedLocals":               true,
+    "noUnusedParameters":           true,
+    "forceConsistentCasingInFileNames": true,
+
+    // JSX
+    "jsx":         "react-jsx",
+    "jsxImportSource": "react",
+
+    // Source maps for debugging
+    "sourceMap":   true,
+    "declaration": false,
+
+    // Skip lib checking for faster type-check
+    "skipLibCheck": true
   }
 }
