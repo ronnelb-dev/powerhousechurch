@@ -101,11 +101,11 @@ export function Footer({ settings }: FooterProps) {
             <div>
               <h5 className="font-medium mb-2">Service Times</h5>
               <p className="text-gray-300 text-sm">
-                Sunday Morning: 9:00 AM
+                Morning Service: 9:00 AM (Sunday)
                 <br />
-                Youth Service: 2:00 PM
+                Youth Service: 2:00 PM  (Sunday)
                  <br />
-                Midweek: 6:30 PM
+                Midweek: 6:30 PM (Wednesday)
               </p>
             </div>
           </div>
