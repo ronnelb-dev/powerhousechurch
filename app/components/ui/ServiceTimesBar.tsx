@@ -1,6 +1,12 @@
+// app/components/ui/ServiceTimesBar.tsx
+// Displayed on the home page, overlapping the hero bottom.
+// Mobile: stacks vertically (single column).
+// sm+: 3 columns side by side with dividers.
+// Lifted above the section below with shadow.
+
 interface ServiceTime {
-  label: string;
-  time: string;
+  label:  string;
+  time:   string;
   detail: string;
 }
 
@@ -11,36 +17,32 @@ interface ServiceTimesBarProps {
 export function ServiceTimesBar({ times }: ServiceTimesBarProps) {
   return (
     <section
-      className="bg-primary-50 border border-primary-200 rounded-2xl
-                 py-6 px-8 my-8"
+      className="bg-white rounded-2xl shadow-lg shadow-red-900/10
+                 border border-red-100 overflow-hidden"
       aria-label="Service times"
     >
-      <p className="text-center text-xs font-sans font-bold tracking-widest
-                   uppercase text-red-600 mb-5">
-        Join Us in Worship
-      </p>
       <div
-        className="grid gap-6"
-        style={{ gridTemplateColumns: `repeat(${times.length}, 1fr)` }}
+        className={[
+          "grid divide-y divide-red-100",
+          "sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:divide-red-100",
+        ].join(" ")}
+        style={{ gridTemplateColumns: times.length === 3 ? undefined : `repeat(${times.length}, 1fr)` }}
       >
         {times.map((item, i) => (
           <div
             key={i}
-            className={[
-              "text-center",
-              i < times.length - 1
-                ? "border-r border-red-200 pr-6"
-                : "",
-            ].join(" ")}
+            className="flex flex-col items-center text-center px-4 py-5 sm:py-6"
           >
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-600 mb-1">
+            <p
+              className="font-sans font-bold text-red-600 tracking-[0.15em]
+                         uppercase text-xs mb-1.5"
+            >
               {item.label}
             </p>
-            <p className="font-serif text-2xl font-bold text-gray-900 mb-0.5">
+            <p className="font-serif font-bold text-gray-900 text-2xl sm:text-3xl mb-1">
               {item.time}
             </p>
-            <p className="text-xs text-gray-500 font-sans">{item.detail}</p>
+            <p className="font-sans text-gray-400 text-sm">{item.detail}</p>
           </div>
         ))}
       </div>

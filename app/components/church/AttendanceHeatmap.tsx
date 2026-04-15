@@ -1,75 +1,89 @@
+// app/components/church/AttendanceHeatmap.tsx
+// Visual 12-week Sunday attendance grid.
+// Each cell = one Sunday. Color encodes status.
+// Legend + percentage shown below the grid.
+// Screen reader: each cell has aria-label for its date + status.
+
 export type HeatmapCell = {
-  date: string;       // ISO date string
+  date:   string; // ISO date string YYYY-MM-DD
   status: "present" | "absent" | "unmarked" | "future";
 };
 
 interface AttendanceHeatmapProps {
-  cells: HeatmapCell[];
+  cells:  HeatmapCell[];
   label?: string;
 }
 
-const STATUS_CONFIG = {
-  present:  { bg: "bg-green-500",  title: "Present"  },
-  absent:   { bg: "bg-red-500",    title: "Absent"   },
-  unmarked: { bg: "bg-gray-200",   title: "Unmarked" },
-  future:   { bg: "bg-gray-100 border border-gray-200", title: "Upcoming" },
-} as const;
+const STATUS: Record<
+  HeatmapCell["status"],
+  { bg: string; label: string }
+> = {
+  present:  { bg: "bg-green-500",          label: "Present"  },
+  absent:   { bg: "bg-red-500",            label: "Absent"   },
+  unmarked: { bg: "bg-gray-200",           label: "Unmarked" },
+  future:   { bg: "bg-gray-100 border border-gray-200", label: "Upcoming" },
+};
 
 export function AttendanceHeatmap({ cells, label }: AttendanceHeatmapProps) {
   const presentCount = cells.filter((c) => c.status === "present").length;
-  const totalMarked  = cells.filter((c) => c.status !== "future").length;
-  const percentage   = totalMarked > 0
-    ? Math.round((presentCount / totalMarked) * 100)
-    : 0;
+  const markedCount  = cells.filter(
+    (c) => c.status === "present" || c.status === "absent"
+  ).length;
+  const percentage =
+    markedCount > 0 ? Math.round((presentCount / markedCount) * 100) : 0;
 
   return (
     <div>
       {label && (
-        <p className="text-xs font-sans font-bold tracking-widest uppercase
-                      text-gray-400 mb-3">
+        <p className="font-sans font-bold tracking-[0.15em] uppercase text-xs text-gray-400 mb-3">
           {label}
         </p>
       )}
 
-      {/* Grid */}
+      {/* Grid — 12 cells in a row, each is a square */}
       <div
         className="grid gap-1.5"
         style={{ gridTemplateColumns: `repeat(${Math.min(cells.length, 12)}, 1fr)` }}
         role="list"
-        aria-label="Attendance history"
+        aria-label="Sunday attendance history"
       >
         {cells.map((cell) => {
-          const config = STATUS_CONFIG[cell.status];
+          const { bg, label: statusLabel } = STATUS[cell.status];
+          const dateFormatted = new Date(cell.date + "T00:00:00").toLocaleDateString(
+            "en-PH",
+            { month: "short", day: "numeric" }
+          );
           return (
             <div
               key={cell.date}
               role="listitem"
-              title={`${cell.date}: ${config.title}`}
-              aria-label={`${cell.date}: ${config.title}`}
-              className={`aspect-square rounded-sm ${config.bg}`}
+              title={`${dateFormatted}: ${statusLabel}`}
+              aria-label={`${dateFormatted}: ${statusLabel}`}
+              className={`rounded-sm ${bg}`}
+              style={{ aspectRatio: "1" }}
             />
           );
         })}
       </div>
 
       {/* Legend + percentage */}
-      <div className="flex items-center justify-between mt-3">
-        <div className="flex gap-4" aria-label="Legend">
+      <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3" aria-label="Legend">
           {(["present", "absent", "unmarked"] as const).map((status) => (
             <span
               key={status}
-              className="flex items-center gap-1.5 text-xs text-gray-500 font-sans capitalize"
+              className="flex items-center gap-1.5 font-sans text-xs text-gray-500 capitalize"
             >
               <span
-                className={`inline-block w-2.5 h-2.5 rounded-sm ${STATUS_CONFIG[status].bg}`}
+                className={`inline-block w-3 h-3 rounded-sm ${STATUS[status].bg}`}
                 aria-hidden="true"
               />
-              {status}
+              {STATUS[status].label}
             </span>
           ))}
         </div>
         <span
-          className="text-xs font-sans font-bold text-gray-600"
+          className="font-sans font-bold text-xs text-gray-600"
           aria-label={`Attendance rate: ${percentage}%`}
         >
           {percentage}% attended

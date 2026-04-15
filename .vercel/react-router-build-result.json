@@ -1,0 +1,724 @@
+{
+  "buildManifest": {
+    "serverBundles": {
+      "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0": {
+        "id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+        "file": "build/server/nodejs_eyJydW50aW1lIjoibm9kZWpzIn0/index.js",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    },
+    "routeIdToServerBundleId": {
+      "root": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/robots[.txt]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sitemap[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/about": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/ministries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/cell-groups": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/events": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/new-here": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/give": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/live": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/contact": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/prayer-request": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/gallery": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sermons/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sermons/$sermonId": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/blog/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/blog/$slug": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/blog/rss[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/register": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/dashboard": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/profile": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/directory": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/community": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/attendance": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/reports": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/members": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/events": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/posts": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/prayers": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "app/root.tsx",
+        "path": "",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/robots[.txt]": {
+        "id": "routes/robots[.txt]",
+        "parentId": "root",
+        "file": "app/routes/robots[.txt].tsx",
+        "path": "robots.txt",
+        "config": {}
+      },
+      "routes/sitemap[.xml]": {
+        "id": "routes/sitemap[.xml]",
+        "parentId": "root",
+        "file": "app/routes/sitemap[.xml].tsx",
+        "path": "sitemap.xml",
+        "config": {}
+      },
+      "routes/_public": {
+        "id": "routes/_public",
+        "parentId": "root",
+        "file": "app/routes/_public.tsx",
+        "config": {}
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "routes/_public",
+        "file": "app/routes/_index.tsx",
+        "index": true,
+        "config": {}
+      },
+      "routes/about": {
+        "id": "routes/about",
+        "parentId": "routes/_public",
+        "file": "app/routes/about.tsx",
+        "path": "about",
+        "config": {}
+      },
+      "routes/ministries": {
+        "id": "routes/ministries",
+        "parentId": "routes/_public",
+        "file": "app/routes/ministries.tsx",
+        "path": "ministries",
+        "config": {}
+      },
+      "routes/cell-groups": {
+        "id": "routes/cell-groups",
+        "parentId": "routes/_public",
+        "file": "app/routes/cell-groups.tsx",
+        "path": "cell-groups",
+        "config": {}
+      },
+      "routes/events": {
+        "id": "routes/events",
+        "parentId": "routes/_public",
+        "file": "app/routes/events.tsx",
+        "path": "events",
+        "config": {}
+      },
+      "routes/new-here": {
+        "id": "routes/new-here",
+        "parentId": "routes/_public",
+        "file": "app/routes/new-here.tsx",
+        "path": "new-here",
+        "config": {}
+      },
+      "routes/give": {
+        "id": "routes/give",
+        "parentId": "routes/_public",
+        "file": "app/routes/give.tsx",
+        "path": "give",
+        "config": {}
+      },
+      "routes/live": {
+        "id": "routes/live",
+        "parentId": "routes/_public",
+        "file": "app/routes/live.tsx",
+        "path": "live",
+        "config": {}
+      },
+      "routes/contact": {
+        "id": "routes/contact",
+        "parentId": "routes/_public",
+        "file": "app/routes/contact.tsx",
+        "path": "contact",
+        "config": {}
+      },
+      "routes/prayer-request": {
+        "id": "routes/prayer-request",
+        "parentId": "routes/_public",
+        "file": "app/routes/prayer-request.tsx",
+        "path": "prayer-request",
+        "config": {}
+      },
+      "routes/gallery": {
+        "id": "routes/gallery",
+        "parentId": "routes/_public",
+        "file": "app/routes/gallery.tsx",
+        "path": "gallery",
+        "config": {}
+      },
+      "routes/sermons/_index": {
+        "id": "routes/sermons/_index",
+        "parentId": "routes/_public",
+        "file": "app/routes/sermons/_index.tsx",
+        "path": "sermons",
+        "index": true,
+        "config": {}
+      },
+      "routes/sermons/$sermonId": {
+        "id": "routes/sermons/$sermonId",
+        "parentId": "routes/_public",
+        "file": "app/routes/sermons/$sermonId.tsx",
+        "path": "sermons/:sermonId",
+        "config": {}
+      },
+      "routes/blog/_index": {
+        "id": "routes/blog/_index",
+        "parentId": "routes/_public",
+        "file": "app/routes/blog/_index.tsx",
+        "path": "blog",
+        "index": true,
+        "config": {}
+      },
+      "routes/blog/$slug": {
+        "id": "routes/blog/$slug",
+        "parentId": "routes/_public",
+        "file": "app/routes/blog/$slug.tsx",
+        "path": "blog/:slug",
+        "config": {}
+      },
+      "routes/blog/rss[.xml]": {
+        "id": "routes/blog/rss[.xml]",
+        "parentId": "routes/_public",
+        "file": "app/routes/blog/rss[.xml].tsx",
+        "path": "blog/rss.xml",
+        "config": {}
+      },
+      "routes/auth/login": {
+        "id": "routes/auth/login",
+        "parentId": "root",
+        "file": "app/routes/auth/login.tsx",
+        "path": "auth/login",
+        "config": {}
+      },
+      "routes/auth/register": {
+        "id": "routes/auth/register",
+        "parentId": "root",
+        "file": "app/routes/auth/register.tsx",
+        "path": "auth/register",
+        "config": {}
+      },
+      "routes/auth/logout": {
+        "id": "routes/auth/logout",
+        "parentId": "root",
+        "file": "app/routes/auth/logout.tsx",
+        "path": "auth/logout",
+        "config": {}
+      },
+      "routes/portal/_layout": {
+        "id": "routes/portal/_layout",
+        "parentId": "root",
+        "file": "app/routes/portal/_layout.tsx",
+        "config": {}
+      },
+      "routes/portal/dashboard": {
+        "id": "routes/portal/dashboard",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/dashboard.tsx",
+        "path": "portal",
+        "index": true,
+        "config": {}
+      },
+      "routes/portal/profile": {
+        "id": "routes/portal/profile",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/profile.tsx",
+        "path": "portal/profile",
+        "config": {}
+      },
+      "routes/portal/directory": {
+        "id": "routes/portal/directory",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/directory.tsx",
+        "path": "portal/directory",
+        "config": {}
+      },
+      "routes/portal/community": {
+        "id": "routes/portal/community",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/community.tsx",
+        "path": "portal/community",
+        "config": {}
+      },
+      "routes/portal/attendance": {
+        "id": "routes/portal/attendance",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/attendance.tsx",
+        "path": "portal/attendance",
+        "config": {}
+      },
+      "routes/portal/admin/_layout": {
+        "id": "routes/portal/admin/_layout",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/admin/_layout.tsx",
+        "config": {}
+      },
+      "routes/portal/admin/reports": {
+        "id": "routes/portal/admin/reports",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/reports.tsx",
+        "path": "portal/admin",
+        "index": true,
+        "config": {}
+      },
+      "routes/portal/admin/members": {
+        "id": "routes/portal/admin/members",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/members.tsx",
+        "path": "portal/admin/members",
+        "config": {}
+      },
+      "routes/portal/admin/sermons": {
+        "id": "routes/portal/admin/sermons",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/sermons.tsx",
+        "path": "portal/admin/sermons",
+        "config": {}
+      },
+      "routes/portal/admin/events": {
+        "id": "routes/portal/admin/events",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/events.tsx",
+        "path": "portal/admin/events",
+        "config": {}
+      },
+      "routes/portal/admin/posts": {
+        "id": "routes/portal/admin/posts",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/posts.tsx",
+        "path": "portal/admin/posts",
+        "config": {}
+      },
+      "routes/portal/admin/prayers": {
+        "id": "routes/portal/admin/prayers",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/prayers.tsx",
+        "path": "portal/admin/prayers",
+        "config": {}
+      },
+      "routes/portal/admin/settings": {
+        "id": "routes/portal/admin/settings",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/settings.tsx",
+        "path": "portal/admin/settings",
+        "config": {}
+      }
+    }
+  },
+  "reactRouterConfig": {
+    "appDirectory": "C:/work/powerhousechurch/app",
+    "basename": "/",
+    "buildDirectory": "C:/work/powerhousechurch/build",
+    "future": {
+      "unstable_optimizeDeps": false,
+      "unstable_passThroughRequests": false,
+      "unstable_subResourceIntegrity": false,
+      "unstable_trailingSlashAwareDataRequests": false,
+      "unstable_previewServerPrerendering": false,
+      "v8_middleware": false,
+      "v8_splitRouteModules": false,
+      "v8_viteEnvironmentApi": false
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "root.tsx",
+        "path": ""
+      },
+      "routes/robots[.txt]": {
+        "id": "routes/robots[.txt]",
+        "parentId": "root",
+        "file": "routes/robots[.txt].tsx",
+        "path": "robots.txt"
+      },
+      "routes/sitemap[.xml]": {
+        "id": "routes/sitemap[.xml]",
+        "parentId": "root",
+        "file": "routes/sitemap[.xml].tsx",
+        "path": "sitemap.xml"
+      },
+      "routes/_public": {
+        "id": "routes/_public",
+        "parentId": "root",
+        "file": "routes/_public.tsx"
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "routes/_public",
+        "file": "routes/_index.tsx",
+        "index": true
+      },
+      "routes/about": {
+        "id": "routes/about",
+        "parentId": "routes/_public",
+        "file": "routes/about.tsx",
+        "path": "about"
+      },
+      "routes/ministries": {
+        "id": "routes/ministries",
+        "parentId": "routes/_public",
+        "file": "routes/ministries.tsx",
+        "path": "ministries"
+      },
+      "routes/cell-groups": {
+        "id": "routes/cell-groups",
+        "parentId": "routes/_public",
+        "file": "routes/cell-groups.tsx",
+        "path": "cell-groups"
+      },
+      "routes/events": {
+        "id": "routes/events",
+        "parentId": "routes/_public",
+        "file": "routes/events.tsx",
+        "path": "events"
+      },
+      "routes/new-here": {
+        "id": "routes/new-here",
+        "parentId": "routes/_public",
+        "file": "routes/new-here.tsx",
+        "path": "new-here"
+      },
+      "routes/give": {
+        "id": "routes/give",
+        "parentId": "routes/_public",
+        "file": "routes/give.tsx",
+        "path": "give"
+      },
+      "routes/live": {
+        "id": "routes/live",
+        "parentId": "routes/_public",
+        "file": "routes/live.tsx",
+        "path": "live"
+      },
+      "routes/contact": {
+        "id": "routes/contact",
+        "parentId": "routes/_public",
+        "file": "routes/contact.tsx",
+        "path": "contact"
+      },
+      "routes/prayer-request": {
+        "id": "routes/prayer-request",
+        "parentId": "routes/_public",
+        "file": "routes/prayer-request.tsx",
+        "path": "prayer-request"
+      },
+      "routes/gallery": {
+        "id": "routes/gallery",
+        "parentId": "routes/_public",
+        "file": "routes/gallery.tsx",
+        "path": "gallery"
+      },
+      "routes/sermons/_index": {
+        "id": "routes/sermons/_index",
+        "parentId": "routes/_public",
+        "file": "routes/sermons/_index.tsx",
+        "path": "sermons",
+        "index": true
+      },
+      "routes/sermons/$sermonId": {
+        "id": "routes/sermons/$sermonId",
+        "parentId": "routes/_public",
+        "file": "routes/sermons/$sermonId.tsx",
+        "path": "sermons/:sermonId"
+      },
+      "routes/blog/_index": {
+        "id": "routes/blog/_index",
+        "parentId": "routes/_public",
+        "file": "routes/blog/_index.tsx",
+        "path": "blog",
+        "index": true
+      },
+      "routes/blog/$slug": {
+        "id": "routes/blog/$slug",
+        "parentId": "routes/_public",
+        "file": "routes/blog/$slug.tsx",
+        "path": "blog/:slug"
+      },
+      "routes/blog/rss[.xml]": {
+        "id": "routes/blog/rss[.xml]",
+        "parentId": "routes/_public",
+        "file": "routes/blog/rss[.xml].tsx",
+        "path": "blog/rss.xml"
+      },
+      "routes/auth/login": {
+        "id": "routes/auth/login",
+        "parentId": "root",
+        "file": "routes/auth/login.tsx",
+        "path": "auth/login"
+      },
+      "routes/auth/register": {
+        "id": "routes/auth/register",
+        "parentId": "root",
+        "file": "routes/auth/register.tsx",
+        "path": "auth/register"
+      },
+      "routes/auth/logout": {
+        "id": "routes/auth/logout",
+        "parentId": "root",
+        "file": "routes/auth/logout.tsx",
+        "path": "auth/logout"
+      },
+      "routes/portal/_layout": {
+        "id": "routes/portal/_layout",
+        "parentId": "root",
+        "file": "routes/portal/_layout.tsx"
+      },
+      "routes/portal/dashboard": {
+        "id": "routes/portal/dashboard",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/dashboard.tsx",
+        "path": "portal",
+        "index": true
+      },
+      "routes/portal/profile": {
+        "id": "routes/portal/profile",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/profile.tsx",
+        "path": "portal/profile"
+      },
+      "routes/portal/directory": {
+        "id": "routes/portal/directory",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/directory.tsx",
+        "path": "portal/directory"
+      },
+      "routes/portal/community": {
+        "id": "routes/portal/community",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/community.tsx",
+        "path": "portal/community"
+      },
+      "routes/portal/attendance": {
+        "id": "routes/portal/attendance",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/attendance.tsx",
+        "path": "portal/attendance"
+      },
+      "routes/portal/admin/_layout": {
+        "id": "routes/portal/admin/_layout",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/admin/_layout.tsx"
+      },
+      "routes/portal/admin/reports": {
+        "id": "routes/portal/admin/reports",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/reports.tsx",
+        "path": "portal/admin",
+        "index": true
+      },
+      "routes/portal/admin/members": {
+        "id": "routes/portal/admin/members",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/members.tsx",
+        "path": "portal/admin/members"
+      },
+      "routes/portal/admin/sermons": {
+        "id": "routes/portal/admin/sermons",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/sermons.tsx",
+        "path": "portal/admin/sermons"
+      },
+      "routes/portal/admin/events": {
+        "id": "routes/portal/admin/events",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/events.tsx",
+        "path": "portal/admin/events"
+      },
+      "routes/portal/admin/posts": {
+        "id": "routes/portal/admin/posts",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/posts.tsx",
+        "path": "portal/admin/posts"
+      },
+      "routes/portal/admin/prayers": {
+        "id": "routes/portal/admin/prayers",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/prayers.tsx",
+        "path": "portal/admin/prayers"
+      },
+      "routes/portal/admin/settings": {
+        "id": "routes/portal/admin/settings",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/settings.tsx",
+        "path": "portal/admin/settings"
+      }
+    },
+    "routeDiscovery": {
+      "mode": "lazy",
+      "manifestPath": "/__manifest"
+    },
+    "serverBuildFile": "index.js",
+    "serverModuleFormat": "esm",
+    "ssr": true,
+    "allowedActionOrigins": false,
+    "unstable_routeConfig": [
+      {
+        "id": "root",
+        "path": "",
+        "file": "root.tsx",
+        "children": [
+          {
+            "file": "routes/robots[.txt].tsx",
+            "path": "robots.txt"
+          },
+          {
+            "file": "routes/sitemap[.xml].tsx",
+            "path": "sitemap.xml"
+          },
+          {
+            "file": "routes/_public.tsx",
+            "children": [
+              {
+                "file": "routes/_index.tsx",
+                "index": true
+              },
+              {
+                "file": "routes/about.tsx",
+                "path": "about"
+              },
+              {
+                "file": "routes/ministries.tsx",
+                "path": "ministries"
+              },
+              {
+                "file": "routes/cell-groups.tsx",
+                "path": "cell-groups"
+              },
+              {
+                "file": "routes/events.tsx",
+                "path": "events"
+              },
+              {
+                "file": "routes/new-here.tsx",
+                "path": "new-here"
+              },
+              {
+                "file": "routes/give.tsx",
+                "path": "give"
+              },
+              {
+                "file": "routes/live.tsx",
+                "path": "live"
+              },
+              {
+                "file": "routes/contact.tsx",
+                "path": "contact"
+              },
+              {
+                "file": "routes/prayer-request.tsx",
+                "path": "prayer-request"
+              },
+              {
+                "file": "routes/gallery.tsx",
+                "path": "gallery"
+              },
+              {
+                "file": "routes/sermons/_index.tsx",
+                "index": true,
+                "path": "sermons"
+              },
+              {
+                "file": "routes/sermons/$sermonId.tsx",
+                "path": "sermons/:sermonId"
+              },
+              {
+                "file": "routes/blog/_index.tsx",
+                "index": true,
+                "path": "blog"
+              },
+              {
+                "file": "routes/blog/$slug.tsx",
+                "path": "blog/:slug"
+              },
+              {
+                "file": "routes/blog/rss[.xml].tsx",
+                "path": "blog/rss.xml"
+              }
+            ]
+          },
+          {
+            "file": "routes/auth/login.tsx",
+            "path": "auth/login"
+          },
+          {
+            "file": "routes/auth/register.tsx",
+            "path": "auth/register"
+          },
+          {
+            "file": "routes/auth/logout.tsx",
+            "path": "auth/logout"
+          },
+          {
+            "file": "routes/portal/_layout.tsx",
+            "children": [
+              {
+                "file": "routes/portal/dashboard.tsx",
+                "index": true,
+                "path": "portal"
+              },
+              {
+                "file": "routes/portal/profile.tsx",
+                "path": "portal/profile"
+              },
+              {
+                "file": "routes/portal/directory.tsx",
+                "path": "portal/directory"
+              },
+              {
+                "file": "routes/portal/community.tsx",
+                "path": "portal/community"
+              },
+              {
+                "file": "routes/portal/attendance.tsx",
+                "path": "portal/attendance"
+              },
+              {
+                "file": "routes/portal/admin/_layout.tsx",
+                "children": [
+                  {
+                    "file": "routes/portal/admin/reports.tsx",
+                    "index": true,
+                    "path": "portal/admin"
+                  },
+                  {
+                    "file": "routes/portal/admin/members.tsx",
+                    "path": "portal/admin/members"
+                  },
+                  {
+                    "file": "routes/portal/admin/sermons.tsx",
+                    "path": "portal/admin/sermons"
+                  },
+                  {
+                    "file": "routes/portal/admin/events.tsx",
+                    "path": "portal/admin/events"
+                  },
+                  {
+                    "file": "routes/portal/admin/posts.tsx",
+                    "path": "portal/admin/posts"
+                  },
+                  {
+                    "file": "routes/portal/admin/prayers.tsx",
+                    "path": "portal/admin/prayers"
+                  },
+                  {
+                    "file": "routes/portal/admin/settings.tsx",
+                    "path": "portal/admin/settings"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "viteConfig": {
+    "build": {
+      "assetsDir": "assets"
+    }
+  }
+}
