@@ -6,6 +6,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
@@ -13,6 +14,17 @@ import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 
 export const meta: MetaFunction = () => [{ title: "Manage Cell Groups - Admin" }];
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type CellGroupData = LoaderData["cellGroups"][number];
+type LeadersData = LoaderData["leaders"];
+type CellGroupActionData = {
+  ok: boolean;
+  intent?: FormDataEntryValue | null;
+  cellGroupId?: string;
+  formError?: string;
+  errors?: Record<string, string[] | undefined>;
+};
 
 const cellGroupSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100, "Name is too long."),
@@ -96,6 +108,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
+async function findDuplicateCellGroup(args: {
+  name: string;
+  excludeId?: string;
+}) {
+  const { name, excludeId } = args;
+  return db.cellGroup.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await requireAdmin(request);
   const formData = await request.formData();
@@ -121,6 +150,18 @@ export async function action({ request }: ActionFunctionArgs) {
         ok: false,
         intent,
         errors: { leaderId: ["Selected leader is no longer active."] },
+      };
+    }
+
+    const duplicateCellGroup = await findDuplicateCellGroup({
+      name: result.data.name,
+    });
+
+    if (duplicateCellGroup) {
+      return {
+        ok: false,
+        intent,
+        errors: { name: [`A cell group named "${duplicateCellGroup.name}" already exists.`] },
       };
     }
 
@@ -161,6 +202,20 @@ export async function action({ request }: ActionFunctionArgs) {
         intent,
         cellGroupId,
         errors: { leaderId: ["Selected leader is no longer active."] },
+      };
+    }
+
+    const duplicateCellGroup = await findDuplicateCellGroup({
+      name: result.data.name,
+      excludeId: cellGroupId,
+    });
+
+    if (duplicateCellGroup) {
+      return {
+        ok: false,
+        intent,
+        cellGroupId,
+        errors: { name: [`A cell group named "${duplicateCellGroup.name}" already exists.`] },
       };
     }
 
@@ -228,11 +283,11 @@ function CellGroupRow({
   cellGroup,
   leaders,
 }: {
-  cellGroup: ReturnType<typeof useLoaderData<typeof loader>>["cellGroups"][0];
-  leaders: ReturnType<typeof useLoaderData<typeof loader>>["leaders"];
+  cellGroup: CellGroupData;
+  leaders: LeadersData;
 }) {
-  const updateFetcher = useFetcher<typeof action>();
-  const deleteFetcher = useFetcher<typeof action>();
+  const updateFetcher = useFetcher<CellGroupActionData>();
+  const deleteFetcher = useFetcher<CellGroupActionData>();
 
   const updateErrors =
     updateFetcher.data &&
@@ -399,11 +454,18 @@ function CellGroupRow({
 
 export default function AdminCellGroupsPage() {
   const { cellGroups, leaders } = useLoaderData<typeof loader>();
-  const createFetcher = useFetcher<typeof action>();
+  const createFetcher = useFetcher<CellGroupActionData>();
+  const createFormRef = useRef<HTMLFormElement>(null);
   const createErrors =
     createFetcher.data && !createFetcher.data.ok && createFetcher.data.intent === "create"
       ? createFetcher.data.errors
       : undefined;
+
+  useEffect(() => {
+    if (createFetcher.state === "idle" && createFetcher.data?.ok && createFetcher.data.intent === "create") {
+      createFormRef.current?.reset();
+    }
+  }, [createFetcher.state, createFetcher.data]);
 
   return (
     <div className="space-y-8">
@@ -434,7 +496,7 @@ export default function AdminCellGroupsPage() {
             message="Create or reactivate a member first so you can assign them as a cell group leader."
           />
         ) : (
-          <createFetcher.Form method="post" className="space-y-4">
+          <createFetcher.Form ref={createFormRef} method="post" className="space-y-4">
             <input type="hidden" name="intent" value="create" />
 
             <div className="grid gap-4 md:grid-cols-2">

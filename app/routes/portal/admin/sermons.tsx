@@ -4,14 +4,12 @@
 import {
   useLoaderData,
   useFetcher,
-  Form,
-  useNavigation,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
@@ -19,6 +17,16 @@ import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 
 export const meta: MetaFunction = () => [{ title: "Manage Sermons — Admin" }];
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type AdminSermon = LoaderData["sermons"][number];
+type SermonActionData = {
+  success?: boolean;
+  sermonId?: string;
+  message?: string;
+  formError?: string;
+  errors?: Record<string, string[] | undefined>;
+};
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
@@ -55,6 +63,27 @@ const SermonSchema = z.object({
   isPublished: z.coerce.boolean().default(true),
 });
 
+async function findDuplicateSermon(args: {
+  title: string;
+  speaker: string;
+  date: Date;
+  excludeId?: string;
+}) {
+  const { title, speaker, date, excludeId } = args;
+  return db.sermon.findFirst({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      speaker: { equals: speaker, mode: "insensitive" },
+      date,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await requireAdmin(request);
   const formData = await request.formData();
@@ -62,24 +91,25 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (intent === "create" || intent === "update") {
     const raw = {
-      title:       formData.get("title")       as string,
-      speaker:     formData.get("speaker")     as string,
-      series:      formData.get("series")      as string ?? "",
-      videoUrl:    formData.get("videoUrl")    as string ?? "",
-      audioUrl:    formData.get("audioUrl")    as string ?? "",
-      thumbnail:   formData.get("thumbnail")   as string ?? "",
-      notes:       formData.get("notes")       as string ?? "",
-      scriptureFocus: formData.get("scriptureFocus") as string ?? "",
-      weeklyGuide: formData.get("weeklyGuide") as string ?? "",
-      reflectionPrompts: formData.get("reflectionPrompts") as string ?? "",
-      date:        formData.get("date")        as string,
-      tags:        formData.get("tags")        as string ?? "",
+      title:       String(formData.get("title") ?? "").trim(),
+      speaker:     String(formData.get("speaker") ?? "").trim(),
+      series:      String(formData.get("series") ?? "").trim(),
+      videoUrl:    String(formData.get("videoUrl") ?? "").trim(),
+      audioUrl:    String(formData.get("audioUrl") ?? "").trim(),
+      thumbnail:   String(formData.get("thumbnail") ?? "").trim(),
+      notes:       String(formData.get("notes") ?? "").trim(),
+      scriptureFocus: String(formData.get("scriptureFocus") ?? "").trim(),
+      weeklyGuide: String(formData.get("weeklyGuide") ?? "").trim(),
+      reflectionPrompts: String(formData.get("reflectionPrompts") ?? "").trim(),
+      date:        String(formData.get("date") ?? ""),
+      tags:        String(formData.get("tags") ?? "").trim(),
       isPublished: formData.get("isPublished") as string,
     };
     const result = SermonSchema.safeParse(raw);
     if (!result.success) {
       return { success: false, errors: result.error.flatten().fieldErrors };
     }
+    const id = String(formData.get("id") ?? "");
     const { date, ...rest } = result.data;
     const data = {
       ...rest,
@@ -94,13 +124,31 @@ export async function action({ request }: ActionFunctionArgs) {
       date: new Date(date),
     };
 
+    const duplicateSermon = await findDuplicateSermon({
+      title: data.title,
+      speaker: data.speaker,
+      date: data.date,
+      excludeId: intent === "update" ? id : undefined,
+    });
+
+    if (duplicateSermon) {
+      return {
+        success: false,
+        sermonId: intent === "update" ? id : undefined,
+        formError: `A matching sermon already exists: "${duplicateSermon.title}".`,
+      };
+    }
+
     if (intent === "create") {
       await db.sermon.create({ data });
     } else {
-      const id = formData.get("id") as string;
       await db.sermon.update({ where: { id }, data });
     }
-    return { success: true };
+    return {
+      success: true,
+      sermonId: intent === "update" ? id : undefined,
+      message: intent === "create" ? "Sermon created." : "Sermon updated.",
+    };
   }
 
   if (intent === "delete") {
@@ -137,11 +185,18 @@ function SermonForm({
   sermon,
   onClose,
 }: {
-  sermon?: ReturnType<typeof useLoaderData<typeof loader>>["sermons"][0] | null;
+  sermon?: AdminSermon | null;
   onClose: () => void;
 }) {
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const fetcher = useFetcher<SermonActionData>();
+  const isSubmitting = fetcher.state !== "idle";
+  const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      onClose();
+    }
+  }, [fetcher.state, fetcher.data, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -154,54 +209,68 @@ function SermonForm({
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl
                                                leading-none focus:outline-none" aria-label="Close">×</button>
         </div>
-        <Form method="post" className="p-6 space-y-4">
+        <fetcher.Form method="post" className="p-6 space-y-4">
           <input type="hidden" name="intent" value={sermon ? "update" : "create"} />
           {sermon && <input type="hidden" name="id" value={sermon.id} />}
+
+          {fetcher.data?.success === false && fetcher.data.formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {fetcher.data.formError}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label htmlFor="s-title" className={labelClass}>Title *</label>
               <input id="s-title" type="text" name="title"
                      defaultValue={sermon?.title} required className={inputClass} />
+              <FieldError errors={errors.title} />
             </div>
             <div>
               <label htmlFor="s-speaker" className={labelClass}>Speaker *</label>
               <input id="s-speaker" type="text" name="speaker"
                      defaultValue={sermon?.speaker} required className={inputClass} />
+              <FieldError errors={errors.speaker} />
             </div>
             <div>
               <label htmlFor="s-series" className={labelClass}>Series</label>
               <input id="s-series" type="text" name="series"
                      defaultValue={sermon?.series ?? ""} className={inputClass} />
+              <FieldError errors={errors.series} />
             </div>
             <div>
               <label htmlFor="s-date" className={labelClass}>Date *</label>
               <input id="s-date" type="date" name="date"
                      defaultValue={sermon?.date?.slice(0, 10)} required className={inputClass} />
+              <FieldError errors={errors.date} />
             </div>
             <div>
               <label htmlFor="s-tags" className={labelClass}>Tags (comma-separated)</label>
               <input id="s-tags" type="text" name="tags"
                      defaultValue={sermon?.tags} placeholder="Faith,Holy Spirit,Revival"
                      className={inputClass} />
+              <FieldError errors={errors.tags} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-videoUrl" className={labelClass}>YouTube Video URL</label>
               <input id="s-videoUrl" type="url" name="videoUrl"
                      defaultValue={sermon?.videoUrl ?? ""}
                      placeholder="https://www.youtube.com/watch?v=..." className={inputClass} />
+              <FieldError errors={errors.videoUrl} />
             </div>
             <div>
               <label htmlFor="s-audioUrl" className={labelClass}>Audio URL</label>
               <input id="s-audioUrl" type="url" name="audioUrl"
                      defaultValue={sermon?.audioUrl ?? ""}
                      placeholder="https://..." className={inputClass} />
+              <FieldError errors={errors.audioUrl} />
             </div>
             <div>
               <label htmlFor="s-thumbnail" className={labelClass}>Thumbnail URL</label>
               <input id="s-thumbnail" type="url" name="thumbnail"
                      defaultValue={sermon?.thumbnail ?? ""}
                      placeholder="https://res.cloudinary.com/..." className={inputClass} />
+              <FieldError errors={errors.thumbnail} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-notes" className={labelClass}>Sermon Notes (Markdown)</label>
@@ -209,12 +278,14 @@ function SermonForm({
                         className={`${inputClass} resize-y`}
                         defaultValue={sermon?.notes ?? ""}
                         placeholder="## Key Points&#10;- Point 1&#10;- Point 2" />
+              <FieldError errors={errors.notes} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-scriptureFocus" className={labelClass}>Scripture Focus</label>
               <input id="s-scriptureFocus" type="text" name="scriptureFocus"
                      defaultValue={sermon?.scriptureFocus ?? ""}
                      placeholder="James 1:22-25" className={inputClass} />
+              <FieldError errors={errors.scriptureFocus} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-weeklyGuide" className={labelClass}>Weekly Sermon Guide</label>
@@ -222,6 +293,7 @@ function SermonForm({
                         defaultValue={sermon?.weeklyGuide ?? ""}
                         className={`${inputClass} resize-y`}
                         placeholder="Summarize how the church can carry this message into the week." />
+              <FieldError errors={errors.weeklyGuide} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-reflectionPrompts" className={labelClass}>
@@ -231,6 +303,7 @@ function SermonForm({
                         defaultValue={sermon?.reflectionPrompts ?? ""}
                         className={`${inputClass} resize-y`}
                         placeholder={"One prompt per line\nWhere is God asking for obedience this week?\nWho can you encourage with this message?"} />
+              <FieldError errors={errors.reflectionPrompts} />
             </div>
           </div>
 
@@ -253,7 +326,7 @@ function SermonForm({
               Cancel
             </button>
           </div>
-        </Form>
+        </fetcher.Form>
       </div>
     </div>
   );
@@ -262,9 +335,7 @@ function SermonForm({
 export default function AdminSermonsPage() {
   const { sermons } = useLoaderData<typeof loader>();
   const [showForm, setShowForm] = useState(false);
-  const [editSermon, setEditSermon] = useState<typeof sermons[0] | null>(null);
-  const deleteFetcher = useFetcher();
-  const toggleFetcher = useFetcher();
+  const [editSermon, setEditSermon] = useState<AdminSermon | null>(null);
 
   return (
     <div>
@@ -285,6 +356,7 @@ export default function AdminSermonsPage() {
 
       {(showForm || editSermon) && (
         <SermonForm
+          key={editSermon?.id ?? "new"}
           sermon={editSermon}
           onClose={() => { setShowForm(false); setEditSermon(null); }}
         />
@@ -305,67 +377,14 @@ export default function AdminSermonsPage() {
             </thead>
             <tbody>
               {sermons.map((sermon) => (
-                <tr key={sermon.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-4">
-                    <p className="font-sans font-bold text-gray-800 text-sm truncate max-w-xs">
-                      {sermon.title}
-                    </p>
-                    {sermon.series && (
-                      <p className="text-xs text-gray-400 font-sans">{sermon.series}</p>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-xs text-gray-600 font-sans">{sermon.speaker}</td>
-                  <td className="py-3 px-4 text-xs text-gray-400 font-sans">
-                    {new Date(sermon.date).toLocaleDateString("en-PH", {
-                      month: "short", day: "numeric", year: "numeric",
-                    })}
-                  </td>
-                  <td className="py-3 px-4">
-                    <toggleFetcher.Form method="post">
-                      <input type="hidden" name="intent" value="togglePublished" />
-                      <input type="hidden" name="id" value={sermon.id} />
-                      <button type="submit"
-                              className={[
-                                "text-xs font-sans font-bold px-2.5 py-1 rounded-full border transition-all",
-                                sermon.isPublished
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : "bg-gray-50 text-gray-500 border-gray-200",
-                              ].join(" ")}
-                              aria-label={`Toggle published status for ${sermon.title}`}>
-                        {sermon.isPublished ? "Published" : "Draft"}
-                      </button>
-                    </toggleFetcher.Form>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => { setEditSermon(sermon); setShowForm(false); }}
-                        className="text-xs font-sans font-bold text-blue-600 hover:text-blue-800
-                                   px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50
-                                   transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      >
-                        Edit
-                      </button>
-                      <deleteFetcher.Form method="post">
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={sermon.id} />
-                        <button
-                          type="submit"
-                          onClick={(e) => {
-                            if (!confirm(`Delete "${sermon.title}"? This cannot be undone.`)) {
-                              e.preventDefault();
-                            }
-                          }}
-                          className="text-xs font-sans font-bold text-red-600 hover:text-red-800
-                                     px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50
-                                     transition-all focus:outline-none focus:ring-2 focus:ring-red-300"
-                        >
-                          Delete
-                        </button>
-                      </deleteFetcher.Form>
-                    </div>
-                  </td>
-                </tr>
+                <SermonRow
+                  key={sermon.id}
+                  sermon={sermon}
+                  onEdit={(nextSermon) => {
+                    setEditSermon(nextSermon);
+                    setShowForm(false);
+                  }}
+                />
               ))}
             </tbody>
           </table>
@@ -376,6 +395,92 @@ export default function AdminSermonsPage() {
       )}
     </div>
   );
+}
+
+function SermonRow({
+  sermon,
+  onEdit,
+}: {
+  sermon: AdminSermon;
+  onEdit: (sermon: AdminSermon) => void;
+}) {
+  const deleteFetcher = useFetcher<SermonActionData>();
+  const toggleFetcher = useFetcher<SermonActionData>();
+  const isDeleting = deleteFetcher.state !== "idle";
+  const isToggling = toggleFetcher.state !== "idle";
+
+  return (
+    <tr className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+      <td className="py-3 px-4">
+        <p className="font-sans font-bold text-gray-800 text-sm truncate max-w-xs">
+          {sermon.title}
+        </p>
+        {sermon.series && (
+          <p className="text-xs text-gray-400 font-sans">{sermon.series}</p>
+        )}
+      </td>
+      <td className="py-3 px-4 text-xs text-gray-600 font-sans">{sermon.speaker}</td>
+      <td className="py-3 px-4 text-xs text-gray-400 font-sans">
+        {new Date(sermon.date).toLocaleDateString("en-PH", {
+          month: "short", day: "numeric", year: "numeric",
+        })}
+      </td>
+      <td className="py-3 px-4">
+        <toggleFetcher.Form method="post">
+          <input type="hidden" name="intent" value="togglePublished" />
+          <input type="hidden" name="id" value={sermon.id} />
+          <button
+            type="submit"
+            disabled={isToggling}
+            className={[
+              "text-xs font-sans font-bold px-2.5 py-1 rounded-full border transition-all disabled:opacity-60",
+              sermon.isPublished
+                ? "bg-green-50 text-green-700 border-green-200"
+                : "bg-gray-50 text-gray-500 border-gray-200",
+            ].join(" ")}
+            aria-label={`Toggle published status for ${sermon.title}`}
+          >
+            {isToggling ? "Saving..." : sermon.isPublished ? "Published" : "Draft"}
+          </button>
+        </toggleFetcher.Form>
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => onEdit(sermon)}
+            className="text-xs font-sans font-bold text-blue-600 hover:text-blue-800
+                       px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50
+                       transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            Edit
+          </button>
+          <deleteFetcher.Form method="post">
+            <input type="hidden" name="intent" value="delete" />
+            <input type="hidden" name="id" value={sermon.id} />
+            <button
+              type="submit"
+              disabled={isDeleting}
+              onClick={(e) => {
+                if (!confirm(`Delete "${sermon.title}"? This cannot be undone.`)) {
+                  e.preventDefault();
+                }
+              }}
+              className="text-xs font-sans font-bold text-red-600 hover:text-red-800
+                         px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50
+                         transition-all focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </deleteFetcher.Form>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function FieldError({ errors }: { errors?: string[] }) {
+  if (!errors?.length) return null;
+  return <p className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
 }
 
 export function ErrorBoundary() {

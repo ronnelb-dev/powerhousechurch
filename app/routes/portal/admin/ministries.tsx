@@ -6,6 +6,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
@@ -14,6 +15,16 @@ import { ensureSampleMinistries } from "~/lib/ministries.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 
 export const meta: MetaFunction = () => [{ title: "Manage Ministries — Admin" }];
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type MinistryData = LoaderData["ministries"][number];
+type MinistryActionData = {
+  ok: boolean;
+  intent?: FormDataEntryValue | null;
+  ministryId?: string;
+  formError?: string;
+  errors?: Record<string, string[] | undefined>;
+};
 
 const ministrySchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120, "Name is too long."),
@@ -68,6 +79,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
+async function findDuplicateMinistry(args: {
+  name: string;
+  excludeId?: string;
+}) {
+  const { name, excludeId } = args;
+  return db.ministry.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await requireAdmin(request);
   const formData = await request.formData();
@@ -77,6 +105,18 @@ export async function action({ request }: ActionFunctionArgs) {
     const result = parseMinistryForm(formData);
     if (!result.success) {
       return { ok: false, intent, errors: result.error.flatten().fieldErrors };
+    }
+
+    const duplicateMinistry = await findDuplicateMinistry({
+      name: result.data.name,
+    });
+
+    if (duplicateMinistry) {
+      return {
+        ok: false,
+        intent,
+        errors: { name: [`A ministry named "${duplicateMinistry.name}" already exists.`] },
+      };
     }
 
     await db.ministry.create({
@@ -102,6 +142,20 @@ export async function action({ request }: ActionFunctionArgs) {
         intent,
         ministryId,
         errors: result.error.flatten().fieldErrors,
+      };
+    }
+
+    const duplicateMinistry = await findDuplicateMinistry({
+      name: result.data.name,
+      excludeId: ministryId,
+    });
+
+    if (duplicateMinistry) {
+      return {
+        ok: false,
+        intent,
+        ministryId,
+        errors: { name: [`A ministry named "${duplicateMinistry.name}" already exists.`] },
       };
     }
 
@@ -140,10 +194,10 @@ function FieldError({ message }: { message?: string }) {
 function MinistryRow({
   ministry,
 }: {
-  ministry: ReturnType<typeof useLoaderData<typeof loader>>["ministries"][0];
+  ministry: MinistryData;
 }) {
-  const updateFetcher = useFetcher<typeof action>();
-  const deleteFetcher = useFetcher<typeof action>();
+  const updateFetcher = useFetcher<MinistryActionData>();
+  const deleteFetcher = useFetcher<MinistryActionData>();
 
   const updateErrors =
     updateFetcher.data &&
@@ -309,12 +363,19 @@ function MinistryRow({
 
 export default function AdminMinistriesPage() {
   const { ministries } = useLoaderData<typeof loader>();
-  const createFetcher = useFetcher<typeof action>();
+  const createFetcher = useFetcher<MinistryActionData>();
+  const createFormRef = useRef<HTMLFormElement>(null);
 
   const createErrors =
     createFetcher.data && !createFetcher.data.ok && createFetcher.data.intent === "create"
       ? createFetcher.data.errors
       : undefined;
+
+  useEffect(() => {
+    if (createFetcher.state === "idle" && createFetcher.data?.ok && createFetcher.data.intent === "create") {
+      createFormRef.current?.reset();
+    }
+  }, [createFetcher.state, createFetcher.data]);
 
   return (
     <div className="space-y-8">
@@ -338,7 +399,7 @@ export default function AdminMinistriesPage() {
           </p>
         </div>
 
-        <createFetcher.Form method="post" className="space-y-4">
+        <createFetcher.Form ref={createFormRef} method="post" className="space-y-4">
           <input type="hidden" name="intent" value="create" />
 
           <div className="grid gap-4 md:grid-cols-2">
