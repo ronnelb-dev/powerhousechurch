@@ -163,7 +163,6 @@ export default function CellGroupsPage() {
                   </p>
                 </div>
 
-                {/* Request to join form */}
                 {actionData?.success ? (
                   <p className="text-xs font-sans font-bold text-green-600"
                      aria-live="polite">
