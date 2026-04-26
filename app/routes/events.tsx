@@ -355,30 +355,41 @@ export default function EventsPage() {
           subtitle="Mark your calendar for gatherings designed to strengthen faith and deepen friendship."
         />
         {upcoming.length > 0 ? (
-          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 space-y-8">
             {upcoming.map((event: SerializedUpcomingEvent) => (
-              <div key={event.id} id={event.id}>
-                <EventCard
-                  id={event.id}
-                  title={event.title}
-                  location={event.location}
-                  startDate={event.startDate}
-                  endDate={event.endDate}
-                  imageUrl={event.imageUrl}
-                />
-                <div className="mt-3 px-1">
-                  <p className="text-sm leading-6">{event.description}</p>
+              <section
+                key={event.id}
+                id={event.id}
+                className={
+                  event.requiresRegistration
+                    ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:items-start"
+                    : "max-w-3xl"
+                }
+              >
+                <div className="min-w-0">
+                  <EventCard
+                    id={event.id}
+                    title={event.title}
+                    location={event.location}
+                    startDate={event.startDate}
+                    endDate={event.endDate}
+                    imageUrl={event.imageUrl}
+                  />
+                  <div className="mt-3 px-1">
+                    <p className="text-sm leading-6">{event.description}</p>
+                  </div>
+                  <CalendarLinks
+                    eventId={event.id}
+                    title={event.title}
+                    description={event.description}
+                    location={event.location}
+                    startDate={event.startDate}
+                    endDate={event.endDate}
+                  />
                 </div>
-                <CalendarLinks
-                  eventId={event.id}
-                  title={event.title}
-                  description={event.description}
-                  location={event.location}
-                  startDate={event.startDate}
-                  endDate={event.endDate}
-                />
+
                 {event.requiresRegistration && (
-                  <div className="mt-4 rounded-[var(--radius)] border border-white/60 bg-white/85 p-5 shadow-sm">
+                  <div className="rounded-[var(--radius)] border border-white/60 bg-white/85 p-5 shadow-sm">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--primary)]">
                         RSVP Required
@@ -530,7 +541,7 @@ export default function EventsPage() {
                     )}
                   </div>
                 )}
-              </div>
+              </section>
             ))}
           </div>
         ) : (

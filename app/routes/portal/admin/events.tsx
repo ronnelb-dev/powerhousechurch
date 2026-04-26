@@ -1,14 +1,12 @@
 import {
-  Form,
   isRouteErrorResponse,
   useFetcher,
   useLoaderData,
-  useNavigation,
   useRouteError,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "~/components/ui/EmptyState";
@@ -23,6 +21,16 @@ import { sendEventReminderEmail } from "~/lib/email.server";
 const prisma = db as any;
 
 export const meta: MetaFunction = () => [{ title: "Manage Events — Admin" }];
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type AdminEvent = LoaderData["events"][number];
+type EventActionData = {
+  success?: boolean;
+  eventId?: string;
+  message?: string;
+  formError?: string;
+  errors?: Record<string, string[] | undefined>;
+};
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
@@ -78,6 +86,34 @@ const EventSchema = z
     registrationDeadline: z.string().optional().or(z.literal("")),
   })
   .superRefine((value, ctx) => {
+    if (value.endDate) {
+      const start = new Date(value.startDate);
+      const end = new Date(value.endDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["endDate"],
+          message: "End date must be after the start date",
+        });
+      }
+    }
+
+    if (value.registrationDeadline) {
+      const start = new Date(value.startDate);
+      const deadline = new Date(value.registrationDeadline);
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(deadline.getTime()) ||
+        deadline > start
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["registrationDeadline"],
+          message: "Registration deadline must be before the event starts",
+        });
+      }
+    }
+
     if (!value.requiresRegistration) return;
 
     if (value.capacity) {
@@ -92,6 +128,27 @@ const EventSchema = z
     }
   });
 
+async function findDuplicateEvent(args: {
+  title: string;
+  location: string;
+  startDate: Date;
+  excludeId?: string;
+}) {
+  const { title, location, startDate, excludeId } = args;
+  return prisma.event.findFirst({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      location: { equals: location, mode: "insensitive" },
+      startDate,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await requireAdmin(request);
   const formData = await request.formData();
@@ -99,9 +156,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (intent === "create" || intent === "update") {
     const raw = {
-      title: String(formData.get("title") ?? ""),
-      description: String(formData.get("description") ?? ""),
-      location: String(formData.get("location") ?? ""),
+      title: String(formData.get("title") ?? "").trim(),
+      description: String(formData.get("description") ?? "").trim(),
+      location: String(formData.get("location") ?? "").trim(),
       startDate: String(formData.get("startDate") ?? ""),
       endDate: String(formData.get("endDate") ?? ""),
       imageUrl: String(formData.get("imageUrl") ?? ""),
@@ -120,6 +177,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const { startDate, endDate, capacity, registrationDeadline, ...rest } =
       result.data;
+    const id = String(formData.get("id") ?? "");
     const data = {
       ...rest,
       startDate: new Date(startDate),
@@ -130,13 +188,31 @@ export async function action({ request }: ActionFunctionArgs) {
         : null,
     };
 
+    const duplicateEvent = await findDuplicateEvent({
+      title: data.title,
+      location: data.location,
+      startDate: data.startDate,
+      excludeId: intent === "update" ? id : undefined,
+    });
+
+    if (duplicateEvent) {
+      return {
+        success: false,
+        eventId: intent === "update" ? id : undefined,
+        formError: `A matching event already exists: "${duplicateEvent.title}".`,
+      };
+    }
+
     if (intent === "create") {
       await prisma.event.create({ data });
     } else {
-      const id = String(formData.get("id") ?? "");
       await prisma.event.update({ where: { id }, data });
     }
-    return { success: true };
+    return {
+      success: true,
+      eventId: intent === "update" ? id : undefined,
+      message: intent === "create" ? "Event created." : "Event updated.",
+    };
   }
 
   if (intent === "delete") {
@@ -276,11 +352,18 @@ function EventFormModal({
   event,
   onClose,
 }: {
-  event?: ReturnType<typeof useLoaderData<typeof loader>>["events"][0] | null;
+  event?: AdminEvent | null;
   onClose: () => void;
 }) {
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const fetcher = useFetcher<EventActionData>();
+  const isSubmitting = fetcher.state !== "idle";
+  const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      onClose();
+    }
+  }, [fetcher.state, fetcher.data, onClose]);
 
   return (
     <div
@@ -302,9 +385,15 @@ function EventFormModal({
             ×
           </button>
         </div>
-        <Form method="post" className="space-y-4 p-6">
+        <fetcher.Form method="post" className="space-y-4 p-6">
           <input type="hidden" name="intent" value={event ? "update" : "create"} />
           {event && <input type="hidden" name="id" value={event.id} />}
+
+          {fetcher.data?.success === false && fetcher.data.formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {fetcher.data.formError}
+            </div>
+          )}
 
           <div>
             <label htmlFor="e-title" className={labelClass}>
@@ -318,6 +407,7 @@ function EventFormModal({
               required
               className={inputClass}
             />
+            <FieldError errors={errors.title} />
           </div>
           <div>
             <label htmlFor="e-description" className={labelClass}>
@@ -331,6 +421,7 @@ function EventFormModal({
               defaultValue={event?.description}
               className={`${inputClass} resize-y`}
             />
+            <FieldError errors={errors.description} />
           </div>
           <div>
             <label htmlFor="e-location" className={labelClass}>
@@ -344,6 +435,7 @@ function EventFormModal({
               required
               className={inputClass}
             />
+            <FieldError errors={errors.location} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -358,6 +450,7 @@ function EventFormModal({
                 required
                 className={inputClass}
               />
+              <FieldError errors={errors.startDate} />
             </div>
             <div>
               <label htmlFor="e-endDate" className={labelClass}>
@@ -370,6 +463,7 @@ function EventFormModal({
                 defaultValue={event?.endDate?.slice(0, 16) ?? ""}
                 className={inputClass}
               />
+              <FieldError errors={errors.endDate} />
             </div>
           </div>
           <div>
@@ -384,6 +478,7 @@ function EventFormModal({
               placeholder="https://res.cloudinary.com/..."
               className={inputClass}
             />
+            <FieldError errors={errors.imageUrl} />
           </div>
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <label className="flex cursor-pointer items-center gap-2">
@@ -412,6 +507,7 @@ function EventFormModal({
                   placeholder="Leave blank for unlimited"
                   className={inputClass}
                 />
+                <FieldError errors={errors.capacity} />
               </div>
               <div>
                 <label htmlFor="e-registrationDeadline" className={labelClass}>
@@ -424,6 +520,7 @@ function EventFormModal({
                   defaultValue={event?.registrationDeadline?.slice(0, 16) ?? ""}
                   className={inputClass}
                 />
+                <FieldError errors={errors.registrationDeadline} />
               </div>
             </div>
             <p className="mt-3 text-xs text-gray-500">
@@ -458,7 +555,7 @@ function EventFormModal({
               Cancel
             </button>
           </div>
-        </Form>
+        </fetcher.Form>
       </div>
     </div>
   );
@@ -467,20 +564,7 @@ function EventFormModal({
 export default function AdminEventsPage() {
   const { events } = useLoaderData<typeof loader>();
   const [showForm, setShowForm] = useState(false);
-  const [editEvent, setEditEvent] = useState<(typeof events)[0] | null>(null);
-  const deleteFetcher = useFetcher();
-  const toggleFetcher = useFetcher();
-  const reminderFetcher = useFetcher<{
-    success?: boolean;
-    eventId?: string;
-    message?: string;
-    formError?: string;
-  }>();
-  const reminderResult = reminderFetcher.data;
-  const reminderEventId =
-    reminderFetcher.state === "submitting"
-      ? String(reminderFetcher.formData?.get("id") ?? "")
-      : reminderResult?.eventId ?? "";
+  const [editEvent, setEditEvent] = useState<AdminEvent | null>(null);
 
   return (
     <div>
@@ -502,6 +586,7 @@ export default function AdminEventsPage() {
 
       {(showForm || editEvent) && (
         <EventFormModal
+          key={editEvent?.id ?? "new"}
           event={editEvent}
           onClose={() => {
             setShowForm(false);
@@ -512,132 +597,13 @@ export default function AdminEventsPage() {
 
       {events.length > 0 ? (
         <div className="space-y-3">
-          {events.map((event: (typeof events)[number]) => {
-            const isPast = new Date(event.startDate) < new Date();
-            return (
-              <div
-                key={event.id}
-                className={`gap-4 rounded-xl border border-gray-100 bg-white p-5 transition-all hover:border-red-100 ${
-                  isPast ? "opacity-60" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-bold text-gray-800">
-                        {event.title}
-                      </p>
-                      <toggleFetcher.Form method="post">
-                        <input type="hidden" name="intent" value="togglePublished" />
-                        <input type="hidden" name="id" value={event.id} />
-                        <button
-                          type="submit"
-                          className={[
-                            "rounded-full border px-2 py-0.5 text-xs font-bold",
-                            event.isPublished
-                              ? "border-green-200 bg-green-50 text-green-700"
-                              : "border-gray-200 bg-gray-50 text-gray-500",
-                          ].join(" ")}
-                        >
-                          {event.isPublished ? "Live" : "Draft"}
-                        </button>
-                      </toggleFetcher.Form>
-                      {event.requiresRegistration && (
-                        <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
-                          RSVP on
-                        </span>
-                      )}
-                      {isPast && (
-                        <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-400">
-                          Past
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {new Date(event.startDate).toLocaleString("en-PH", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}{" "}
-                      · {event.location}
-                    </p>
-                    {event.requiresRegistration && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                          Confirmed: {event.counts.confirmed}
-                        </span>
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-900">
-                          Waitlist: {event.counts.waitlist}
-                        </span>
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
-                          Total: {event.counts.total}
-                        </span>
-                        {typeof event.capacity === "number" && (
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
-                            Seats left: {Math.max(event.capacity - event.counts.confirmed, 0)}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-shrink-0 gap-2">
-                    {!isPast && (
-                      <reminderFetcher.Form method="post">
-                        <input type="hidden" name="intent" value="sendReminder" />
-                        <input type="hidden" name="id" value={event.id} />
-                        <button
-                          type="submit"
-                          disabled={
-                            reminderFetcher.state === "submitting" &&
-                            reminderEventId === event.id
-                          }
-                          className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
-                        >
-                          {reminderFetcher.state === "submitting" &&
-                          reminderEventId === event.id
-                            ? "Sending..."
-                            : "Send reminder"}
-                        </button>
-                      </reminderFetcher.Form>
-                    )}
-                    <button
-                      onClick={() => setEditEvent(event)}
-                      className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    >
-                      Edit
-                    </button>
-                    <deleteFetcher.Form method="post">
-                      <input type="hidden" name="intent" value="delete" />
-                      <input type="hidden" name="id" value={event.id} />
-                      <button
-                        type="submit"
-                        onClick={(e) => {
-                          if (!confirm(`Delete "${event.title}"?`)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
-                      >
-                        Delete
-                      </button>
-                    </deleteFetcher.Form>
-                  </div>
-                </div>
-                {reminderResult?.eventId === event.id &&
-                  (reminderResult.success ? (
-                    <p className="mt-3 text-xs font-semibold text-emerald-700">
-                      {reminderResult.message}
-                    </p>
-                  ) : reminderResult.formError ? (
-                    <p className="mt-3 text-xs font-semibold text-red-600">
-                      {reminderResult.formError}
-                    </p>
-                  ) : null)}
-              </div>
-            );
-          })}
+          {events.map((event: AdminEvent) => (
+            <AdminEventRow
+              key={event.id}
+              event={event}
+              onEdit={(nextEvent) => setEditEvent(nextEvent)}
+            />
+          ))}
         </div>
       ) : (
         <EmptyState
@@ -648,6 +614,145 @@ export default function AdminEventsPage() {
       )}
     </div>
   );
+}
+
+function AdminEventRow({
+  event,
+  onEdit,
+}: {
+  event: AdminEvent;
+  onEdit: (event: AdminEvent) => void;
+}) {
+  const deleteFetcher = useFetcher<EventActionData>();
+  const toggleFetcher = useFetcher<EventActionData>();
+  const reminderFetcher = useFetcher<EventActionData>();
+  const isPast = new Date(event.startDate) < new Date();
+  const reminderResult = reminderFetcher.data;
+  const isDeleting = deleteFetcher.state !== "idle";
+  const isToggling = toggleFetcher.state !== "idle";
+  const isSendingReminder = reminderFetcher.state !== "idle";
+
+  return (
+    <div
+      className={`gap-4 rounded-xl border border-gray-100 bg-white p-5 transition-all hover:border-red-100 ${
+        isPast ? "opacity-60" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-bold text-gray-800">{event.title}</p>
+            <toggleFetcher.Form method="post">
+              <input type="hidden" name="intent" value="togglePublished" />
+              <input type="hidden" name="id" value={event.id} />
+              <button
+                type="submit"
+                disabled={isToggling}
+                className={[
+                  "rounded-full border px-2 py-0.5 text-xs font-bold disabled:opacity-60",
+                  event.isPublished
+                    ? "border-green-200 bg-green-50 text-green-700"
+                    : "border-gray-200 bg-gray-50 text-gray-500",
+                ].join(" ")}
+              >
+                {isToggling ? "Saving..." : event.isPublished ? "Live" : "Draft"}
+              </button>
+            </toggleFetcher.Form>
+            {event.requiresRegistration && (
+              <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
+                RSVP on
+              </span>
+            )}
+            {isPast && (
+              <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-400">
+                Past
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">
+            {new Date(event.startDate).toLocaleString("en-PH", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })}{" "}
+            · {event.location}
+          </p>
+          {event.requiresRegistration && (
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                Confirmed: {event.counts.confirmed}
+              </span>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-900">
+                Waitlist: {event.counts.waitlist}
+              </span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+                Total: {event.counts.total}
+              </span>
+              {typeof event.capacity === "number" && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+                  Seats left: {Math.max(event.capacity - event.counts.confirmed, 0)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-shrink-0 gap-2">
+          {!isPast && (
+            <reminderFetcher.Form method="post">
+              <input type="hidden" name="intent" value="sendReminder" />
+              <input type="hidden" name="id" value={event.id} />
+              <button
+                type="submit"
+                disabled={isSendingReminder}
+                className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
+              >
+                {isSendingReminder ? "Sending..." : "Send reminder"}
+              </button>
+            </reminderFetcher.Form>
+          )}
+          <button
+            onClick={() => onEdit(event)}
+            className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            Edit
+          </button>
+          <deleteFetcher.Form method="post">
+            <input type="hidden" name="intent" value="delete" />
+            <input type="hidden" name="id" value={event.id} />
+            <button
+              type="submit"
+              disabled={isDeleting}
+              onClick={(e) => {
+                if (!confirm(`Delete "${event.title}"?`)) {
+                  e.preventDefault();
+                }
+              }}
+              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </deleteFetcher.Form>
+        </div>
+      </div>
+      {reminderResult && reminderResult.eventId === event.id &&
+        (reminderResult.success ? (
+          <p className="mt-3 text-xs font-semibold text-emerald-700">
+            {reminderResult.message}
+          </p>
+        ) : reminderResult.formError ? (
+          <p className="mt-3 text-xs font-semibold text-red-600">
+            {reminderResult.formError}
+          </p>
+        ) : null)}
+    </div>
+  );
+}
+
+function FieldError({ errors }: { errors?: string[] }) {
+  if (!errors?.length) return null;
+  return <p className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
 }
 
 export function ErrorBoundary() {
