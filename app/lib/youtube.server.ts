@@ -30,6 +30,7 @@
 //   across cold starts. For production scale, replace with Vercel KV or Redis.
 
 import { db } from "~/lib/db.server";
+import { buildEmbedUrl, parseVideoId } from "~/lib/youtube";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -230,31 +231,4 @@ export async function getLatestVideo(): Promise<VideoResult> {
   }
 }
 
-/**
- * Builds a YouTube embed URL from a raw video ID.
- * Separate from the route-level helper so both live.tsx and
- * the API route can use the same logic.
- */
-export function buildEmbedUrl(videoId: string, autoplay = false): string {
-  const params = new URLSearchParams();
-  if (autoplay) params.set("autoplay", "1");
-  params.set("rel", "0");           // don't show unrelated videos at end
-  params.set("modestbranding", "1"); // minimal YouTube branding
-  const qs = params.toString();
-  return `https://www.youtube.com/embed/${videoId}${qs ? `?${qs}` : ""}`;
-}
-
-/**
- * Parses a YouTube watch URL or youtu.be short URL into a video ID.
- * Returns null if the URL is not a valid YouTube video link.
- */
-export function parseVideoId(url: string): string | null {
-  try {
-    const u   = new URL(url);
-    const vid = u.searchParams.get("v") ||
-      (u.hostname === "youtu.be" ? u.pathname.slice(1) : null);
-    return vid || null;
-  } catch {
-    return null;
-  }
-}
+export { buildEmbedUrl, parseVideoId } from "~/lib/youtube";

@@ -28,10 +28,9 @@ import { getSettings } from "~/lib/settings.server";
 import {
   getLiveStream,
   getLatestVideo,
-  buildEmbedUrl,
-  parseVideoId,
 } from "~/lib/youtube.server";
 import { db } from "~/lib/db.server";
+import { buildEmbedUrl, parseVideoId } from "~/lib/youtube";
 
 export const meta: MetaFunction = () => [
   { title: "Watch Live — Powerhouse Church" },

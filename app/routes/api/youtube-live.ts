@@ -17,7 +17,8 @@
 //   "private" prevents shared caches; "no-store" prevents any caching at all.
 
 import type { LoaderFunctionArgs } from "react-router";
-import { getLiveStream, buildEmbedUrl } from "~/lib/youtube.server";
+import { getLiveStream } from "~/lib/youtube.server";
+import { buildEmbedUrl } from "~/lib/youtube";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const result = await getLiveStream();
