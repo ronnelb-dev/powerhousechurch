@@ -1,87 +1,115 @@
-# Welcome to React Router!
+# Powerhouse Church
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Powerhouse Church is a full-stack React Router app for the church’s public website and members portal. It covers public-facing pages, event RSVPs, prayer and contact submissions, visit planning, and authenticated member/admin workflows backed by Prisma.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## Stack
 
-## Features
+- React 19 + React Router 7
+- TypeScript
+- Tailwind CSS 4
+- Prisma + PostgreSQL/Neon
+- Lucia auth
+- Vitest
+- Resend for transactional email
+- Vercel deployment target
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+## Key Areas
 
-## Getting Started
+- Public site: home, about, ministries, events, sermons, gallery, giving, contact, prayer request, and plan-your-visit flows
+- Members portal: dashboard, profile, directory, engagement, community, attendance
+- Admin tools: events, sermons, communications, members, prayers, reports, settings, visit plans
+- Operational workflows: email verification, password reset, RSVP confirmations, prayer follow-up, and visit-plan follow-up
 
-### Installation
+## Local Setup
 
-Install the dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-### Development
+2. Create a working `.env` with at least:
 
-Start the development server with HMR:
+```bash
+DATABASE_URL=
+DATABASE_URL_UNPOOLED=
+```
+
+3. Optional but recommended for full local behavior:
+
+```bash
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=
+CHURCH_EMAIL=
+APP_URL=http://localhost:5173
+PUBLIC_APP_URL=http://localhost:5173
+```
+
+4. Generate Prisma client and apply schema changes:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+5. Start the app:
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
-
-## Building for Production
-
-Create a production build:
+## Scripts
 
 ```bash
+npm run dev
 npm run build
+npm run start
+npm run test
+npm run test:watch
+npm run test:coverage
+npm run lint
+npm run typecheck
+npm run db:generate
+npm run db:migrate
+npm run db:deploy
+npm run db:seed
 ```
 
-## Deployment
+## Testing
 
-### Docker Deployment
+The repo uses Vitest.
 
-To build and run using Docker:
+Current server-side coverage added around:
+
+- auth login/register decision logic
+- event RSVP handling
+- public visitor submissions
+- in-memory public submission rate limiting
+
+Run the suite with:
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+npm run test
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+## Public Submission Protection
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+Public write endpoints now use a lightweight in-memory rate limiter keyed by client IP:
 
-### DIY Deployment
+- `/contact`
+- `/prayer-request`
+- `/new-here`
+- `/events` RSVP submissions
 
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
+This is a practical first layer for spam reduction and abuse control. Because it is in-memory, limits are instance-local in serverless environments; if you need cross-instance enforcement later, move the limiter to shared storage like Redis or Upstash.
 
-Make sure to deploy the output of `npm run build`
+## Deployment Notes
 
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
+- Production is configured for Neon/PostgreSQL through Prisma.
+- Email-dependent flows degrade gracefully when `RESEND_API_KEY` is missing.
+- Public form submissions rely on request IP headers such as `x-forwarded-for` in production.
 
-## Styling
+## Known Baseline Issues
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+- `npm run test` passes.
+- `npm run typecheck` is currently not clean in the existing repo baseline because of pre-existing generated route type/module-resolution issues and unrelated unused-variable/type errors outside the changes in this task.
