@@ -35,9 +35,13 @@ model User {
   likes          Like[]
   comments       Comment[]
   assignedPrayerRequests PrayerRequest[] @relation("PrayerRequestOwner")
+  memberPrayerRequests PrayerRequest[] @relation("PrayerRequestMember")
   assignedVisitPlans VisitPlan[] @relation("VisitPlanOwner")
   assignedCareCases CareCase[] @relation("CareCaseOwner")
   memberCareCases   CareCase[] @relation("CareCaseMember")
+  sermonBookmarks SermonBookmark[]
+  servingInterests ServingInterest[]
+  notificationPreference NotificationPreference?
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
@@ -201,6 +205,7 @@ model Sermon {
   date        DateTime
   tags        String
   isPublished Boolean  @default(true)
+  bookmarks   SermonBookmark[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -258,6 +263,7 @@ model Ministry {
   leader      String
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
+  servingInterests ServingInterest[]
   createdAt   DateTime @default(now())
 
   @@index([isActive])
@@ -328,6 +334,8 @@ model Comment {
 
 model PrayerRequest {
   id              String   @id @default(cuid())
+  memberId        String?
+  member          User?    @relation("PrayerRequestMember", fields: [memberId], references: [id], onDelete: SetNull)
   name            String
   email           String?
   request         String
@@ -344,6 +352,54 @@ model PrayerRequest {
   @@index([isAnswered])
   @@index([status, submittedAt])
   @@index([followUpOwnerId])
+  @@index([memberId, submittedAt])
+}
+
+model SermonBookmark {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sermonId     String
+  sermon       Sermon   @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  note         String?
+  isBookmarked Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, sermonId])
+  @@index([userId, updatedAt])
+  @@index([sermonId])
+}
+
+model ServingInterest {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ministryId     String?
+  ministry       Ministry? @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  areaOfInterest String
+  availability   String?
+  experience     String?
+  message        String
+  status         String    @default("NEW")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([ministryId, status])
+}
+
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prayerUpdatesEmail    Boolean  @default(true)
+  sermonAnnouncements   Boolean  @default(true)
+  servingOpportunities  Boolean  @default(true)
+  eventReminders        Boolean  @default(true)
+  smsUrgentCare         Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model CareCase {

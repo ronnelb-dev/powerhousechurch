@@ -27,6 +27,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let attendanceSummary = null;
   let needsCare: Awaited<ReturnType<typeof getMembersNeedingCare>> = [];
   let recentAttendance: HeatmapCell[] = [];
+  const [prayerRequestCount, savedSermonCount, servingInterestCount] =
+    await Promise.all([
+      db.prayerRequest.count({ where: { memberId: user.id } }),
+      db.sermonBookmark.count({ where: { userId: user.id, isBookmarked: true } }),
+      db.servingInterest.count({ where: { userId: user.id } }),
+    ]);
 
   if (user.cellGroupId) {
     cellGroup = await db.cellGroup.findUnique({
@@ -128,6 +134,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     attendanceSummary,
     needsCare,
     recentAttendance,
+    engagementSummary: {
+      prayerRequestCount,
+      savedSermonCount,
+      servingInterestCount,
+    },
     latestSermon: latestSermon
       ? {
           ...latestSermon,
@@ -161,7 +172,7 @@ function getLast12Sundays(): Date[] {
 export default function DashboardPage() {
   const {
     user, cellGroup, memberCount, attendanceSummary,
-    needsCare, recentAttendance, latestSermon,
+    needsCare, recentAttendance, latestSermon, engagementSummary,
   } = useLoaderData<typeof loader>();
 
   const isCellLeaderOrAdmin = user.role === "CELL_LEADER" || user.role === "ADMIN";
@@ -346,7 +357,62 @@ export default function DashboardPage() {
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </Link>
+            <Link
+              to="/portal/engagement"
+              className="flex items-center justify-between px-4 py-3 rounded-lg
+                         bg-amber-50 border border-amber-100 hover:border-amber-300
+                         transition-all group"
+            >
+              <span className="text-sm font-sans font-bold text-amber-800">
+                Engagement Hub
+              </span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="#92400e" strokeWidth="2" className="group-hover:translate-x-0.5 transition-transform">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </Link>
           </div>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-xl p-6">
+          <h2 className="font-serif text-base font-bold text-gray-800 mb-4">
+            Stay Engaged
+          </h2>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[0.7rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+                Prayer
+              </p>
+              <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                {engagementSummary.prayerRequestCount}
+              </p>
+              <p className="mt-1 text-xs text-gray-400">Requests shared</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[0.7rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+                Sermons
+              </p>
+              <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                {engagementSummary.savedSermonCount}
+              </p>
+              <p className="mt-1 text-xs text-gray-400">Saved messages</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[0.7rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+                Serving
+              </p>
+              <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                {engagementSummary.servingInterestCount}
+              </p>
+              <p className="mt-1 text-xs text-gray-400">Forms submitted</p>
+            </div>
+          </div>
+          <Link
+            to="/portal/engagement"
+            className="mt-4 inline-flex text-sm font-bold text-red-700 hover:text-red-900"
+          >
+            Open your engagement hub →
+          </Link>
         </div>
 
         {/* Latest sermon */}

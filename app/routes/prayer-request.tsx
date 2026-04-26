@@ -12,6 +12,7 @@ import { z } from "zod";
 import { db } from "~/lib/db.server";
 import { sendPrayerRequestConfirmation, notifyAdminOfPrayerRequest } from "~/lib/email.server";
 import { PageHero } from "~/components/ui/PageHero";
+import { getSession } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => [
   { title: "Prayer Request — Powerhouse Church" },
@@ -32,6 +33,7 @@ type ActionData =
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const { user } = await getSession(request);
 
   const raw = {
     name:      formData.get("name") as string,
@@ -50,7 +52,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const { name, email, request: prayerText, isPrivate } = result.data;
 
   await db.prayerRequest.create({
-    data: { name, email: email || null, request: prayerText, isPrivate },
+    data: {
+      memberId: user?.id ?? null,
+      name,
+      email: email || null,
+      request: prayerText,
+      isPrivate,
+    },
   });
 
   // Send emails — fire-and-forget pattern; don't block on email failure

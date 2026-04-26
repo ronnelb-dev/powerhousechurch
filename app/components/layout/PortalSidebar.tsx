@@ -135,6 +135,26 @@ const BookIcon = () => (
     />
   </svg>
 );
+const SparkIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M9 1.5 10.7 6l4.8 1.3-4.8 1.3L9 13.1 7.3 8.6 2.5 7.3 7.3 6 9 1.5Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M14.5 11.5 15.3 13.5l2 0.8-2 0.8-0.8 2-0.8-2-2-0.8 2-0.8 0.8-2Z"
+      fill="currentColor"
+    />
+  </svg>
+);
 const CareIcon = () => (
   <svg
     width="18"
@@ -174,6 +194,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/portal/attendance", label: "Attendance", icon: <CheckIcon /> },
   { to: "/portal/directory", label: "Directory", icon: <UsersIcon /> },
   { to: "/portal/community", label: "Daily Bread", icon: <BookIcon /> },
+  { to: "/portal/engagement", label: "Engage", icon: <SparkIcon /> },
   { to: "/portal/profile", label: "My Profile", icon: <PersonIcon /> },
 ];
 

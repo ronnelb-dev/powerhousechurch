@@ -58,6 +58,7 @@ export default [
       route("profile", "routes/portal/profile.tsx"),
       route("directory", "routes/portal/directory.tsx"),
       route("community", "routes/portal/community.tsx"),
+      route("engagement", "routes/portal/engagement.tsx"),
       route("attendance", "routes/portal/attendance.tsx"),
 
       // Admin sub-layout (nested)
