@@ -205,6 +205,97 @@ async function main() {
   }
   console.log("✅ Events seeded");
 
+  // ── Event registrations ───────────────────────────────────
+  await db.eventRegistration.upsert({
+    where: {
+      eventId_email: {
+        eventId: "event-missions-2025",
+        email: "lena@example.com",
+      },
+    },
+    update: {},
+    create: {
+      eventId: "event-missions-2025",
+      name: "Lena Gomez",
+      email: "lena@example.com",
+      phone: "+63 917 111 2222",
+      notes: "Interested in joining the intercessory prayer team.",
+      status: "CONFIRMED",
+    },
+  });
+
+  await db.eventRegistration.upsert({
+    where: {
+      eventId_email: {
+        eventId: "event-missions-2025",
+        email: "mark@example.com",
+      },
+    },
+    update: {},
+    create: {
+      eventId: "event-missions-2025",
+      name: "Mark Flores",
+      email: "mark@example.com",
+      phone: "+63 917 333 4444",
+      notes: "Needs one extra seat if openings become available.",
+      status: "WAITLISTED",
+    },
+  });
+  console.log("✅ Event registrations seeded");
+
+  // ── Visit plans ───────────────────────────────────────────
+  await db.visitPlan.upsert({
+    where: { id: "visit-plan-seed-001" },
+    update: {},
+    create: {
+      id: "visit-plan-seed-001",
+      name: "Katrina Ramos",
+      email: "katrina@example.com",
+      phone: "+63 917 555 0101",
+      city: "Masbate City",
+      preferredService: "Sunday 9:00 AM",
+      visitDate: new Date("2026-04-27"),
+      adultCount: 2,
+      isFirstTimeGuest: true,
+      bringingKids: true,
+      kidsCount: 2,
+      kidsDetails: "Ages 6 and 9. One peanut allergy.",
+      wantsUsherFollowUp: true,
+      wantsPastorFollowUp: false,
+      notes: "They are new in town and want directions before Sunday.",
+      status: "READY_FOR_SUNDAY",
+      followUpOwnerId: leader.id,
+      lastContactedAt: new Date(),
+      nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      outcomeNotes: "Texted directions and confirmed kids check-in support.",
+    },
+  });
+
+  await db.visitPlan.upsert({
+    where: { id: "visit-plan-seed-002" },
+    update: {},
+    create: {
+      id: "visit-plan-seed-002",
+      name: "Robert Mendoza",
+      email: "robert@example.com",
+      phone: "+63 917 555 0202",
+      city: "Mobo",
+      preferredService: "Sunday 7:00 AM",
+      visitDate: new Date("2026-04-20"),
+      adultCount: 1,
+      isFirstTimeGuest: true,
+      bringingKids: false,
+      wantsUsherFollowUp: false,
+      wantsPastorFollowUp: true,
+      notes: "Asked for prayer and a conversation after service.",
+      status: "CONTACT_ATTEMPTED",
+      followUpOwnerId: admin.id,
+      nextFollowUpAt: new Date(),
+      outcomeNotes: "Called once and sent an email. Waiting for reply.",
+    },
+  });
+  console.log("✅ Visit plans seeded");
+
   // ── Ministries ─────────────────────────────────────────────
   const ministries = [
     {
@@ -279,22 +370,26 @@ async function main() {
     "PRESENT", "PRESENT", "PRESENT", "ABSENT", "ABSENT", "PRESENT",
   ];
 
-  for (let i = 0; i < sundays.length; i++) {
+  for (const [index, sunday] of sundays.entries()) {
+    const member = members[2];
+    const status = anaStatuses[index];
+    if (!member || !status) continue;
+
     await db.attendance.upsert({
       where: {
         userId_type_date: {
-          userId: members[2].id,
+          userId: member.id,
           type:   "SUNDAY_SERVICE",
-          date:   sundays[i],
+          date:   sunday,
         },
       },
       update: {},
       create: {
-        userId:      members[2].id,
+        userId:      member.id,
         cellGroupId: cellGroup.id,
         type:        "SUNDAY_SERVICE",
-        status:      anaStatuses[i],
-        date:        sundays[i],
+        status,
+        date:        sunday,
         markedById:  leader.id,
       },
     });

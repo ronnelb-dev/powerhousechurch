@@ -71,6 +71,7 @@ export default [
           route("ministries", "routes/portal/admin/ministries.tsx"),
           route("sermons", "routes/portal/admin/sermons.tsx"),
           route("events", "routes/portal/admin/events.tsx"),
+          route("visit-plans", "routes/portal/admin/visit-plans.tsx"),
           route("posts", "routes/portal/admin/posts.tsx"),
           route("prayers", "routes/portal/admin/prayers.tsx"),
           route("settings", "routes/portal/admin/settings.tsx"),

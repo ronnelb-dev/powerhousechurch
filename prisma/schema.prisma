@@ -34,6 +34,7 @@ model User {
   likes          Like[]
   comments       Comment[]
   assignedPrayerRequests PrayerRequest[] @relation("PrayerRequestOwner")
+  assignedVisitPlans VisitPlan[] @relation("VisitPlanOwner")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
@@ -227,11 +228,14 @@ model EventRegistration {
   phone       String?
   notes       String?
   status      String   @default("CONFIRMED")
+  checkedInAt DateTime?
+  checkedInById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([eventId, email])
   @@index([eventId, status])
+  @@index([eventId, checkedInAt])
   @@index([createdAt])
 }
 
@@ -347,6 +351,11 @@ model VisitPlan {
   wantsPastorFollowUp  Boolean  @default(false)
   notes                String?
   status               String   @default("NEW")
+  followUpOwnerId      String?
+  followUpOwner        User?    @relation("VisitPlanOwner", fields: [followUpOwnerId], references: [id], onDelete: SetNull)
+  lastContactedAt      DateTime?
+  nextFollowUpAt       DateTime?
+  outcomeNotes         String?
   submittedAt          DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -354,6 +363,8 @@ model VisitPlan {
   @@index([status, submittedAt])
   @@index([preferredService, submittedAt])
   @@index([visitDate])
+  @@index([followUpOwnerId])
+  @@index([nextFollowUpAt])
 }
 
 model GivingRecord {

@@ -25,6 +25,7 @@ const ADMIN_NAV = [
   { to: "/portal/admin/ministries", label: "Ministries"    },
   { to: "/portal/admin/sermons",  label: "Sermons"       },
   { to: "/portal/admin/events",   label: "Events"        },
+  { to: "/portal/admin/visit-plans", label: "Visit Plans" },
   { to: "/portal/admin/posts",    label: "Daily Bread"   },
   { to: "/portal/admin/prayers",  label: "Prayers"       },
   { to: "/portal/admin/reports",  label: "Reports"       },

@@ -258,6 +258,7 @@ function SidebarContent({
                 { to: "/portal/admin/ministries", label: "Ministries" },
                 { to: "/portal/admin/sermons", label: "Sermons" },
                 { to: "/portal/admin/events", label: "Events" },
+                { to: "/portal/admin/visit-plans", label: "Visit Plans" },
                 { to: "/portal/admin/reports", label: "Reports" },
                 { to: "/portal/admin/settings", label: "Settings" },
               ].map(({ to, label }) => (
