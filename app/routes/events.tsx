@@ -15,6 +15,11 @@ import { EmptyState } from "~/components/ui/EmptyState";
 import { Card, CardContent } from "~/components/ui/card";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
+import {
+  buildEventCalendarUrl,
+  buildGoogleCalendarUrl,
+  getEventCalendarPath,
+} from "~/lib/calendar";
 import { db } from "~/lib/db.server";
 import { sendEventRegistrationConfirmation } from "~/lib/email.server";
 
@@ -186,9 +191,12 @@ export async function action({ request }: ActionFunctionArgs) {
         kind: "success" as const,
         status,
         event: {
+          id: event.id,
           title: event.title,
+          description: event.description,
           location: event.location,
           startDate: event.startDate,
+          endDate: event.endDate,
         },
       };
     });
@@ -202,6 +210,21 @@ export async function action({ request }: ActionFunctionArgs) {
       } satisfies ActionData;
     }
 
+    const currentUrl = new URL(request.url);
+    const origin =
+      process.env.APP_URL || process.env.PUBLIC_APP_URL || currentUrl.origin;
+    const eventUrl = `${origin}/events#${result.event.id}`;
+    const calendarUrl = buildEventCalendarUrl(origin, result.event.id);
+    const googleCalendarUrl = buildGoogleCalendarUrl({
+      id: result.event.id,
+      title: result.event.title,
+      description: result.event.description,
+      location: result.event.location,
+      startDate: result.event.startDate,
+      endDate: result.event.endDate,
+      url: eventUrl,
+    });
+
     await Promise.allSettled([
       sendEventRegistrationConfirmation({
         to: parsed.data.email,
@@ -209,7 +232,11 @@ export async function action({ request }: ActionFunctionArgs) {
         eventTitle: result.event.title,
         eventLocation: result.event.location,
         eventStartDate: result.event.startDate,
+        eventEndDate: result.event.endDate,
         status: result.status,
+        calendarUrl,
+        googleCalendarUrl,
+        eventUrl,
       }),
     ]);
 
@@ -342,6 +369,14 @@ export default function EventsPage() {
                 <div className="mt-3 px-1">
                   <p className="text-sm leading-6">{event.description}</p>
                 </div>
+                <CalendarLinks
+                  eventId={event.id}
+                  title={event.title}
+                  description={event.description}
+                  location={event.location}
+                  startDate={event.startDate}
+                  endDate={event.endDate}
+                />
                 {event.requiresRegistration && (
                   <div className="mt-4 rounded-[var(--radius)] border border-white/60 bg-white/85 p-5 shadow-sm">
                     <div className="flex flex-wrap items-center gap-2">
@@ -576,6 +611,50 @@ export default function EventsPage() {
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
   return <p className="mt-1 text-xs text-red-600">{errors[0]}</p>;
+}
+
+function CalendarLinks({
+  eventId,
+  title,
+  description,
+  location,
+  startDate,
+  endDate,
+}: {
+  eventId: string;
+  title: string;
+  description: string;
+  location: string;
+  startDate: string;
+  endDate: string | null;
+}) {
+  const googleCalendarUrl = buildGoogleCalendarUrl({
+    id: eventId,
+    title,
+    description,
+    location,
+    startDate,
+    endDate,
+  });
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 px-1">
+      <a
+        href={googleCalendarUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex min-h-11 items-center rounded-xl border border-[rgba(146,48,52,0.18)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)] transition-colors hover:border-[var(--primary)]"
+      >
+        Add to Google Calendar
+      </a>
+      <a
+        href={getEventCalendarPath(eventId)}
+        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+      >
+        Download .ics
+      </a>
+    </div>
+  );
 }
 
 export function ErrorBoundary() {

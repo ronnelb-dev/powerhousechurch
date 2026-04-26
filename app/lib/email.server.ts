@@ -103,9 +103,24 @@ export async function sendEventRegistrationConfirmation(args: {
   eventTitle: string;
   eventLocation: string;
   eventStartDate: Date;
+  eventEndDate?: Date | null;
   status: "CONFIRMED" | "WAITLISTED";
+  calendarUrl?: string;
+  googleCalendarUrl?: string;
+  eventUrl?: string;
 }) {
-  const { to, name, eventTitle, eventLocation, eventStartDate, status } = args;
+  const {
+    to,
+    name,
+    eventTitle,
+    eventLocation,
+    eventStartDate,
+    eventEndDate,
+    status,
+    calendarUrl,
+    googleCalendarUrl,
+    eventUrl,
+  } = args;
   const formattedDate = eventStartDate.toLocaleString("en-PH", {
     month: "long",
     day: "numeric",
@@ -123,6 +138,32 @@ export async function sendEventRegistrationConfirmation(args: {
     status === "CONFIRMED"
       ? "<p>Your seat has been reserved. We look forward to welcoming you.</p>"
       : "<p>The event is currently full, so we have placed you on the waitlist. We will reach out if a seat opens up.</p>";
+  const formattedEndDate = eventEndDate
+    ? eventEndDate.toLocaleString("en-PH", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+  const calendarLinks =
+    googleCalendarUrl || calendarUrl
+      ? `
+        <p>
+          ${googleCalendarUrl ? `<a href="${googleCalendarUrl}">Add to Google Calendar</a>` : ""}
+          ${
+            googleCalendarUrl && calendarUrl
+              ? "&nbsp;|&nbsp;"
+              : ""
+          }
+          ${calendarUrl ? `<a href="${calendarUrl}">Download calendar file</a>` : ""}
+        </p>
+      `
+      : "";
+  const eventLink = eventUrl
+    ? `<p><a href="${eventUrl}">View event details</a></p>`
+    : "";
 
   return resend.emails.send({
     from: FROM,
@@ -133,7 +174,80 @@ export async function sendEventRegistrationConfirmation(args: {
       <p>Thank you for registering for <strong>${eventTitle}</strong>.</p>
       ${statusBody}
       <p><strong>Date:</strong> ${formattedDate}</p>
+      ${formattedEndDate ? `<p><strong>Ends:</strong> ${formattedEndDate}</p>` : ""}
       <p><strong>Location:</strong> ${eventLocation}</p>
+      ${calendarLinks}
+      ${eventLink}
+      <p>Grace and peace,<br/>Powerhouse Church</p>
+    `,
+  });
+}
+
+export async function sendEventReminderEmail(args: {
+  to: string;
+  name: string;
+  eventTitle: string;
+  eventLocation: string;
+  eventStartDate: Date;
+  eventEndDate?: Date | null;
+  calendarUrl?: string;
+  googleCalendarUrl?: string;
+  eventUrl?: string;
+}) {
+  const {
+    to,
+    name,
+    eventTitle,
+    eventLocation,
+    eventStartDate,
+    eventEndDate,
+    calendarUrl,
+    googleCalendarUrl,
+    eventUrl,
+  } = args;
+
+  const formattedStartDate = eventStartDate.toLocaleString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const formattedEndDate = eventEndDate
+    ? eventEndDate.toLocaleString("en-PH", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Reminder: ${eventTitle} is coming up — Powerhouse Church`,
+    html: `
+      <p>Dear ${name},</p>
+      <p>This is a reminder that <strong>${eventTitle}</strong> is coming up soon.</p>
+      <p><strong>Starts:</strong> ${formattedStartDate}</p>
+      ${formattedEndDate ? `<p><strong>Ends:</strong> ${formattedEndDate}</p>` : ""}
+      <p><strong>Location:</strong> ${eventLocation}</p>
+      ${
+        googleCalendarUrl || calendarUrl
+          ? `<p>${
+              googleCalendarUrl
+                ? `<a href="${googleCalendarUrl}">Add to Google Calendar</a>`
+                : ""
+            }${
+              googleCalendarUrl && calendarUrl ? "&nbsp;|&nbsp;" : ""
+            }${
+              calendarUrl ? `<a href="${calendarUrl}">Download calendar file</a>` : ""
+            }</p>`
+          : ""
+      }
+      ${eventUrl ? `<p><a href="${eventUrl}">View event details</a></p>` : ""}
+      <p>We look forward to seeing you.</p>
       <p>Grace and peace,<br/>Powerhouse Church</p>
     `,
   });

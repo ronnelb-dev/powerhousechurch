@@ -13,7 +13,12 @@ import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { requireAdmin } from "~/lib/auth.server";
+import {
+  buildEventCalendarUrl,
+  buildGoogleCalendarUrl,
+} from "~/lib/calendar";
 import { db } from "~/lib/db.server";
+import { sendEventReminderEmail } from "~/lib/email.server";
 
 const prisma = db as any;
 
@@ -153,6 +158,110 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
     return { success: true };
+  }
+
+  if (intent === "sendReminder") {
+    const id = String(formData.get("id") ?? "");
+    const event = await prisma.event.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        location: true,
+        startDate: true,
+        endDate: true,
+        registrations: {
+          where: { status: "CONFIRMED" },
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return {
+        success: false,
+        eventId: id,
+        formError: "Event not found.",
+      };
+    }
+
+    if (event.startDate <= new Date()) {
+      return {
+        success: false,
+        eventId: id,
+        formError: "Reminders can only be sent for upcoming events.",
+      };
+    }
+
+    if (!process.env.RESEND_API_KEY) {
+      return {
+        success: false,
+        eventId: id,
+        formError: "Email reminders are not configured yet.",
+      };
+    }
+
+    if (event.registrations.length === 0) {
+      return {
+        success: false,
+        eventId: id,
+        formError: "There are no confirmed attendees to remind yet.",
+      };
+    }
+
+    const origin =
+      process.env.APP_URL || process.env.PUBLIC_APP_URL || new URL(request.url).origin;
+    const eventUrl = `${origin}/events#${event.id}`;
+    const calendarUrl = buildEventCalendarUrl(origin, event.id);
+    const googleCalendarUrl = buildGoogleCalendarUrl({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      url: eventUrl,
+    });
+
+    const results = await Promise.allSettled(
+      event.registrations.map((registration: { email: string; name: string }) =>
+        sendEventReminderEmail({
+          to: registration.email,
+          name: registration.name,
+          eventTitle: event.title,
+          eventLocation: event.location,
+          eventStartDate: event.startDate,
+          eventEndDate: event.endDate,
+          calendarUrl,
+          googleCalendarUrl,
+          eventUrl,
+        }),
+      ),
+    );
+
+    const sentCount = results.filter((result) => result.status === "fulfilled").length;
+    const failedCount = results.length - sentCount;
+
+    if (sentCount === 0) {
+      return {
+        success: false,
+        eventId: id,
+        formError: "Reminder emails could not be sent. Please try again.",
+      };
+    }
+
+    return {
+      success: true,
+      eventId: id,
+      message:
+        failedCount === 0
+          ? `Reminder sent to ${sentCount} attendee${sentCount === 1 ? "" : "s"}.`
+          : `Reminder sent to ${sentCount} attendee${sentCount === 1 ? "" : "s"}. ${failedCount} failed.`,
+    };
   }
 
   return { error: "Unknown intent." };
@@ -361,6 +470,17 @@ export default function AdminEventsPage() {
   const [editEvent, setEditEvent] = useState<(typeof events)[0] | null>(null);
   const deleteFetcher = useFetcher();
   const toggleFetcher = useFetcher();
+  const reminderFetcher = useFetcher<{
+    success?: boolean;
+    eventId?: string;
+    message?: string;
+    formError?: string;
+  }>();
+  const reminderResult = reminderFetcher.data;
+  const reminderEventId =
+    reminderFetcher.state === "submitting"
+      ? String(reminderFetcher.formData?.get("id") ?? "")
+      : reminderResult?.eventId ?? "";
 
   return (
     <div>
@@ -463,6 +583,25 @@ export default function AdminEventsPage() {
                     )}
                   </div>
                   <div className="flex flex-shrink-0 gap-2">
+                    {!isPast && (
+                      <reminderFetcher.Form method="post">
+                        <input type="hidden" name="intent" value="sendReminder" />
+                        <input type="hidden" name="id" value={event.id} />
+                        <button
+                          type="submit"
+                          disabled={
+                            reminderFetcher.state === "submitting" &&
+                            reminderEventId === event.id
+                          }
+                          className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
+                        >
+                          {reminderFetcher.state === "submitting" &&
+                          reminderEventId === event.id
+                            ? "Sending..."
+                            : "Send reminder"}
+                        </button>
+                      </reminderFetcher.Form>
+                    )}
                     <button
                       onClick={() => setEditEvent(event)}
                       className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -486,6 +625,16 @@ export default function AdminEventsPage() {
                     </deleteFetcher.Form>
                   </div>
                 </div>
+                {reminderResult?.eventId === event.id &&
+                  (reminderResult.success ? (
+                    <p className="mt-3 text-xs font-semibold text-emerald-700">
+                      {reminderResult.message}
+                    </p>
+                  ) : reminderResult.formError ? (
+                    <p className="mt-3 text-xs font-semibold text-red-600">
+                      {reminderResult.formError}
+                    </p>
+                  ) : null)}
               </div>
             );
           })}

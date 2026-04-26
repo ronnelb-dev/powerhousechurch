@@ -10,6 +10,7 @@ export default [
   // Resource Routes
   route("robots.txt", "routes/robots[.txt].tsx"),
   route("sitemap.xml", "routes/sitemap[.xml].tsx"),
+  route("events/:eventId/calendar.ics", "routes/events.$eventId.calendar.ts"),
 
   // Public Site Layout
   layout("routes/_public.tsx", [
