@@ -56,6 +56,9 @@ function getYouTubeEmbedUrl(url: string): string | null {
 export default function SermonDetailPage() {
   const { sermon } = useLoaderData<typeof loader>();
   const embedUrl = sermon.videoUrl ? getYouTubeEmbedUrl(sermon.videoUrl) : null;
+  const reflectionPrompts = sermon.reflectionPrompts
+    ? sermon.reflectionPrompts.split(/\r?\n/).map((prompt) => prompt.trim()).filter(Boolean)
+    : [];
 
   const formattedDate = new Date(sermon.date).toLocaleDateString("en-PH", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -183,6 +186,70 @@ export default function SermonDetailPage() {
             {sermon.notes}
           </div>
         </div>
+      )}
+
+      {(sermon.weeklyGuide || reflectionPrompts.length > 0 || sermon.scriptureFocus) && (
+        <section className="mt-10 rounded-3xl border border-red-100 bg-linear-to-br from-red-50 via-white to-amber-50 p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
+            <h2 className="font-serif text-xl font-bold text-gray-900 m-0">
+              Daily Bread Tie-In
+            </h2>
+          </div>
+
+          {sermon.scriptureFocus && (
+            <div className="mb-5">
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-2">
+                Scripture Focus
+              </p>
+              <p className="text-base font-sans text-gray-800">{sermon.scriptureFocus}</p>
+            </div>
+          )}
+
+          {sermon.weeklyGuide && (
+            <div className="mb-5">
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-2">
+                Weekly Guide
+              </p>
+              <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-gray-700">
+                {sermon.weeklyGuide}
+              </div>
+            </div>
+          )}
+
+          {reflectionPrompts.length > 0 && (
+            <div>
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-3">
+                Reflection Prompts
+              </p>
+              <ul className="space-y-3">
+                {reflectionPrompts.map((prompt) => (
+                  <li
+                    key={prompt}
+                    className="rounded-2xl border border-white bg-white/80 px-4 py-3 text-sm font-sans text-gray-700 shadow-sm"
+                  >
+                    {prompt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/portal/community"
+              className="inline-flex items-center rounded-full bg-red-700 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-800"
+            >
+              Reflect in Daily Bread
+            </Link>
+            <Link
+              to="/prayer-request"
+              className="inline-flex items-center rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+            >
+              Ask for Prayer
+            </Link>
+          </div>
+        </section>
       )}
 
       {/* Navigation */}

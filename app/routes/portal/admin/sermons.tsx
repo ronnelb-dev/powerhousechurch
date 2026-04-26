@@ -26,7 +26,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { date: "desc" },
     select: {
       id: true, title: true, speaker: true, series: true,
-      date: true, isPublished: true, videoUrl: true, tags: true,
+      date: true, isPublished: true, videoUrl: true, audioUrl: true,
+      thumbnail: true, notes: true, scriptureFocus: true, weeklyGuide: true,
+      reflectionPrompts: true, tags: true,
     },
   });
   return {
@@ -45,6 +47,9 @@ const SermonSchema = z.object({
   audioUrl:    z.string().url("Invalid URL").optional().or(z.literal("")),
   thumbnail:   z.string().url("Invalid URL").optional().or(z.literal("")),
   notes:       z.string().optional().or(z.literal("")),
+  scriptureFocus: z.string().max(200).optional().or(z.literal("")),
+  weeklyGuide: z.string().max(4000).optional().or(z.literal("")),
+  reflectionPrompts: z.string().max(2000).optional().or(z.literal("")),
   date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
   tags:        z.string().max(200).default(""),
   isPublished: z.coerce.boolean().default(true),
@@ -64,6 +69,9 @@ export async function action({ request }: ActionFunctionArgs) {
       audioUrl:    formData.get("audioUrl")    as string ?? "",
       thumbnail:   formData.get("thumbnail")   as string ?? "",
       notes:       formData.get("notes")       as string ?? "",
+      scriptureFocus: formData.get("scriptureFocus") as string ?? "",
+      weeklyGuide: formData.get("weeklyGuide") as string ?? "",
+      reflectionPrompts: formData.get("reflectionPrompts") as string ?? "",
       date:        formData.get("date")        as string,
       tags:        formData.get("tags")        as string ?? "",
       isPublished: formData.get("isPublished") as string,
@@ -73,7 +81,18 @@ export async function action({ request }: ActionFunctionArgs) {
       return { success: false, errors: result.error.flatten().fieldErrors };
     }
     const { date, ...rest } = result.data;
-    const data = { ...rest, date: new Date(date) };
+    const data = {
+      ...rest,
+      series: nullableText(rest.series),
+      videoUrl: nullableText(rest.videoUrl),
+      audioUrl: nullableText(rest.audioUrl),
+      thumbnail: nullableText(rest.thumbnail),
+      notes: nullableText(rest.notes),
+      scriptureFocus: nullableText(rest.scriptureFocus),
+      weeklyGuide: nullableText(rest.weeklyGuide),
+      reflectionPrompts: nullableText(rest.reflectionPrompts),
+      date: new Date(date),
+    };
 
     if (intent === "create") {
       await db.sermon.create({ data });
@@ -108,6 +127,11 @@ const inputClass =
   "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent";
 
 const labelClass = "block text-xs font-sans font-bold text-gray-600 mb-1";
+
+function nullableText(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 
 function SermonForm({
   sermon,
@@ -170,18 +194,43 @@ function SermonForm({
             <div>
               <label htmlFor="s-audioUrl" className={labelClass}>Audio URL</label>
               <input id="s-audioUrl" type="url" name="audioUrl"
+                     defaultValue={sermon?.audioUrl ?? ""}
                      placeholder="https://..." className={inputClass} />
             </div>
             <div>
               <label htmlFor="s-thumbnail" className={labelClass}>Thumbnail URL</label>
               <input id="s-thumbnail" type="url" name="thumbnail"
+                     defaultValue={sermon?.thumbnail ?? ""}
                      placeholder="https://res.cloudinary.com/..." className={inputClass} />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-notes" className={labelClass}>Sermon Notes (Markdown)</label>
               <textarea id="s-notes" name="notes" rows={4}
                         className={`${inputClass} resize-y`}
+                        defaultValue={sermon?.notes ?? ""}
                         placeholder="## Key Points&#10;- Point 1&#10;- Point 2" />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="s-scriptureFocus" className={labelClass}>Scripture Focus</label>
+              <input id="s-scriptureFocus" type="text" name="scriptureFocus"
+                     defaultValue={sermon?.scriptureFocus ?? ""}
+                     placeholder="James 1:22-25" className={inputClass} />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="s-weeklyGuide" className={labelClass}>Weekly Sermon Guide</label>
+              <textarea id="s-weeklyGuide" name="weeklyGuide" rows={5}
+                        defaultValue={sermon?.weeklyGuide ?? ""}
+                        className={`${inputClass} resize-y`}
+                        placeholder="Summarize how the church can carry this message into the week." />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="s-reflectionPrompts" className={labelClass}>
+                Reflection Prompts
+              </label>
+              <textarea id="s-reflectionPrompts" name="reflectionPrompts" rows={4}
+                        defaultValue={sermon?.reflectionPrompts ?? ""}
+                        className={`${inputClass} resize-y`}
+                        placeholder={"One prompt per line\nWhere is God asking for obedience this week?\nWho can you encourage with this message?"} />
             </div>
           </div>
 

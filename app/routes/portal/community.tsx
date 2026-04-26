@@ -6,6 +6,7 @@ import {
   useNavigation,
   isRouteErrorResponse,
   useRouteError,
+  Link,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
@@ -22,6 +23,26 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
+  const latestSermon = await db.sermon.findFirst({
+    where: {
+      isPublished: true,
+      OR: [
+        { weeklyGuide: { not: null } },
+        { reflectionPrompts: { not: null } },
+        { scriptureFocus: { not: null } },
+      ],
+    },
+    orderBy: { date: "desc" },
+    select: {
+      id: true,
+      title: true,
+      speaker: true,
+      date: true,
+      scriptureFocus: true,
+      weeklyGuide: true,
+      reflectionPrompts: true,
+    },
+  });
 
   const posts = await db.post.findMany({
     where: {
@@ -82,6 +103,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   return {
+    latestSermon: latestSermon
+      ? {
+          ...latestSermon,
+          date: latestSermon.date instanceof Date
+            ? latestSermon.date.toISOString()
+            : latestSermon.date,
+        }
+      : null,
     posts:        posts.map(serialize),
     pendingPosts: pendingPosts.map((p) => ({
       id:        p.id,
@@ -177,11 +206,17 @@ const inputClass =
   "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all";
 
 export default function CommunityPage() {
-  const { posts, pendingPosts, currentUserId, userRole, cellGroupId } =
+  const { latestSermon, posts, pendingPosts, currentUserId, userRole, cellGroupId } =
     useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isPosting  = navigation.state === "submitting" &&
     navigation.formData?.get("intent") === "createPost";
+  const reflectionPrompts = latestSermon?.reflectionPrompts
+    ? latestSermon.reflectionPrompts
+        .split(/\r?\n/)
+        .map((prompt) => prompt.trim())
+        .filter(Boolean)
+    : [];
 
   return (
     <div className="p-6 md:p-8 max-w-2xl">
@@ -190,6 +225,73 @@ export default function CommunityPage() {
         title="Daily Bread"
         subtitle="Share what God is speaking to you through His Word."
       />
+
+      {latestSermon && (
+        <div className="mt-8 rounded-3xl border border-red-100 bg-linear-to-br from-red-50 via-white to-amber-50 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-sans font-bold tracking-[0.2em] uppercase text-red-700 mb-2">
+                This Week's Sermon Guide
+              </p>
+              <h2 className="font-serif text-2xl font-bold text-gray-900">
+                {latestSermon.title}
+              </h2>
+              <p className="mt-1 text-sm font-sans text-gray-500">
+                {latestSermon.speaker} ·{" "}
+                {new Date(latestSermon.date).toLocaleDateString("en-PH", {
+                  month: "long", day: "numeric", year: "numeric",
+                })}
+              </p>
+            </div>
+            <Link
+              to={`/sermons/${latestSermon.id}`}
+              className="inline-flex items-center rounded-full bg-red-700 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-800"
+            >
+              Open Sermon
+            </Link>
+          </div>
+
+          {latestSermon.scriptureFocus && (
+            <div className="mt-5">
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-2">
+                Scripture Focus
+              </p>
+              <p className="text-sm font-sans leading-7 text-gray-700">
+                {latestSermon.scriptureFocus}
+              </p>
+            </div>
+          )}
+
+          {latestSermon.weeklyGuide && (
+            <div className="mt-5">
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-2">
+                Weekly Guide
+              </p>
+              <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-gray-700">
+                {latestSermon.weeklyGuide}
+              </div>
+            </div>
+          )}
+
+          {reflectionPrompts.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-3">
+                Reflection Prompts
+              </p>
+              <div className="space-y-3">
+                {reflectionPrompts.map((prompt) => (
+                  <div
+                    key={prompt}
+                    className="rounded-2xl border border-white bg-white/80 px-4 py-3 text-sm font-sans text-gray-700 shadow-sm"
+                  >
+                    {prompt}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Admin approval queue */}
       {userRole === "ADMIN" && pendingPosts.length > 0 && (

@@ -182,6 +182,9 @@ model Sermon {
   videoUrl    String?
   audioUrl    String?
   notes       String?
+  scriptureFocus String?
+  weeklyGuide String?
+  reflectionPrompts String?
   thumbnail   String?
   date        DateTime
   tags        String

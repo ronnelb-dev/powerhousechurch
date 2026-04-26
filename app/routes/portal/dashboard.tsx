@@ -109,7 +109,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const latestSermon = await db.sermon.findFirst({
     where: { isPublished: true },
     orderBy: { date: "desc" },
-    select: { id: true, title: true, speaker: true, date: true },
+    select: {
+      id: true,
+      title: true,
+      speaker: true,
+      date: true,
+      weeklyGuide: true,
+      reflectionPrompts: true,
+    },
   });
 
   return {
@@ -338,15 +345,32 @@ export default function DashboardPage() {
                     month: "long", day: "numeric", year: "numeric",
                   })}
                 </p>
+                {(latestSermon.weeklyGuide || latestSermon.reflectionPrompts) && (
+                  <p className="mt-2 text-sm font-sans text-gray-600">
+                    Weekly guide and reflection prompts are ready in Daily Bread.
+                  </p>
+                )}
               </div>
-              <Link
-                to={`/sermons/${latestSermon.id}`}
-                className="flex-shrink-0 px-4 py-2 bg-red-700 text-white font-sans
-                           font-bold text-xs rounded-lg hover:bg-red-800 transition-colors
-                           focus:outline-none focus:ring-2 focus:ring-red-400"
-              >
-                Watch →
-              </Link>
+              <div className="flex flex-shrink-0 gap-2">
+                <Link
+                  to={`/sermons/${latestSermon.id}`}
+                  className="px-4 py-2 bg-red-700 text-white font-sans
+                             font-bold text-xs rounded-lg hover:bg-red-800 transition-colors
+                             focus:outline-none focus:ring-2 focus:ring-red-400"
+                >
+                  Watch →
+                </Link>
+                {(latestSermon.weeklyGuide || latestSermon.reflectionPrompts) && (
+                  <Link
+                    to="/portal/community"
+                    className="px-4 py-2 border border-red-200 bg-white text-red-700
+                               font-sans font-bold text-xs rounded-lg hover:bg-red-50
+                               transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    Daily Bread →
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         )}
