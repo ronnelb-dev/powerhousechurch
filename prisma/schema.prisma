@@ -28,6 +28,8 @@ model User {
   cellGroup      CellGroup? @relation(fields: [cellGroupId], references: [id])
   sessions       Session[]
   attendance     Attendance[]
+  childGuardians ChildGuardian[]
+  childAttendanceMarked ChildAttendance[] @relation("ChildAttendanceMarker")
   posts          Post[]
   likes          Like[]
   comments       Comment[]
@@ -110,6 +112,67 @@ model Attendance {
   @@index([date, type])
 }
 
+model ChildProfile {
+  id            String           @id @default(cuid())
+  firstName     String
+  lastName      String
+  preferredName String?
+  gender        String?
+  birthday      DateTime
+  classroom     String?
+  allergies     String?
+  medicalNotes  String?
+  notes         String?
+  isActive      Boolean          @default(true)
+  guardians     ChildGuardian[]
+  attendance    ChildAttendance[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([classroom])
+  @@index([isActive])
+}
+
+model ChildGuardian {
+  id               String       @id @default(cuid())
+  childId          String
+  child            ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  relationship     String
+  firstName        String
+  lastName         String
+  phone            String?
+  email            String?
+  isPrimaryContact Boolean      @default(false)
+  canPickup        Boolean      @default(true)
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([childId])
+  @@index([userId])
+  @@index([isPrimaryContact])
+}
+
+model ChildAttendance {
+  id          String       @id @default(cuid())
+  childId      String
+  child        ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  serviceType String       @default("KIDS_CHURCH")
+  status      String
+  date        DateTime
+  markedById  String?
+  markedBy    User?        @relation("ChildAttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([childId, serviceType, date])
+  @@index([childId, date])
+  @@index([date, serviceType])
+}
+
 model Sermon {
   id          String   @id @default(cuid())
   title       String
@@ -132,19 +195,40 @@ model Sermon {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
-  description String
-  location    String
-  startDate   DateTime
-  endDate     DateTime?
-  imageUrl    String?
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                   String              @id @default(cuid())
+  title                String
+  description          String
+  location             String
+  startDate            DateTime
+  endDate              DateTime?
+  imageUrl             String?
+  isPublished          Boolean             @default(true)
+  requiresRegistration Boolean             @default(false)
+  capacity             Int?
+  registrationDeadline DateTime?
+  registrations        EventRegistration[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([startDate])
   @@index([isPublished])
+}
+
+model EventRegistration {
+  id          String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  email       String
+  phone       String?
+  notes       String?
+  status      String   @default("CONFIRMED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([eventId, email])
+  @@index([eventId, status])
+  @@index([createdAt])
 }
 
 model Ministry {

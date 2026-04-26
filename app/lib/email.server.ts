@@ -96,3 +96,45 @@ export async function sendPasswordResetEmail(
     `,
   });
 }
+
+export async function sendEventRegistrationConfirmation(args: {
+  to: string;
+  name: string;
+  eventTitle: string;
+  eventLocation: string;
+  eventStartDate: Date;
+  status: "CONFIRMED" | "WAITLISTED";
+}) {
+  const { to, name, eventTitle, eventLocation, eventStartDate, status } = args;
+  const formattedDate = eventStartDate.toLocaleString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const subject =
+    status === "CONFIRMED"
+      ? `RSVP confirmed for ${eventTitle} — Powerhouse Church`
+      : `You are on the waitlist for ${eventTitle} — Powerhouse Church`;
+
+  const statusBody =
+    status === "CONFIRMED"
+      ? "<p>Your seat has been reserved. We look forward to welcoming you.</p>"
+      : "<p>The event is currently full, so we have placed you on the waitlist. We will reach out if a seat opens up.</p>";
+
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html: `
+      <p>Dear ${name},</p>
+      <p>Thank you for registering for <strong>${eventTitle}</strong>.</p>
+      ${statusBody}
+      <p><strong>Date:</strong> ${formattedDate}</p>
+      <p><strong>Location:</strong> ${eventLocation}</p>
+      <p>Grace and peace,<br/>Powerhouse Church</p>
+    `,
+  });
+}
