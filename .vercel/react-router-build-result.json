@@ -41,6 +41,7 @@
       "routes/portal/profile": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/directory": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/community": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/care": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/engagement": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/attendance": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -290,6 +291,13 @@
         "parentId": "routes/portal/_layout",
         "file": "app/routes/portal/community.tsx",
         "path": "portal/community",
+        "config": {}
+      },
+      "routes/portal/care": {
+        "id": "routes/portal/care",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/care.tsx",
+        "path": "portal/care",
         "config": {}
       },
       "routes/portal/engagement": {
@@ -626,6 +634,12 @@
         "file": "routes/portal/community.tsx",
         "path": "portal/community"
       },
+      "routes/portal/care": {
+        "id": "routes/portal/care",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/care.tsx",
+        "path": "portal/care"
+      },
       "routes/portal/engagement": {
         "id": "routes/portal/engagement",
         "parentId": "routes/portal/_layout",
@@ -873,6 +887,10 @@
               {
                 "file": "routes/portal/community.tsx",
                 "path": "portal/community"
+              },
+              {
+                "file": "routes/portal/care.tsx",
+                "path": "portal/care"
               },
               {
                 "file": "routes/portal/engagement.tsx",

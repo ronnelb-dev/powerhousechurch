@@ -1,4 +1,5 @@
 import { data } from "react-router";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
   ContactFormSchema,
@@ -43,7 +44,10 @@ export type RSVPActionData =
 
 type RSVPDeps = {
   db: {
-    $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>;
+    $transaction<T>(
+      fn: (tx: any) => Promise<T>,
+      options?: { isolationLevel?: Prisma.TransactionIsolationLevel },
+    ): Promise<T>;
   };
   sendEventRegistrationConfirmation(args: {
     to: string;
@@ -174,13 +178,15 @@ export async function handleRsvpSubmission(
 
   try {
     const result = await deps.db.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id
+        FROM "Event"
+        WHERE id = ${parsed.data.eventId}
+        FOR UPDATE
+      `;
+
       const event = await tx.event.findUnique({
         where: { id: parsed.data.eventId },
-        include: {
-          registrations: {
-            select: { status: true },
-          },
-        },
       });
 
       if (!event || !event.isPublished) {
@@ -228,9 +234,12 @@ export async function handleRsvpSubmission(
         };
       }
 
-      const confirmedCount = event.registrations.filter(
-        (entry: { status: string }) => entry.status === "CONFIRMED",
-      ).length;
+      const confirmedCount = await tx.eventRegistration.count({
+        where: {
+          eventId: event.id,
+          status: "CONFIRMED",
+        },
+      });
       const status: "CONFIRMED" | "WAITLISTED" =
         typeof event.capacity === "number" && confirmedCount >= event.capacity
           ? "WAITLISTED"
@@ -259,6 +268,8 @@ export async function handleRsvpSubmission(
           endDate: event.endDate,
         },
       };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     if (result.kind === "error") {

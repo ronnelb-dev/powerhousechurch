@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { handleRegisterSubmission } from "~/lib/auth-actions.server";
+import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { sendVerificationEmailForUser } from "~/lib/email-verification.server";
@@ -58,7 +59,7 @@ export async function action({ request }: ActionFunctionArgs) {
       gender: (formData.get("gender") as string) ?? "",
       birthday: (formData.get("birthday") as string) ?? "",
     },
-    request.url,
+    getTrustedAppOrigin(request.url),
     {
       db,
       sendVerificationEmailForUser,

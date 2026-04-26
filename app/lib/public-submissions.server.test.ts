@@ -27,6 +27,7 @@ describe("handleRsvpSubmission", () => {
         db: {
           $transaction: async (fn) =>
             fn({
+              $queryRaw: vi.fn().mockResolvedValue([{ id: "event_1" }]),
               event: {
                 findUnique: vi.fn().mockResolvedValue({
                   id: "event_1",
@@ -39,10 +40,10 @@ describe("handleRsvpSubmission", () => {
                   requiresRegistration: true,
                   capacity: 1,
                   registrationDeadline: null,
-                  registrations: [{ status: "CONFIRMED" }],
                 }),
               },
               eventRegistration: {
+                count: vi.fn().mockResolvedValue(1),
                 findUnique: vi.fn().mockResolvedValue(null),
                 create: createRegistration,
               },

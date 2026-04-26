@@ -29,6 +29,10 @@ type OutboundEmailRecord = {
   maxAttempts: number;
 };
 
+type ClaimEmailJobResult = {
+  count: number;
+};
+
 function getEmailModel() {
   return (db as unknown as {
     outboundEmail: {
@@ -36,6 +40,7 @@ function getEmailModel() {
       createMany(args: { data: Record<string, unknown>[] }): Promise<{ count: number }>;
       findMany(args: Record<string, unknown>): Promise<OutboundEmailRecord[]>;
       update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+      updateMany(args: Record<string, unknown>): Promise<ClaimEmailJobResult>;
     };
   }).outboundEmail;
 }
@@ -90,13 +95,14 @@ export async function processPendingOutboundEmails(args?: { limit?: number }) {
   }
 
   const now = new Date();
+  const staleLockCutoff = new Date(Date.now() - 10 * 60_000);
   const jobs = await model.findMany({
     where: {
       status: { in: ["PENDING", "FAILED"] },
       nextAttemptAt: { lte: now },
       OR: [
         { lockedAt: null },
-        { lockedAt: { lt: new Date(Date.now() - 10 * 60_000) } },
+        { lockedAt: { lt: staleLockCutoff } },
       ],
     },
     orderBy: [{ createdAt: "asc" }],
@@ -109,10 +115,17 @@ export async function processPendingOutboundEmails(args?: { limit?: number }) {
   let skipped = 0;
 
   for (const job of jobs) {
-    processed += 1;
     try {
-      await model.update({
-        where: { id: job.id },
+      const claim = await model.updateMany({
+        where: {
+          id: job.id,
+          status: { in: ["PENDING", "FAILED"] },
+          nextAttemptAt: { lte: now },
+          OR: [
+            { lockedAt: null },
+            { lockedAt: { lt: staleLockCutoff } },
+          ],
+        },
         data: {
           status: "PROCESSING",
           lockedAt: new Date(),
@@ -120,6 +133,12 @@ export async function processPendingOutboundEmails(args?: { limit?: number }) {
           attempts: { increment: 1 },
         },
       });
+      if (claim.count === 0) {
+        skipped += 1;
+        continue;
+      }
+
+      processed += 1;
 
       await resend.emails.send({
         from: FROM,

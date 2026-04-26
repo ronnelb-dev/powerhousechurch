@@ -10,6 +10,7 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 
+import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { getSession, lucia } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import {
@@ -105,7 +106,7 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       await sendVerificationEmailForUser(
         { id: user.id, email: user.email, firstName: user.firstName },
-        new URL(request.url).origin,
+        getTrustedAppOrigin(request.url),
       );
     } catch (error) {
       console.error("[auth.verify-email] Failed to resend verification:", error);

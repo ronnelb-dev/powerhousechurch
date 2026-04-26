@@ -7,6 +7,7 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 
+import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { db } from "~/lib/db.server";
 import { sendPasswordResetForUser } from "~/lib/password-reset.server";
 import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
@@ -62,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       await sendPasswordResetForUser(
         { id: user.id, email: user.email, firstName: user.firstName },
-        new URL(request.url).origin,
+        getTrustedAppOrigin(request.url),
       );
     } catch (error) {
       console.error("[auth.forgot-password] Failed to send reset email:", error);
