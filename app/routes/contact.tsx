@@ -1,6 +1,7 @@
 // app/routes/contact.tsx
 import {
   Form,
+  data,
   useActionData,
   useNavigation,
   useLoaderData,
@@ -35,7 +36,8 @@ const ContactSchema = z.object({
 
 type ActionData =
   | { success: true }
-  | { success: false; errors: Record<string, string[]> };
+  | { success: false; errors: Record<string, string[]> }
+  | { success: false; globalError: string };
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -49,29 +51,46 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const result = ContactSchema.safeParse(raw);
   if (!result.success) {
-    return {
+    return data({
       success: false,
       errors: result.error.flatten().fieldErrors,
-    } satisfies ActionData;
+    } satisfies ActionData, { status: 400 });
   }
 
   const { name, email, subject, message } = result.data;
 
-  // Dynamic import to avoid loading Resend on every page
-  const { Resend } = await import("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  if (!process.env.RESEND_API_KEY) {
+    return data({
+      success: false,
+      globalError:
+        "Contact email is not configured yet. Please call or email the church directly for now.",
+    } satisfies ActionData, { status: 503 });
+  }
 
-  await resend.emails.send({
-    from:    process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
-    to:      process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph",
-    subject: `Contact Form: ${subject}`,
-    html: `
-      <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
-      <p><strong>Subject:</strong> ${subject}</p>
-      <hr/>
-      <p>${message.replace(/\n/g, "<br/>")}</p>
-    `,
-  });
+  try {
+    // Dynamic import to avoid loading Resend on every page
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
+      to: process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph",
+      subject: `Contact Form: ${subject}`,
+      html: `
+        <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <hr/>
+        <p>${message.replace(/\n/g, "<br/>")}</p>
+      `,
+    });
+  } catch (error) {
+    console.error("[contact] Failed to send contact email:", error);
+    return data({
+      success: false,
+      globalError:
+        "We couldn't send your message right now. Please try again later or contact the church directly.",
+    } satisfies ActionData, { status: 502 });
+  }
 
   return { success: true } satisfies ActionData;
 }
@@ -97,7 +116,14 @@ export default function ContactPage() {
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const errors       = actionData?.success === false ? actionData.errors : {};
+  const errors =
+    actionData?.success === false && "errors" in actionData
+      ? actionData.errors
+      : {};
+  const globalError =
+    actionData?.success === false && "globalError" in actionData
+      ? actionData.globalError
+      : null;
 
   return (
     <>
@@ -232,6 +258,14 @@ export default function ContactPage() {
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                {globalError && (
+                  <div
+                    role="alert"
+                    className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-sans text-amber-800"
+                  >
+                    {globalError}
+                  </div>
+                )}
                 <Form method="post" noValidate aria-label="Contact form">
                   {/* Honeypot */}
                   <div className="hidden" aria-hidden="true">

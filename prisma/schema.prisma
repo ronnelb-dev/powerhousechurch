@@ -33,6 +33,7 @@ model User {
   posts          Post[]
   likes          Like[]
   comments       Comment[]
+  assignedPrayerRequests PrayerRequest[] @relation("PrayerRequestOwner")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
@@ -308,16 +309,22 @@ model Comment {
 }
 
 model PrayerRequest {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  request     String
-  isPrivate   Boolean  @default(false)
-  isAnswered  Boolean  @default(false)
-  submittedAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  email           String?
+  request         String
+  isPrivate       Boolean  @default(false)
+  status          String   @default("NEW")
+  followUpOwnerId String?
+  followUpOwner   User?    @relation("PrayerRequestOwner", fields: [followUpOwnerId], references: [id], onDelete: SetNull)
+  isAnswered      Boolean  @default(false)
+  answeredAt      DateTime?
+  submittedAt     DateTime @default(now())
 
   @@index([submittedAt])
   @@index([isAnswered])
+  @@index([status, submittedAt])
+  @@index([followUpOwnerId])
 }
 
 model GivingRecord {

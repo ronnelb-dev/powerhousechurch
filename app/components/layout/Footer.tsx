@@ -21,12 +21,46 @@ interface FooterProps {
 
 export function Footer({ settings }: FooterProps) {
   const churchName = settings["church.name"] ?? "Powerhouse Church";
+  const churchAddress =
+    settings["church.address"] ?? "Masbate City, Masbate, Philippines";
+  const churchPhone = settings["church.phone"] ?? "(555) 123-4567";
+  const churchEmail = settings["church.email"] ?? "info@powerhousechurch.org";
+  const serviceTimes = [
+    settings["service.sunday1"] && `Sunday Service: ${settings["service.sunday1"]}`,
+    settings["service.sunday2"] && `Second Service: ${settings["service.sunday2"]}`,
+    settings["service.cellGroupDays"] &&
+      `Cell Groups: ${settings["service.cellGroupDays"]}`,
+  ].filter(Boolean) as string[];
 
   const socials = [
-    { key: "social.facebook",  icon: faFacebookF,  label: "Facebook",  href:"https://www.facebook.com/PowerhouseChurchInternational"  },
-    { key: "social.instagram", icon: faInstagram,  label: "Instagram", href: "https://www.instagram.com/_powerhouseintl/" },
-    { key: "social.youtube",   icon: faYoutube,    label: "YouTube",   href: "https://www.youtube.com/@pcf_intl"   },
-    { key: "social.tiktok",    icon: faTiktok,     label: "TikTok",    href: "https://www.tiktok.com/@pcf_intl"    },
+    {
+      key: "social.facebook",
+      icon: faFacebookF,
+      label: "Facebook",
+      href:
+        settings["social.facebook"] ??
+        "https://www.facebook.com/PowerhouseChurchInternational",
+    },
+    {
+      key: "social.instagram",
+      icon: faInstagram,
+      label: "Instagram",
+      href:
+        settings["social.instagram"] ??
+        "https://www.instagram.com/_powerhouseintl/",
+    },
+    {
+      key: "social.youtube",
+      icon: faYoutube,
+      label: "YouTube",
+      href: settings["social.youtube"] ?? "https://www.youtube.com/@pcf_intl",
+    },
+    {
+      key: "social.tiktok",
+      icon: faTiktok,
+      label: "TikTok",
+      href: settings["social.tiktok"] ?? "https://www.tiktok.com/@pcf_intl",
+    },
   ];
 
   return (
@@ -48,15 +82,15 @@ export function Footer({ settings }: FooterProps) {
             <div className="mt-8 grid gap-3">
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faMapMarkerAlt} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">2nd Flr. Sundrel Business Center Bldg Cabuyao City, Laguna</span>
+                <span className="text-sm text-[#f1e8df]">{churchAddress}</span>
               </div>
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faPhone} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">(555) 123-4567</span>
+                <span className="text-sm text-[#f1e8df]">{churchPhone}</span>
               </div>
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faEnvelope} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">info@powerhousechurch.org</span>
+                <span className="text-sm text-[#f1e8df]">{churchEmail}</span>
               </div>
             </div>
 
@@ -120,13 +154,13 @@ export function Footer({ settings }: FooterProps) {
 
             <div className="mt-8 rounded-[var(--radius)] border border-white/10 bg-white/5 p-5">
               <h5 className="text-xs uppercase tracking-[0.24em] text-[#e7c07d]">Service Times</h5>
-              <p className="mt-3 text-sm leading-7 text-[#f1e8df]">
-                Morning Service: 9:00 AM (Sunday)
-                <br />
-                Youth Service: 2:00 PM  (Sunday)
-                 <br />
-                Midweek: 6:30 PM (Wednesday)
-              </p>
+              <div className="mt-3 space-y-2 text-sm leading-7 text-[#f1e8df]">
+                {(serviceTimes.length > 0
+                  ? serviceTimes
+                  : ["Sunday Service: 9:00 AM", "Cell Groups: Fri-Sat"]).map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
             </div>
           </div>
         </div>

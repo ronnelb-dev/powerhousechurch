@@ -174,14 +174,16 @@ export default function LivePage() {
     // Poll immediately on mount (catches streams that started after SSR)
     poll();
 
-    const timer = setInterval(poll, POLL_INTERVAL_MS);
+    let timer = setInterval(poll, POLL_INTERVAL_MS);
 
     // Pause polling when tab is hidden — resumes on focus
     const onVisibilityChange = () => {
       if (document.hidden) {
         clearInterval(timer);
       } else {
+        clearInterval(timer);
         poll(); // immediate check on return
+        timer = setInterval(poll, POLL_INTERVAL_MS);
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);

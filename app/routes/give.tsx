@@ -1,8 +1,10 @@
 // app/routes/give.tsx
 import {
   Form,
+  redirect,
   useActionData,
   useNavigation,
+  useSearchParams,
   isRouteErrorResponse,
   useRouteError,
   type ActionFunctionArgs,
@@ -30,7 +32,7 @@ const GivingSchema = z.object({
 });
 
 type ActionData =
-  | { success: true; clientSecret: string; amount: number }
+  | { success: true; amount?: number }
   | { success: false; errors: Record<string, string[]> }
   | { success: false; globalError: string };
 
@@ -53,6 +55,11 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const { amount, category, name, email } = result.data;
+  const currentUrl = new URL(request.url);
+  const origin =
+    process.env.APP_URL ||
+    process.env.PUBLIC_APP_URL ||
+    currentUrl.origin;
 
   if (!process.env.STRIPE_SECRET_KEY) {
     return {
@@ -63,26 +70,50 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-06-20",
+    apiVersion: "2025-02-24.acacia",
   });
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount,                // already in centavos/cents
-    currency: "php",
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    success_url: `${origin}/give?status=success&amount=${amount}`,
+    cancel_url: `${origin}/give?status=cancelled`,
+    customer_email: email || undefined,
     metadata: {
       category,
-      giverName:  name || "Anonymous",
+      giverName: name || "Anonymous",
       giverEmail: email || "",
     },
-    description: `Powerhouse Church — ${category}`,
-    receipt_email: email || undefined,
+    payment_intent_data: {
+      description: `Powerhouse Church — ${category}`,
+      metadata: {
+        category,
+        giverName: name || "Anonymous",
+        giverEmail: email || "",
+      },
+    },
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "php",
+          product_data: {
+            name: `Powerhouse Church ${category.replaceAll("_", " ")}`,
+          },
+          unit_amount: amount,
+        },
+      },
+    ],
   });
 
-  return {
-    success: true,
-    clientSecret: paymentIntent.client_secret!,
-    amount,
-  } satisfies ActionData;
+  if (!session.url) {
+    return {
+      success: false,
+      globalError:
+        "We couldn't start checkout right now. Please try again in a moment.",
+    } satisfies ActionData;
+  }
+
+  return redirect(session.url);
 }
 
 const PRESETS = [
@@ -109,15 +140,19 @@ const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 export default function GivePage() {
   const actionData  = useActionData<typeof action>();
   const navigation  = useNavigation();
+  const [searchParams] = useSearchParams();
   const isSubmitting = navigation.state === "submitting";
+  const isSuccess = searchParams.get("status") === "success";
+  const isCancelled = searchParams.get("status") === "cancelled";
+  const successfulAmount = Number(searchParams.get("amount") ?? "0");
 
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [customAmount, setCustomAmount]     = useState("");
   const [selectedCategory, setSelectedCategory] = useState("TITHE");
 
   // Success — show confirmation
-  if (actionData?.success) {
-    const displayAmount = (actionData.amount / 100).toLocaleString("en-PH", {
+  if (isSuccess && successfulAmount >= 100) {
+    const displayAmount = (successfulAmount / 100).toLocaleString("en-PH", {
       style: "currency", currency: "PHP",
     });
     return (
@@ -192,6 +227,14 @@ export default function GivePage() {
             {globalError}
           </div>
         )}
+        {isCancelled && !globalError && (
+          <div
+            role="status"
+            className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 text-sm font-sans text-gray-700"
+          >
+            Checkout was canceled. Your card was not charged.
+          </div>
+        )}
 
         <Form method="post" noValidate aria-label="Online giving form">
           {/* Hidden amount field — carries centavo value */}
@@ -236,7 +279,7 @@ export default function GivePage() {
                 ))}
               </div>
             </fieldset>
-            {errors.category && (
+            {errors?.category && (
               <p role="alert" className="mt-2 text-xs text-red-600 font-sans">
                 {errors.category[0]}
               </p>
@@ -295,7 +338,7 @@ export default function GivePage() {
               />
             </div>
 
-            {errors.amount && (
+            {errors?.amount && (
               <p role="alert" className="mt-2 text-xs text-red-600 font-sans">
                 {errors.amount[0]}
               </p>

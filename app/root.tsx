@@ -8,6 +8,7 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { getSettings } from "./lib/settings.server";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -26,6 +27,10 @@ export const links: Route.LinksFunction = () => [
     },
 
 ];
+
+export async function loader() {
+  return { settings: await getSettings() };
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
