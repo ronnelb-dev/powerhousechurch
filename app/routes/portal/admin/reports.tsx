@@ -10,6 +10,7 @@ import {
 import type { MetaFunction } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 type AttendanceTrendPoint = {
   dateKey: string;
@@ -60,6 +61,20 @@ export const meta: MetaFunction = () => [{ title: "Reports & Analytics — Admin
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
 
+  const auditLogModel = (db as unknown as {
+    adminAuditLog?: {
+      findMany(args: unknown): Promise<Array<{
+        id: string;
+        actorRole: string;
+        action: string;
+        entityType: string;
+        summary: string;
+        createdAt: Date;
+        actor: { firstName: string; lastName: string } | null;
+      }>>;
+    };
+  }).adminAuditLog;
+
   const sundaySeries = getLastNSundays(12);
   const monthSeries = getLastNMonths(12);
   const firstSunday = sundaySeries[0] ?? getMostRecentSunday();
@@ -78,6 +93,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     attendanceRecords,
     givingRecords,
     memberRows,
+    recentAuditLogs,
   ] = await Promise.all([
     db.cellGroup.findMany({
       where: { isActive: true },
@@ -121,6 +137,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: { isActive: true },
       select: { createdAt: true },
     }),
+    auditLogModel?.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        actorRole: true,
+        action: true,
+        entityType: true,
+        summary: true,
+        createdAt: true,
+        actor: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    }) ?? Promise.resolve([]),
   ]);
 
   const attendanceTrend = buildAttendanceTrend({
@@ -151,11 +185,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     attendanceTrend,
     givingTrend,
     memberGrowth,
+    recentAuditLogs: recentAuditLogs.map((entry) => ({
+      ...entry,
+      createdAt: entry.createdAt.toISOString(),
+      actorName: entry.actor
+        ? `${entry.actor.firstName} ${entry.actor.lastName}`.trim()
+        : "System",
+    })),
   };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAdmin(request);
+  const { user } = await requireAdmin(request);
   const formData = await request.formData();
   const startDate = new Date(`${String(formData.get("startDate") ?? "")}T00:00:00`);
   const endDate = new Date(`${String(formData.get("endDate") ?? "")}T23:59:59`);
@@ -222,6 +263,23 @@ export async function action({ request }: ActionFunctionArgs) {
       .toISOString()
       .slice(0, 10)}-to-${endDate.toISOString().slice(0, 10)}.csv`;
 
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "report.export",
+      entityType: "attendance_report",
+      summary: `Exported kids attendance report for ${type}`,
+      details: {
+        audience,
+        type,
+        classroom: classroom ?? null,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        rowCount: records.length,
+      },
+    });
+
     return new Response(csv, {
       status: 200,
       headers: {
@@ -274,6 +332,23 @@ export async function action({ request }: ActionFunctionArgs) {
   const filename = `attendance-${type.toLowerCase().replace("_", "-")}-${startDate
     .toISOString()
     .slice(0, 10)}-to-${endDate.toISOString().slice(0, 10)}.csv`;
+
+  await recordAdminAuditEvent({
+    request,
+    actorId: user.id,
+    actorRole: user.role,
+    action: "report.export",
+    entityType: "attendance_report",
+    summary: `Exported adult attendance report for ${type}`,
+    details: {
+      audience,
+      type,
+      cellGroupId: cellGroupId ?? null,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      rowCount: records.length,
+    },
+  });
 
   return new Response(csv, {
     status: 200,
@@ -545,6 +620,7 @@ export default function AdminReportsPage() {
     attendanceTrend,
     givingTrend,
     memberGrowth,
+    recentAuditLogs,
   } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isGenerating = navigation.state === "submitting";
@@ -953,6 +1029,53 @@ export default function AdminReportsPage() {
           The CSV will download directly to your browser for spreadsheet analysis.
         </p>
       </div>
+
+      <section className="rounded-xl border border-gray-100 bg-white p-7">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-lg font-bold text-gray-800">
+              Recent Admin Audit Activity
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-gray-500 font-sans">
+              A quick view of the latest sensitive actions recorded across admin and leadership workflows.
+            </p>
+          </div>
+          <div className="rounded-full bg-gray-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-gray-600">
+            Last {recentAuditLogs.length}
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {recentAuditLogs.length > 0 ? (
+            recentAuditLogs.map((entry) => (
+              <div
+                key={entry.id}
+                className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-bold text-gray-800">{entry.summary}</p>
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">
+                    {entry.actorRole}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500 font-sans">
+                  {entry.actorName} · {entry.action} · {new Date(entry.createdAt).toLocaleString("en-PH", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
+              Audit activity will appear here after admins start using the tracked workflows.
+            </p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

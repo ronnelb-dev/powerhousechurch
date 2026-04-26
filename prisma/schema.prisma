@@ -42,6 +42,7 @@ model User {
   sermonBookmarks SermonBookmark[]
   servingInterests ServingInterest[]
   notificationPreference NotificationPreference?
+  adminAuditLogs  AdminAuditLog[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
@@ -478,4 +479,24 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  String
+  action     String
+  entityType String
+  entityId   String?
+  summary    String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, createdAt])
+  @@index([createdAt])
 }

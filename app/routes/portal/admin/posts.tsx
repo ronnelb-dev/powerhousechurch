@@ -16,6 +16,7 @@ import type { MetaFunction } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [{ title: "Daily Bread Moderation — Admin" }];
 
@@ -51,17 +52,54 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAdmin(request);
+  const { user } = await requireAdmin(request);
   const formData = await request.formData();
   const id       = formData.get("id") as string;
   const intent   = formData.get("intent") as string;
+  const existingPost = await db.post.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      content: true,
+      scope: true,
+      author: {
+        select: { firstName: true, lastName: true },
+      },
+    },
+  });
 
   if (intent === "approve") {
     await db.post.update({ where: { id }, data: { isApproved: true } });
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "post.approve",
+      entityType: "post",
+      entityId: id,
+      summary: `Approved Daily Bread post by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
+      details: {
+        scope: existingPost?.scope ?? null,
+        preview: existingPost?.content.slice(0, 140) ?? null,
+      },
+    });
     return { success: true };
   }
   if (intent === "reject") {
     await db.post.delete({ where: { id } });
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "post.reject",
+      entityType: "post",
+      entityId: id,
+      summary: `Removed Daily Bread post by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
+      details: {
+        scope: existingPost?.scope ?? null,
+        preview: existingPost?.content.slice(0, 140) ?? null,
+      },
+    });
     return { success: true };
   }
   return { error: "Unknown intent." };

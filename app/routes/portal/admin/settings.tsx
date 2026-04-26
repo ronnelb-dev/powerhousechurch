@@ -14,6 +14,7 @@ import type { MetaFunction } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [{ title: "Church Settings — Admin" }];
 
@@ -23,8 +24,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAdmin(request);
+  const { user } = await requireAdmin(request);
   const formData = await request.formData();
+  const previousSettings = await getSettings();
 
   const updates: { key: string; value: string }[] = [];
   for (const [key, value] of formData.entries()) {
@@ -43,7 +45,42 @@ export async function action({ request }: ActionFunctionArgs) {
     )
   );
 
+  const changed = updates
+    .filter((entry) => (previousSettings[entry.key] ?? "") !== entry.value)
+    .map((entry) => ({
+      key: entry.key,
+      previousValue:
+        entry.key.includes("apiKey")
+          ? maskSensitiveValue(previousSettings[entry.key] ?? "")
+          : previousSettings[entry.key] ?? "",
+      nextValue:
+        entry.key.includes("apiKey")
+          ? maskSensitiveValue(entry.value)
+          : entry.value,
+    }));
+
+  if (changed.length > 0) {
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "settings.update",
+      entityType: "setting",
+      summary: `Updated ${changed.length} church setting${changed.length === 1 ? "" : "s"}`,
+      details: {
+        changedKeys: changed.map((entry) => entry.key),
+        changes: changed,
+      },
+    });
+  }
+
   return { success: true };
+}
+
+function maskSensitiveValue(value: string) {
+  if (!value) return "";
+  if (value.length <= 6) return "******";
+  return `${value.slice(0, 2)}******${value.slice(-2)}`;
 }
 
 const inputClass =

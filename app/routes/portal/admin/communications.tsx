@@ -19,6 +19,7 @@ import {
   type CommunicationAudienceType,
 } from "~/lib/communications.server";
 import { requireAdmin } from "~/lib/auth.server";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Communications Center — Admin" },
@@ -94,7 +95,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAdmin(request);
+  const { user } = await requireAdmin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
@@ -156,6 +157,25 @@ export async function action({ request }: ActionFunctionArgs) {
     body,
     audienceLabel: audience.audienceLabel,
     recipients: audience.recipients,
+  });
+
+  await recordAdminAuditEvent({
+    request,
+    actorId: user.id,
+    actorRole: user.role,
+    action: "communications.send",
+    entityType: "communication_audience",
+    entityId: audienceId || audienceType,
+    summary: `Sent "${subject}" to ${audience.audienceLabel}`,
+    details: {
+      audienceType,
+      audienceId: audienceId || null,
+      audienceLabel: audience.audienceLabel,
+      recipientCount: audience.recipients.length,
+      sentCount: result.sentCount,
+      failedCount: result.failedCount,
+      subject,
+    },
   });
 
   if (result.sentCount === 0) {

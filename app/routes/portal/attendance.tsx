@@ -12,6 +12,7 @@ import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { AttendanceMarkRow } from "~/components/church/AttendanceMarkRow";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Attendance — Powerhouse Church Portal" },
@@ -115,6 +116,11 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
+  const previousRecord = await db.attendance.findUnique({
+    where: { userId_type_date: { userId, type, date: selectedDate } },
+    select: { status: true },
+  });
+
   await db.attendance.upsert({
     where: { userId_type_date: { userId, type, date: selectedDate } },
     update: { status, markedById: user.id },
@@ -125,6 +131,23 @@ export async function action({ request }: ActionFunctionArgs) {
       date: selectedDate,
       markedById: user.id,
       cellGroupId: user.cellGroupId ?? undefined,
+    },
+  });
+
+  await recordAdminAuditEvent({
+    request,
+    actorId: user.id,
+    actorRole: user.role,
+    action: "attendance.mark",
+    entityType: "attendance",
+    entityId: `${userId}:${type}:${date}`,
+    summary: `${previousRecord ? "Updated" : "Created"} ${type.toLowerCase()} attendance for ${date}`,
+    details: {
+      memberId: userId,
+      attendanceType: type,
+      date,
+      previousStatus: previousRecord?.status ?? null,
+      nextStatus: status,
     },
   });
 
