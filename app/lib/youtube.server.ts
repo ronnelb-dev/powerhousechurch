@@ -30,7 +30,10 @@
 //   across cold starts. For production scale, replace with Vercel KV or Redis.
 
 import { db } from "~/lib/db.server";
-import { buildEmbedUrl, parseVideoId } from "~/lib/youtube";
+import {
+  SERMON_PLAYLISTS,
+  type SermonPlaylistKey,
+} from "~/lib/sermon-playlists";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,21 @@ export interface VideoResult {
   title:   string | null;
 }
 
+export interface PlaylistVideoResult {
+  id: string;
+  videoId: string;
+  title: string;
+  description: string;
+  publishedAt: string;
+  thumbnail: string | null;
+  playlistId: string;
+  playlistKey: SermonPlaylistKey;
+  playlistLabel: string;
+  playlistDescription: string;
+  speaker: string;
+  url: string;
+}
+
 // ── In-memory cache ───────────────────────────────────────────────────────
 
 interface CacheEntry<T> {
@@ -53,7 +71,6 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-const liveCache: CacheEntry<LiveStreamResult> | null = null;
 let   liveCacheEntry: CacheEntry<LiveStreamResult> | null = null;
 
 const CACHE_TTL_MS = 30_000; // 30 seconds
@@ -94,6 +111,29 @@ async function getYouTubeConfig(): Promise<{ apiKey: string; channelId: string }
   return { apiKey, channelId };
 }
 
+async function getYouTubeApiKey(): Promise<string | null> {
+  let apiKey = process.env.YOUTUBE_API_KEY ?? "";
+
+  try {
+    const row = await db.setting.findUnique({
+      where: { key: "youtube.apiKey" },
+    });
+    if (row?.value) apiKey = row.value;
+  } catch {
+    // DB unavailable — fall back to env var
+  }
+
+  if (!apiKey) {
+    console.warn(
+      "[youtube.server] Missing YOUTUBE_API_KEY. " +
+      "Set it in .env or in the Admin Settings panel."
+    );
+    return null;
+  }
+
+  return apiKey;
+}
+
 // ── YouTube API fetch helpers ─────────────────────────────────────────────
 
 const YT_BASE = "https://www.googleapis.com/youtube/v3";
@@ -129,6 +169,170 @@ async function fetchFromYouTube(endpoint: string, params: Record<string, string>
   }
 
   return res.json() as Promise<YouTubeSearchResponse>;
+}
+
+interface YouTubePlaylistItem {
+  snippet?: {
+    title?: string;
+    description?: string;
+    publishedAt?: string;
+    thumbnails?: {
+      maxres?: { url?: string };
+      standard?: { url?: string };
+      high?: { url?: string };
+      medium?: { url?: string };
+      default?: { url?: string };
+    };
+  };
+  contentDetails?: {
+    videoId?: string;
+    videoPublishedAt?: string;
+  };
+  status?: {
+    privacyStatus?: string;
+  };
+}
+
+interface YouTubePlaylistResponse {
+  items?: YouTubePlaylistItem[];
+  nextPageToken?: string;
+  error?: { message: string; code: number };
+}
+
+async function fetchPlaylistPage(
+  apiKey: string,
+  playlistId: string,
+  pageToken?: string,
+): Promise<YouTubePlaylistResponse> {
+  const url = new URL(`${YT_BASE}/playlistItems`);
+  url.searchParams.set("part", "snippet,contentDetails,status");
+  url.searchParams.set("playlistId", playlistId);
+  url.searchParams.set("maxResults", "50");
+  url.searchParams.set("key", apiKey);
+  if (pageToken) {
+    url.searchParams.set("pageToken", pageToken);
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(8_000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`YouTube API error ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  return res.json() as Promise<YouTubePlaylistResponse>;
+}
+
+function inferSpeaker(title: string, description: string): string {
+  const patterns = [
+    /(?:speaker|preacher|message(?:\s+by)?|with)[:\s-]+([A-Za-z][A-Za-z.' -]{2,60})/i,
+    /\b(?:Ps|Ptr|Pst|Pastor|Bro|Sis)\.?\s+([A-Za-z][A-Za-z.' -]{1,50})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = `${title}\n${description}`.match(pattern);
+    const candidate = match?.[1]?.trim();
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return "Powerhouse Church";
+}
+
+function pickThumbnail(item: YouTubePlaylistItem): string | null {
+  const thumbs = item.snippet?.thumbnails;
+  return (
+    thumbs?.maxres?.url ??
+    thumbs?.standard?.url ??
+    thumbs?.high?.url ??
+    thumbs?.medium?.url ??
+    thumbs?.default?.url ??
+    null
+  );
+}
+
+let playlistVideosCache: CacheEntry<PlaylistVideoResult[]> | null = null;
+const PLAYLIST_CACHE_TTL_MS = 10 * 60_000; // 10 minutes
+
+export async function getSermonPlaylistVideos(): Promise<PlaylistVideoResult[]> {
+  const cached = getCached(playlistVideosCache);
+  if (cached) return cached;
+
+  const apiKey = await getYouTubeApiKey();
+  if (!apiKey) return [];
+
+  const allVideos = await Promise.all(
+    Object.entries(SERMON_PLAYLISTS).map(async ([playlistKey, playlist]) => {
+      const videos: PlaylistVideoResult[] = [];
+      let pageToken: string | undefined;
+
+      do {
+        const data = await fetchPlaylistPage(apiKey, playlist.id, pageToken);
+        if (data.error) {
+          throw new Error(data.error.message);
+        }
+
+        for (const item of data.items ?? []) {
+          const videoId = item.contentDetails?.videoId;
+          const title = item.snippet?.title?.trim() ?? "";
+
+          if (
+            !videoId ||
+            !title ||
+            title === "Private video" ||
+            title === "Deleted video" ||
+            item.status?.privacyStatus === "private"
+          ) {
+            continue;
+          }
+
+          const description = item.snippet?.description?.trim() ?? "";
+
+          videos.push({
+            id: videoId,
+            videoId,
+            title,
+            description,
+            publishedAt:
+              item.contentDetails?.videoPublishedAt ??
+              item.snippet?.publishedAt ??
+              new Date(0).toISOString(),
+            thumbnail: pickThumbnail(item),
+            playlistId: playlist.id,
+            playlistKey: playlistKey as SermonPlaylistKey,
+            playlistLabel: playlist.label,
+            playlistDescription: playlist.description,
+            speaker: inferSpeaker(title, description),
+            url: `https://www.youtube.com/watch?v=${videoId}`,
+          });
+        }
+
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      return videos;
+    }),
+  );
+
+  const deduped = Array.from(
+    new Map(
+      allVideos
+        .flat()
+        .sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt))
+        .map((video) => [video.videoId, video]),
+    ).values(),
+  );
+
+  playlistVideosCache = {
+    data: deduped,
+    expiresAt: Date.now() + PLAYLIST_CACHE_TTL_MS,
+  };
+
+  return deduped;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────

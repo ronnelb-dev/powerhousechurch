@@ -14,6 +14,8 @@ model User {
   firstName      String
   lastName       String
   email          String?    @unique
+  isEmailVerified Boolean   @default(true)
+  emailVerifiedAt DateTime?
   phone          String?    @unique
   passwordHash   String
   age            Int
@@ -29,12 +31,38 @@ model User {
   posts          Post[]
   likes          Like[]
   comments       Comment[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
   @@index([role])
   @@index([cellGroupId])
   @@index([isActive])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Session {

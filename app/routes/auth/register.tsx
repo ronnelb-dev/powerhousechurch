@@ -1,4 +1,3 @@
-// app/routes/auth/register.tsx
 import {
   Form,
   Link,
@@ -10,9 +9,9 @@ import {
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { hash } from "@node-rs/argon2";
-import { lucia, getSession } from "~/lib/auth.server";
+import { getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
-import { sendWelcomeEmail } from "~/lib/email.server";
+import { sendVerificationEmailForUser } from "~/lib/email-verification.server";
 
 export const meta: MetaFunction = () => [
   { title: "Register — Powerhouse Church Members Portal" },
@@ -20,7 +19,13 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: { request: Request }) {
   const { user } = await getSession(request);
-  if (user) throw redirect("/portal/dashboard");
+  if (user) {
+    throw redirect(
+      user.isEmailVerified
+        ? "/portal/dashboard"
+        : `/auth/verify-email?email=${encodeURIComponent(user.email ?? "")}`,
+    );
+  }
   return null;
 }
 
@@ -28,7 +33,7 @@ const RegisterSchema = z
   .object({
     firstName: z.string().min(1, "First name is required").max(50),
     lastName: z.string().min(1, "Last name is required").max(50),
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    email: z.string().email("Valid email address is required"),
     phone: z
       .string()
       .regex(/^[0-9+\s\-(). ]{7,20}$/, "Invalid phone number")
@@ -43,10 +48,6 @@ const RegisterSchema = z
     age: z.coerce.number().int().min(5, "Age must be at least 5").max(120),
     gender: z.enum(["MALE", "FEMALE"], { message: "Select a gender" }),
     birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use format YYYY-MM-DD"),
-  })
-  .refine((d) => d.email || d.phone, {
-    message: "Either email or phone number is required",
-    path: ["email"],
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords do not match",
@@ -84,11 +85,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const { firstName, lastName, email, phone, password, age, gender, birthday } =
     result.data;
 
-  // Check for duplicate email/phone
   const existing = await db.user.findFirst({
     where: {
       OR: [
-        ...(email ? [{ email }] : []),
+        { email },
         ...(phone ? [{ phone }] : []),
       ],
     },
@@ -110,28 +110,36 @@ export async function action({ request }: ActionFunctionArgs) {
     data: {
       firstName,
       lastName,
-      email: email || null,
+      email,
       phone: phone || null,
       passwordHash,
       age,
       gender,
       birthday: new Date(birthday),
       role: "MEMBER",
+      isEmailVerified: false,
+      emailVerifiedAt: null,
     },
   });
 
-  // Welcome email — fire and forget
-  if (email) {
-    sendWelcomeEmail(email, firstName).catch(() => { });
+  try {
+    await sendVerificationEmailForUser(
+      { id: user.id, email: user.email!, firstName: user.firstName },
+      new URL(request.url).origin,
+    );
+  } catch (error) {
+    await db.user.delete({ where: { id: user.id } });
+    console.error("[auth.register] Failed to send verification email:", error);
+    return {
+      success: false,
+      globalError:
+        "We could not send the verification email right now. Please try again.",
+    } satisfies ActionData;
   }
 
-  // Create session immediately so user lands in the portal
-  const session = await lucia.createSession(user.id, {});
-  const cookie = lucia.createSessionCookie(session.id);
-
-  return redirect("/portal/dashboard", {
-    headers: { "Set-Cookie": cookie.serialize() },
-  });
+  return redirect(
+    `/auth/verify-email?email=${encodeURIComponent(email)}&sent=1`,
+  );
 }
 
 const inputClass =
@@ -174,7 +182,7 @@ export default function RegisterPage() {
             Create Your Account
           </h1>
           <p className="text-sm text-gray-500 font-sans">
-            Join the members portal — your digital church home.
+            Register with your real email. Portal access starts after verification.
           </p>
         </div>
 
@@ -190,7 +198,6 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Name row */}
             <div className="grid grid-cols-2 gap-4 mb-5">
               <div>
                 <label htmlFor="firstName" className={labelClass}>
@@ -220,21 +227,23 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Email */}
             <div className="mb-5">
               <label htmlFor="email" className={labelClass}>
-                Email Address
+                Email Address <span className="text-red-500" aria-hidden="true">*</span>
               </label>
               <input
                 id="email" type="email" name="email"
-                autoComplete="email" aria-invalid={!!errors?.email}
+                autoComplete="email" required aria-required="true"
+                aria-invalid={!!errors?.email}
                 className={`${inputClass} ${errors?.email ? "border-red-300" : ""}`}
                 placeholder="your@email.com"
               />
+              <p className="mt-1.5 text-xs text-gray-400 font-sans">
+                We send a verification link here before portal access is enabled.
+              </p>
               <FieldError errors={errors?.email} />
             </div>
 
-            {/* Phone */}
             <div className="mb-5">
               <label htmlFor="phone" className={labelClass}>
                 Phone Number
@@ -245,13 +254,9 @@ export default function RegisterPage() {
                 className={`${inputClass} ${errors?.phone ? "border-red-300" : ""}`}
                 placeholder="09XX XXX XXXX"
               />
-              <p className="mt-1.5 text-xs text-gray-400 font-sans">
-                Either email or phone is required.
-              </p>
               <FieldError errors={errors?.phone} />
             </div>
 
-            {/* Age + Gender + Birthday */}
             <div className="grid grid-cols-3 gap-4 mb-5">
               <div>
                 <label htmlFor="age" className={labelClass}>
@@ -293,7 +298,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div className="mb-5">
               <label htmlFor="password" className={labelClass}>
                 Password <span className="text-red-500" aria-hidden="true">*</span>
@@ -312,7 +316,6 @@ export default function RegisterPage() {
               <FieldError errors={errors?.password} />
             </div>
 
-            {/* Confirm Password */}
             <div className="mb-7">
               <label htmlFor="confirmPassword" className={labelClass}>
                 Confirm Password <span className="text-red-500" aria-hidden="true">*</span>

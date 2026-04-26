@@ -205,6 +205,70 @@ async function main() {
   }
   console.log("✅ Events seeded");
 
+  // ── Ministries ─────────────────────────────────────────────
+  const ministries = [
+    {
+      name: "Worship Ministry",
+      leader: "Ptr. Emmanuel Santos",
+      description:
+        "Leads the church in heartfelt worship through music, prayer, and a lifestyle of praise.",
+      sortOrder: 1,
+      isActive: true,
+    },
+    {
+      name: "Kids Ministry",
+      leader: "Sis. Maria Reyes",
+      description:
+        "Creates a safe, joyful, and Bible-centered space where children can grow in faith.",
+      sortOrder: 2,
+      isActive: true,
+    },
+    {
+      name: "Youth Ministry",
+      leader: "Bro. Joel Cruz",
+      description:
+        "Disciples the next generation through worship nights, small groups, and purposeful mentoring.",
+      sortOrder: 3,
+      isActive: true,
+    },
+    {
+      name: "Ushering Ministry",
+      leader: "Sis. Ana Torres",
+      description:
+        "Welcomes every guest and member with warmth, order, and practical hospitality during services.",
+      sortOrder: 4,
+      isActive: true,
+    },
+    {
+      name: "Prayer Ministry",
+      leader: "Ptr. Grace Villanueva",
+      description:
+        "Covers the church in intercession and ministers prayer to people in every season of life.",
+      sortOrder: 5,
+      isActive: true,
+    },
+    {
+      name: "Media Ministry",
+      leader: "Bro. Nathaniel Gomez",
+      description:
+        "Supports worship services and outreach through sound, projection, livestream, and creative media.",
+      sortOrder: 6,
+      isActive: true,
+    },
+  ];
+
+  for (const ministry of ministries) {
+    const existing = await db.ministry.findFirst({
+      where: { name: ministry.name },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      await db.ministry.create({ data: ministry });
+    }
+  }
+  console.log("✅ Ministries seeded");
+
   // ── Attendance (Ana — the "Needs Care" member) ─────────────
   const sundays = [
     new Date("2025-03-02"), new Date("2025-03-09"),

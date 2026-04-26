@@ -43,6 +43,9 @@ export default [
   ...prefix("auth", [
     route("login", "routes/auth/login.tsx"),
     route("register", "routes/auth/register.tsx"),
+    route("verify-email", "routes/auth/verify-email.tsx"),
+    route("forgot-password", "routes/auth/forgot-password.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
     route("logout", "routes/auth/logout.tsx"),
   ]),
 
@@ -63,6 +66,7 @@ export default [
           route("cell-groups", "routes/portal/admin/cell-groups.tsx"),
           route("reports", "routes/portal/admin/reports.tsx"),
           route("members", "routes/portal/admin/members.tsx"),
+          route("ministries", "routes/portal/admin/ministries.tsx"),
           route("sermons", "routes/portal/admin/sermons.tsx"),
           route("events", "routes/portal/admin/events.tsx"),
           route("posts", "routes/portal/admin/posts.tsx"),

@@ -13,6 +13,7 @@ export const lucia = new Lucia(adapter, {
   getUserAttributes(attributes) {
     return {
       email: attributes.email,
+      isEmailVerified: attributes.isEmailVerified,
       firstName: attributes.firstName,
       lastName: attributes.lastName,
       role: attributes.role,
@@ -27,6 +28,7 @@ declare module "lucia" {
     Lucia: typeof lucia;
     DatabaseUserAttributes: {
       email: string | null;
+      isEmailVerified: boolean;
       firstName: string;
       lastName: string;
       role: "ADMIN" | "CELL_LEADER" | "MEMBER";
@@ -58,6 +60,15 @@ export async function requireUser(request: Request) {
     throw new Response(null, {
       status: 302,
       headers: { Location: "/auth/login" },
+    });
+  }
+  if (!user.isEmailVerified) {
+    const emailQuery = user.email
+      ? `?email=${encodeURIComponent(user.email)}`
+      : "";
+    throw new Response(null, {
+      status: 302,
+      headers: { Location: `/auth/verify-email${emailQuery}` },
     });
   }
   return { user, session };

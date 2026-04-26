@@ -53,3 +53,46 @@ export async function sendWelcomeEmail(to: string, firstName: string) {
     `,
   });
 }
+
+export async function sendEmailVerificationEmail(
+  to: string,
+  firstName: string,
+  verifyUrl: string,
+) {
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Verify your email — Powerhouse Church",
+    html: `
+      <p>Dear ${firstName},</p>
+      <p>Thanks for registering for the Powerhouse Church Members Portal.</p>
+      <p>Please verify your email address before accessing the portal.</p>
+      <p><a href="${verifyUrl}">Verify my email</a></p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p>${verifyUrl}</p>
+      <p>This link expires in 24 hours.</p>
+      <p>— The Powerhouse Church Team</p>
+    `,
+  });
+}
+
+export async function sendPasswordResetEmail(
+  to: string,
+  firstName: string,
+  resetUrl: string,
+) {
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Reset your password — Powerhouse Church",
+    html: `
+      <p>Dear ${firstName},</p>
+      <p>We received a request to reset your Members Portal password.</p>
+      <p><a href="${resetUrl}">Reset my password</a></p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p>${resetUrl}</p>
+      <p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
+      <p>— The Powerhouse Church Team</p>
+    `,
+  });
+}

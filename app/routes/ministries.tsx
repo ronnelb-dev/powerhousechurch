@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";
+import { ensureSampleMinistries } from "~/lib/ministries.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import { EmptyState } from "~/components/ui/EmptyState";
@@ -20,6 +21,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader() {
+  await ensureSampleMinistries();
   const ministries = await db.ministry.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },

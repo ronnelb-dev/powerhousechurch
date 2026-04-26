@@ -1,4 +1,3 @@
-// app/routes/auth/login.tsx
 import {
   Form,
   Link,
@@ -18,25 +17,32 @@ export const meta: MetaFunction = () => [
   { title: "Member Login — Powerhouse Church" },
 ];
 
-// Redirect to dashboard if already logged in
 export async function loader({ request }: { request: Request }) {
   const { user } = await getSession(request);
-  if (user) throw redirect("/portal/dashboard");
+  if (user) {
+    throw redirect(
+      user.isEmailVerified
+        ? "/portal/dashboard"
+        : `/auth/verify-email?email=${encodeURIComponent(user.email ?? "")}`,
+    );
+  }
   return null;
 }
 
-type ActionData = { error: string } | null;
+type ActionData =
+  | { error: string; needsVerification?: false }
+  | { error: string; needsVerification: true; email: string }
+  | null;
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const identifier = (formData.get("identifier") as string)?.trim();
-  const password   = formData.get("password") as string;
+  const password = formData.get("password") as string;
 
   if (!identifier || !password) {
     return { error: "Email/phone and password are required." } satisfies ActionData;
   }
 
-  // Look up by email OR phone
   const user = await db.user.findFirst({
     where: {
       isActive: true,
@@ -45,7 +51,6 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (!user) {
-    // Intentionally vague — don't reveal whether account exists
     return { error: "Invalid credentials. Please try again." } satisfies ActionData;
   }
 
@@ -57,7 +62,14 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "Invalid credentials. Please try again." } satisfies ActionData;
   }
 
-  // Create Lucia session
+  if (!user.isEmailVerified) {
+    return {
+      error: "Please verify your email before accessing the portal.",
+      needsVerification: true,
+      email: user.email ?? "",
+    } satisfies ActionData;
+  }
+
   const session = await lucia.createSession(user.id, {});
   const sessionCookie = lucia.createSessionCookie(session.id);
 
@@ -79,7 +91,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-primary-50 flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link
             to="/"
@@ -96,21 +107,26 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Card */}
         <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
           <Form method="post" noValidate aria-label="Login form">
-            {/* Global error */}
             {actionData?.error && (
               <div
                 role="alert"
                 className="mb-5 px-4 py-3 bg-red-50 border border-red-200
                            rounded-lg text-sm font-sans text-red-700"
               >
-                {actionData.error}
+                <p>{actionData.error}</p>
+                {actionData.needsVerification && (
+                  <Link
+                    to={`/auth/verify-email?email=${encodeURIComponent(actionData.email)}`}
+                    className="mt-2 inline-flex font-bold text-red-800 hover:text-red-900"
+                  >
+                    Open email verification
+                  </Link>
+                )}
               </div>
             )}
 
-            {/* Email or phone */}
             <div className="mb-5">
               <label
                 htmlFor="identifier"
@@ -131,7 +147,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div className="mb-7">
               <div className="flex items-center justify-between mb-1.5">
                 <label
@@ -140,6 +155,12 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-xs font-bold text-red-700 transition-colors hover:text-red-900"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <input
                 id="password"

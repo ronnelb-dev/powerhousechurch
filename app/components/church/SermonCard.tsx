@@ -17,6 +17,8 @@ interface SermonCardProps {
   date:       string; // ISO string
   thumbnail?: string | null;
   tags?:      string; // comma-separated
+  href?:      string;
+  external?:  boolean;
 }
 
 const SERIES_GRADIENTS = [
@@ -34,6 +36,8 @@ export function SermonCard({
   date,
   thumbnail,
   tags,
+  href,
+  external = false,
 }: SermonCardProps) {
   const tagList = tags
     ? tags.split(",").map((t) => t.trim()).filter(Boolean)
@@ -49,76 +53,92 @@ export function SermonCard({
   const gradientIndex =
     id.charCodeAt(id.length - 1) % SERIES_GRADIENTS.length;
   const gradient = SERIES_GRADIENTS[gradientIndex];
+  const cardLabel = `Listen to sermon: ${title} by ${speaker}, ${formattedDate}`;
+  const cardContent = (
+    <Card className="overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]">
+      <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+        {thumbnail ? (
+          <img
+            src={thumbnail}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div
+            className={`absolute inset-0 bg-linear-to-br ${gradient}
+                        flex items-center justify-center`}
+          >
+            <span className="font-serif text-6xl font-semibold text-white/20" aria-hidden="true">
+              ✝
+            </span>
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1f1614]/75 via-transparent to-transparent" aria-hidden="true" />
+        <div className="absolute bottom-4 left-4">
+          {series && <Badge>{series}</Badge>}
+        </div>
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-300 group-hover:bg-black/15"
+          aria-hidden="true"
+        >
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-white/0 bg-white/10 backdrop-blur-sm transition-all duration-300 group-hover:border-white/70 group-hover:bg-white/20"
+          >
+            <svg
+              width="20" height="20" viewBox="0 0 20 20" fill="white"
+              className="translate-x-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            >
+              <polygon points="5,3 17,10 5,17"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <h3 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-[var(--primary)]">
+          {title}
+        </h3>
+
+        <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+          {speaker} · {formattedDate}
+        </p>
+
+        {tagList.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="Tags">
+            {tagList.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="outline" className="bg-white/75">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 
   return (
     <article className="group">
-      <Link
-        to={`/sermons/${id}`}
-        className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-        aria-label={`Listen to sermon: ${title} by ${speaker}, ${formattedDate}`}
-      >
-        <Card className="overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]">
-          <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-            {thumbnail ? (
-              <img
-                src={thumbnail}
-                alt=""
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-              />
-            ) : (
-              <div
-                className={`absolute inset-0 bg-linear-to-br ${gradient}
-                            flex items-center justify-center`}
-              >
-                <span className="font-serif text-6xl font-semibold text-white/20" aria-hidden="true">
-                  ✝
-                </span>
-              </div>
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1f1614]/75 via-transparent to-transparent" aria-hidden="true" />
-            <div className="absolute bottom-4 left-4">
-              {series && <Badge>{series}</Badge>}
-            </div>
-            <div
-              className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-300 group-hover:bg-black/15"
-              aria-hidden="true"
-            >
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-full border border-white/0 bg-white/10 backdrop-blur-sm transition-all duration-300 group-hover:border-white/70 group-hover:bg-white/20"
-              >
-                <svg
-                  width="20" height="20" viewBox="0 0 20 20" fill="white"
-                  className="translate-x-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <polygon points="5,3 17,10 5,17"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-5">
-            <h3 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-[var(--primary)]">
-              {title}
-            </h3>
-
-            <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
-              {speaker} · {formattedDate}
-            </p>
-
-            {tagList.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2" aria-label="Tags">
-                {tagList.slice(0, 3).map((tag) => (
-                  <Badge key={tag} variant="outline" className="bg-white/75">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
-      </Link>
+      {href ? (
+        <a
+          href={href}
+          target={external ? "_blank" : undefined}
+          rel={external ? "noreferrer" : undefined}
+          className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+          aria-label={cardLabel}
+        >
+          {cardContent}
+        </a>
+      ) : (
+        <Link
+          to={`/sermons/${id}`}
+          className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+          aria-label={cardLabel}
+        >
+          {cardContent}
+        </Link>
+      )}
     </article>
   );
 }
