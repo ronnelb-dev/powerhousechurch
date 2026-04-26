@@ -59,7 +59,7 @@ export async function loader() {
   const settings = await getSettings();
 
   return {
-    address: settings["church.address"] ?? "Masbate City, Masbate, Philippines",
+    address: settings["church.address"] ?? "PowerHouse Church, 2nd Flr. Sundrel Business Center Bldg. #25, FB Bailon St, Corner National Road, Cabuyao City, Laguna",
     phone: settings["church.phone"] ?? "",
     email: settings["church.email"] ?? "",
     serviceOptions: getServiceOptions(settings),

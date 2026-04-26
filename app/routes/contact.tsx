@@ -131,7 +131,7 @@ export default function ContactPage() {
                 Find Us
               </p>
               <address className="not-italic text-sm font-sans text-gray-600 leading-relaxed">
-                {settings["church.address"] ?? "Masbate City, Masbate, Philippines"}
+                {settings["church.address"] ?? "PowerHouse Church, 2nd Flr. Sundrel Business Center Bldg. #25, FB Bailon St, Corner National Road, Cabuyao City, Laguna"}
               </address>
             </div>
 
@@ -337,7 +337,7 @@ export default function ContactPage() {
         {/* Map embed */}
         <div className="mt-16 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3920.0!2d123.6184!3d12.3686!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTLCsDIyJzA3LjAiTiAxMjPCsDM3JzA2LjMiRQ!5e0!3m2!1sen!2sph!4v1234567890"
+            src="https://www.google.com/maps?q=PowerHouse%20Church%2C%202nd%20Flr.%20Sundrel%20Business%20Center%20Bldg.%20%2325%2C%20FB%20Bailon%20St%2C%20Corner%20National%20Road%2C%20Cabuyao%20City%2C%20Laguna&z=17&output=embed"
             width="100%"
             height="360"
             style={{ border: 0 }}
@@ -345,7 +345,7 @@ export default function ContactPage() {
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
             title="Powerhouse Church location map"
-            aria-label="Map showing Powerhouse Church location in Masbate City"
+            aria-label="Map showing PowerHouse Church in Cabuyao City, Laguna"
           />
         </div>
       </div>

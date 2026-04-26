@@ -22,7 +22,7 @@ interface FooterProps {
 export function Footer({ settings }: FooterProps) {
   const churchName = settings["church.name"] ?? "Powerhouse Church";
   const churchAddress =
-    settings["church.address"] ?? "Masbate City, Masbate, Philippines";
+    settings["church.address"] ?? "PowerHouse Church, 2nd Flr. Sundrel Business Center Bldg. #25, FB Bailon St, Corner National Road, Cabuyao City, Laguna";
   const churchPhone = settings["church.phone"] ?? "(555) 123-4567";
   const churchEmail = settings["church.email"] ?? "info@powerhousechurch.org";
   const serviceTimes = [

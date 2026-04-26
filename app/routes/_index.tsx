@@ -3,6 +3,7 @@ import { Link, useLoaderData, isRouteErrorResponse, useRouteError } from "react-
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
+import { getSermonPlaylistVideos } from "~/lib/youtube.server";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import { SermonCard } from "~/components/church/SermonCard";
 import { EventCard } from "~/components/church/EventCard";
@@ -23,7 +24,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader() {
-  const [latestSermon, upcomingEvents, settings] = await Promise.all([
+  const [latestSermon, upcomingEvents, settings, playlistVideos] = await Promise.all([
     db.sermon.findFirst({
       where: { isPublished: true },
       orderBy: { date: "desc" },
@@ -43,9 +44,14 @@ export async function loader() {
       },
     }),
     getSettings(),
+    getSermonPlaylistVideos(),
   ]);
 
+  const latestCellCelebrationMessage =
+    playlistVideos.find((video) => video.playlistKey === "CELL_CELEBRATION") ?? null;
+
   return {
+    latestCellCelebrationMessage,
     latestSermon,
     upcomingEvents: upcomingEvents.map((e) => ({
       ...e,
@@ -57,7 +63,7 @@ export async function loader() {
 }
 
 export default function HomePage() {
-  const { latestSermon, upcomingEvents, settings } = useLoaderData<typeof loader>();
+  const { latestCellCelebrationMessage, latestSermon, upcomingEvents, settings } = useLoaderData<typeof loader>();
 
   const serviceTimes = [
     {
@@ -165,9 +171,22 @@ export default function HomePage() {
         <SectionHeader
           eyebrow="From the Pulpit"
           title="Latest Message"
-          subtitle="Catch up on the latest message and carry the Word with you into the week ahead."
+          subtitle="Watch the newest message from Powerhouse Cell Celebration and carry the Word with you into the week ahead."
         />
-        {latestSermon ? (
+        {latestCellCelebrationMessage ? (
+          <div className="mt-10">
+            <SermonCard
+              id={latestCellCelebrationMessage.id}
+              title={latestCellCelebrationMessage.title}
+              speaker={latestCellCelebrationMessage.speaker}
+              series={latestCellCelebrationMessage.playlistLabel}
+              date={latestCellCelebrationMessage.publishedAt}
+              thumbnail={latestCellCelebrationMessage.thumbnail}
+              href={latestCellCelebrationMessage.url}
+              external
+            />
+          </div>
+        ) : latestSermon ? (
           <div className="mt-10">
             <SermonCard
               id={latestSermon.id}
@@ -183,7 +202,7 @@ export default function HomePage() {
           </div>
         ) : (
           <p className="text-gray-400 font-sans text-sm mt-6">
-            No sermons published yet.
+            No messages published yet.
           </p>
         )}
         <div className="mt-8">
