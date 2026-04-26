@@ -12,8 +12,8 @@ import {
 import type { MetaFunction } from "react-router";
 import { getSettings } from "~/lib/settings.server";
 import { PageHero } from "~/components/ui/PageHero";
+import { DEFAULT_CONTACT_FORM_VALUES } from "~/lib/public-submissions";
 import {
-  DEFAULT_CONTACT_FORM_VALUES,
   handleContactSubmission,
 } from "~/lib/public-submissions.server";
 import {

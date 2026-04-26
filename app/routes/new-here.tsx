@@ -17,8 +17,10 @@ import { notifyAdminOfVisitPlan, sendVisitPlanConfirmation } from "~/lib/email.s
 import {
   DEFAULT_VISIT_FORM_VALUES,
   getServiceOptions,
-  handleVisitPlanSubmission,
   type VisitFormValues as FormValues,
+} from "~/lib/public-submissions";
+import {
+  handleVisitPlanSubmission,
 } from "~/lib/public-submissions.server";
 import { getSettings } from "~/lib/settings.server";
 import {

@@ -5,6 +5,13 @@ import {
   PrayerRequestSchema,
   VisitPlanSchema,
 } from "~/lib/schemas.server";
+import {
+  DEFAULT_CONTACT_FORM_VALUES,
+  DEFAULT_VISIT_FORM_VALUES,
+  getServiceOptions,
+  type ContactFormValues,
+  type VisitFormValues,
+} from "~/lib/public-submissions";
 
 const rsvpSchema = z.object({
   intent: z.literal("rsvp"),
@@ -72,15 +79,8 @@ type ContactDeps = {
   }): Promise<unknown>;
 };
 
-export const DEFAULT_CONTACT_FORM_VALUES = {
-  name: "",
-  email: "",
-  subject: "",
-  message: "",
-  honeypot: "",
-};
-
-export type ContactFormValues = typeof DEFAULT_CONTACT_FORM_VALUES;
+export { DEFAULT_CONTACT_FORM_VALUES, DEFAULT_VISIT_FORM_VALUES, getServiceOptions };
+export type { ContactFormValues, VisitFormValues };
 
 export type ContactActionData =
   | { success: true }
@@ -141,26 +141,6 @@ type VisitPlanDeps = {
   }): Promise<unknown>;
 };
 
-export const DEFAULT_VISIT_FORM_VALUES = {
-  name: "",
-  email: "",
-  phone: "",
-  city: "",
-  preferredService: "",
-  visitDate: "",
-  adultCount: "1",
-  isFirstTimeGuest: "yes",
-  bringingKids: false,
-  kidsCount: "",
-  kidsDetails: "",
-  wantsUsherFollowUp: false,
-  wantsPastorFollowUp: false,
-  notes: "",
-  honeypot: "",
-};
-
-export type VisitFormValues = typeof DEFAULT_VISIT_FORM_VALUES;
-
 export type VisitPlanActionData =
   | {
       success: true;
@@ -177,29 +157,6 @@ export type VisitPlanActionData =
       errors?: Record<string, string[]>;
       globalError?: string;
     };
-
-export function getServiceOptions(settings: Record<string, string>) {
-  const firstService = settings["service.sunday1"] ?? "7:00 AM";
-  const secondService = settings["service.sunday2"] ?? "9:00 AM";
-
-  return [
-    {
-      value: `Sunday ${firstService}`,
-      label: `Sunday ${firstService}`,
-      detail: "First service",
-    },
-    {
-      value: `Sunday ${secondService}`,
-      label: `Sunday ${secondService}`,
-      detail: "Second service",
-    },
-    {
-      value: "Help me choose",
-      label: "Help me choose the best service",
-      detail: "We can recommend a good fit",
-    },
-  ];
-}
 
 export async function handleRsvpSubmission(
   raw: Record<string, string>,

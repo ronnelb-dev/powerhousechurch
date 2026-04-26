@@ -13,6 +13,7 @@
       "root": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/robots[.txt]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sitemap[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/events.$eventId.calendar": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/about": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/ministries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -31,19 +32,28 @@
       "routes/blog/rss[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/register": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/verify-email": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/forgot-password": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth/reset-password": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/dashboard": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/profile": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/directory": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/community": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/engagement": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/attendance": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/cell-groups": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/kids-ministry": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/communications": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/email-queue": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/reports": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/members": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/ministries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/events": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/visit-plans": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/posts": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/prayers": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
@@ -69,6 +79,13 @@
         "parentId": "root",
         "file": "app/routes/sitemap[.xml].tsx",
         "path": "sitemap.xml",
+        "config": {}
+      },
+      "routes/events.$eventId.calendar": {
+        "id": "routes/events.$eventId.calendar",
+        "parentId": "root",
+        "file": "app/routes/events.$eventId.calendar.ts",
+        "path": "events/:eventId/calendar.ics",
         "config": {}
       },
       "routes/_public": {
@@ -205,6 +222,27 @@
         "path": "auth/register",
         "config": {}
       },
+      "routes/auth/verify-email": {
+        "id": "routes/auth/verify-email",
+        "parentId": "root",
+        "file": "app/routes/auth/verify-email.tsx",
+        "path": "auth/verify-email",
+        "config": {}
+      },
+      "routes/auth/forgot-password": {
+        "id": "routes/auth/forgot-password",
+        "parentId": "root",
+        "file": "app/routes/auth/forgot-password.tsx",
+        "path": "auth/forgot-password",
+        "config": {}
+      },
+      "routes/auth/reset-password": {
+        "id": "routes/auth/reset-password",
+        "parentId": "root",
+        "file": "app/routes/auth/reset-password.tsx",
+        "path": "auth/reset-password",
+        "config": {}
+      },
       "routes/auth/logout": {
         "id": "routes/auth/logout",
         "parentId": "root",
@@ -254,6 +292,13 @@
         "path": "portal/community",
         "config": {}
       },
+      "routes/portal/engagement": {
+        "id": "routes/portal/engagement",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/engagement.tsx",
+        "path": "portal/engagement",
+        "config": {}
+      },
       "routes/portal/attendance": {
         "id": "routes/portal/attendance",
         "parentId": "routes/portal/_layout",
@@ -282,6 +327,27 @@
         "path": "portal/admin/cell-groups",
         "config": {}
       },
+      "routes/portal/admin/kids-ministry": {
+        "id": "routes/portal/admin/kids-ministry",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/kids-ministry.tsx",
+        "path": "portal/admin/kids-ministry",
+        "config": {}
+      },
+      "routes/portal/admin/communications": {
+        "id": "routes/portal/admin/communications",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/communications.tsx",
+        "path": "portal/admin/communications",
+        "config": {}
+      },
+      "routes/portal/admin/email-queue": {
+        "id": "routes/portal/admin/email-queue",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/email-queue.tsx",
+        "path": "portal/admin/email-queue",
+        "config": {}
+      },
       "routes/portal/admin/reports": {
         "id": "routes/portal/admin/reports",
         "parentId": "routes/portal/admin/_layout",
@@ -296,6 +362,13 @@
         "path": "portal/admin/members",
         "config": {}
       },
+      "routes/portal/admin/ministries": {
+        "id": "routes/portal/admin/ministries",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/ministries.tsx",
+        "path": "portal/admin/ministries",
+        "config": {}
+      },
       "routes/portal/admin/sermons": {
         "id": "routes/portal/admin/sermons",
         "parentId": "routes/portal/admin/_layout",
@@ -308,6 +381,13 @@
         "parentId": "routes/portal/admin/_layout",
         "file": "app/routes/portal/admin/events.tsx",
         "path": "portal/admin/events",
+        "config": {}
+      },
+      "routes/portal/admin/visit-plans": {
+        "id": "routes/portal/admin/visit-plans",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/visit-plans.tsx",
+        "path": "portal/admin/visit-plans",
         "config": {}
       },
       "routes/portal/admin/posts": {
@@ -364,6 +444,12 @@
         "parentId": "root",
         "file": "routes/sitemap[.xml].tsx",
         "path": "sitemap.xml"
+      },
+      "routes/events.$eventId.calendar": {
+        "id": "routes/events.$eventId.calendar",
+        "parentId": "root",
+        "file": "routes/events.$eventId.calendar.ts",
+        "path": "events/:eventId/calendar.ics"
       },
       "routes/_public": {
         "id": "routes/_public",
@@ -480,6 +566,24 @@
         "file": "routes/auth/register.tsx",
         "path": "auth/register"
       },
+      "routes/auth/verify-email": {
+        "id": "routes/auth/verify-email",
+        "parentId": "root",
+        "file": "routes/auth/verify-email.tsx",
+        "path": "auth/verify-email"
+      },
+      "routes/auth/forgot-password": {
+        "id": "routes/auth/forgot-password",
+        "parentId": "root",
+        "file": "routes/auth/forgot-password.tsx",
+        "path": "auth/forgot-password"
+      },
+      "routes/auth/reset-password": {
+        "id": "routes/auth/reset-password",
+        "parentId": "root",
+        "file": "routes/auth/reset-password.tsx",
+        "path": "auth/reset-password"
+      },
       "routes/auth/logout": {
         "id": "routes/auth/logout",
         "parentId": "root",
@@ -522,6 +626,12 @@
         "file": "routes/portal/community.tsx",
         "path": "portal/community"
       },
+      "routes/portal/engagement": {
+        "id": "routes/portal/engagement",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/engagement.tsx",
+        "path": "portal/engagement"
+      },
       "routes/portal/attendance": {
         "id": "routes/portal/attendance",
         "parentId": "routes/portal/_layout",
@@ -546,6 +656,24 @@
         "file": "routes/portal/admin/cell-groups.tsx",
         "path": "portal/admin/cell-groups"
       },
+      "routes/portal/admin/kids-ministry": {
+        "id": "routes/portal/admin/kids-ministry",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/kids-ministry.tsx",
+        "path": "portal/admin/kids-ministry"
+      },
+      "routes/portal/admin/communications": {
+        "id": "routes/portal/admin/communications",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/communications.tsx",
+        "path": "portal/admin/communications"
+      },
+      "routes/portal/admin/email-queue": {
+        "id": "routes/portal/admin/email-queue",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/email-queue.tsx",
+        "path": "portal/admin/email-queue"
+      },
       "routes/portal/admin/reports": {
         "id": "routes/portal/admin/reports",
         "parentId": "routes/portal/admin/_layout",
@@ -558,6 +686,12 @@
         "file": "routes/portal/admin/members.tsx",
         "path": "portal/admin/members"
       },
+      "routes/portal/admin/ministries": {
+        "id": "routes/portal/admin/ministries",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/ministries.tsx",
+        "path": "portal/admin/ministries"
+      },
       "routes/portal/admin/sermons": {
         "id": "routes/portal/admin/sermons",
         "parentId": "routes/portal/admin/_layout",
@@ -569,6 +703,12 @@
         "parentId": "routes/portal/admin/_layout",
         "file": "routes/portal/admin/events.tsx",
         "path": "portal/admin/events"
+      },
+      "routes/portal/admin/visit-plans": {
+        "id": "routes/portal/admin/visit-plans",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/visit-plans.tsx",
+        "path": "portal/admin/visit-plans"
       },
       "routes/portal/admin/posts": {
         "id": "routes/portal/admin/posts",
@@ -610,6 +750,10 @@
           {
             "file": "routes/sitemap[.xml].tsx",
             "path": "sitemap.xml"
+          },
+          {
+            "file": "routes/events.$eventId.calendar.ts",
+            "path": "events/:eventId/calendar.ics"
           },
           {
             "file": "routes/_public.tsx",
@@ -691,6 +835,18 @@
             "path": "auth/register"
           },
           {
+            "file": "routes/auth/verify-email.tsx",
+            "path": "auth/verify-email"
+          },
+          {
+            "file": "routes/auth/forgot-password.tsx",
+            "path": "auth/forgot-password"
+          },
+          {
+            "file": "routes/auth/reset-password.tsx",
+            "path": "auth/reset-password"
+          },
+          {
             "file": "routes/auth/logout.tsx",
             "path": "auth/logout"
           },
@@ -719,6 +875,10 @@
                 "path": "portal/community"
               },
               {
+                "file": "routes/portal/engagement.tsx",
+                "path": "portal/engagement"
+              },
+              {
                 "file": "routes/portal/attendance.tsx",
                 "path": "portal/attendance"
               },
@@ -735,6 +895,18 @@
                     "path": "portal/admin/cell-groups"
                   },
                   {
+                    "file": "routes/portal/admin/kids-ministry.tsx",
+                    "path": "portal/admin/kids-ministry"
+                  },
+                  {
+                    "file": "routes/portal/admin/communications.tsx",
+                    "path": "portal/admin/communications"
+                  },
+                  {
+                    "file": "routes/portal/admin/email-queue.tsx",
+                    "path": "portal/admin/email-queue"
+                  },
+                  {
                     "file": "routes/portal/admin/reports.tsx",
                     "path": "portal/admin/reports"
                   },
@@ -743,12 +915,20 @@
                     "path": "portal/admin/members"
                   },
                   {
+                    "file": "routes/portal/admin/ministries.tsx",
+                    "path": "portal/admin/ministries"
+                  },
+                  {
                     "file": "routes/portal/admin/sermons.tsx",
                     "path": "portal/admin/sermons"
                   },
                   {
                     "file": "routes/portal/admin/events.tsx",
                     "path": "portal/admin/events"
+                  },
+                  {
+                    "file": "routes/portal/admin/visit-plans.tsx",
+                    "path": "portal/admin/visit-plans"
                   },
                   {
                     "file": "routes/portal/admin/posts.tsx",

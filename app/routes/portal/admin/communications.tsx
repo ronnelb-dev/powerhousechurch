@@ -13,10 +13,12 @@ import type { MetaFunction } from "react-router";
 import { EmptyState } from "~/components/ui/EmptyState";
 import {
   COMMUNICATION_AUDIENCE_TYPES,
+  type CommunicationAudienceType,
+} from "~/lib/communications";
+import {
   getCommunicationAudienceOptions,
   getCommunicationAudienceRecipients,
   sendCommunicationToAudience,
-  type CommunicationAudienceType,
 } from "~/lib/communications.server";
 import { requireAdmin } from "~/lib/auth.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
