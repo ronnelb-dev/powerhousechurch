@@ -92,15 +92,15 @@ export function PastoralAlert({ members }: PastoralAlertProps) {
             </div>
 
             <Link
-              to={`/portal/directory?memberId=${member.id}`}
+              to={`/portal/care?memberId=${member.id}`}
               className="font-sans font-bold text-xs text-red-700
                          hover:text-red-900 underline underline-offset-2
                          transition-colors shrink-0
                          min-h-[44px] flex items-center px-1
                          focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
-              aria-label={`View profile of ${member.firstName} ${member.lastName}`}
+              aria-label={`Open care workflow for ${member.firstName} ${member.lastName}`}
             >
-              View profile →
+              Open care case →
             </Link>
           </li>
         ))}

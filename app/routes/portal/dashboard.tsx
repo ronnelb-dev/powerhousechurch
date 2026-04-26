@@ -1,7 +1,6 @@
 // app/routes/portal/dashboard.tsx
 import {
   useLoaderData,
-  useOutletContext,
   isRouteErrorResponse,
   useRouteError,
   Link,
@@ -13,7 +12,6 @@ import { db } from "~/lib/db.server";
 import { getMembersNeedingCare } from "~/lib/attendance.server";
 import { PastoralAlert } from "~/components/church/PastoralAlert";
 import { AttendanceHeatmap, type HeatmapCell } from "~/components/church/AttendanceHeatmap";
-import { AttendanceBadge } from "~/components/church/AttendanceBadge";
 import { EmptyState } from "~/components/ui/EmptyState";
 
 export const meta: MetaFunction = () => [
@@ -42,7 +40,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // For CELL_LEADER or ADMIN — show pastoral care alert
     if (user.role === "CELL_LEADER" || user.role === "ADMIN") {
-      needsCare = await getMembersNeedingCare(user.cellGroupId);
+      needsCare = await getMembersNeedingCare({ cellGroupId: user.cellGroupId });
 
       // Attendance % for this Sunday
       const thisSunday = getMostRecentSunday();
@@ -244,6 +242,14 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 font-sans mt-1">
               Missed 2+ Sundays
             </p>
+            {needsCare.length > 0 ? (
+              <Link
+                to="/portal/care"
+                className="mt-2 inline-flex text-xs font-bold text-red-700 hover:text-red-900"
+              >
+                Open queue →
+              </Link>
+            ) : null}
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-4">
             <p className="text-xs font-sans font-bold tracking-widest uppercase
@@ -280,6 +286,22 @@ export default function DashboardPage() {
             Quick Actions
           </h2>
           <div className="space-y-2">
+            {isCellLeaderOrAdmin && (
+              <Link
+                to="/portal/care"
+                className="flex items-center justify-between px-4 py-3 rounded-lg
+                           bg-amber-50 border border-amber-100 hover:border-amber-300
+                           transition-all group"
+              >
+                <span className="text-sm font-sans font-bold text-amber-800">
+                  Care Queue
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="#92400e" strokeWidth="2" className="group-hover:translate-x-0.5 transition-transform">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </Link>
+            )}
             {isCellLeaderOrAdmin && (
               <Link
                 to="/portal/attendance"

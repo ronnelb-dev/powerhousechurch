@@ -23,34 +23,87 @@ export async function loader() {
 
 const VALUES = [
   {
-    title: "Scripture",
-    body:  "The Bible is the inspired, authoritative Word of God. Every sermon, every decision, every ministry is anchored in Scripture.",
-    icon:  "📖",
+    number: "01",
+    title: "I am a True Disciple",
+    body: "Focused on Christ-likeness and multiplying ministry.",
   },
   {
-    title: "Prayer",
-    body:  "We are a house of prayer. Corporate prayer is not a program — it is the breath of the church.",
-    icon:  "🙏",
+    number: "02",
+    title: "Caught by the Vision",
+    body: "Understanding, living, and transmitting the G12 vision.",
   },
   {
-    title: "Community",
-    body:  "We do life together. Cell groups are the heartbeat of our church — where discipleship happens in real time.",
-    icon:  "🤝",
+    number: "03",
+    title: "Committed to Cell Life",
+    body: "Prioritizing evangelism, leadership development, and multiplication.",
   },
   {
-    title: "Mission",
-    body:  "We are sent. Every member is a missionary — in their home, their workplace, and their community.",
-    icon:  "✈️",
+    number: "04",
+    title: "Passionate Spiritually",
+    body: "Devotion to prayer, fasting, and holiness.",
   },
   {
-    title: "Excellence",
-    body:  "We give God our best. In worship, in service, in administration — excellence is an act of reverence.",
-    icon:  "⭐",
+    number: "05",
+    title: "Submission to Authority",
+    body: "Loving, honoring, and respecting leaders.",
   },
   {
-    title: "Generosity",
-    body:  "We are a giving church. We give our time, our talents, and our treasure to see the kingdom advance.",
-    icon:  "💛",
+    number: "06",
+    title: "Commitment to Time",
+    body: "Managing and investing time for the Kingdom.",
+  },
+  {
+    number: "07",
+    title: "Lifelong Relationship",
+    body: "Being accountable and responsible.",
+  },
+  {
+    number: "08",
+    title: "I Love Equipping and Training",
+    body: 'Viewing training as "Happy Hour".',
+  },
+  {
+    number: "09",
+    title: "I am a Leader of 12 Disciples",
+    body: "Born to multiply.",
+  },
+  {
+    number: "10",
+    title: "Accomplishing Church Goal Setting",
+    body: "Supporting and fulfilling church goals.",
+  },
+  {
+    number: "11",
+    title: "I Want to See My Church Grow",
+    body: "Praying, working, and paying.",
+  },
+  {
+    number: "12",
+    title: "The Importance of Young People",
+    body: "Preparing the next generation.",
+  },
+];
+
+const WCDS_STEPS = [
+  {
+    letter: "W",
+    title: "Win",
+    body: "Reaching new people through the preaching of the Gospel.",
+  },
+  {
+    letter: "C",
+    title: "Consolidate",
+    body: "Taking care of the new believer until they affirm their decision for Jesus.",
+  },
+  {
+    letter: "D",
+    title: "Disciple",
+    body: "Teaching a new disciple the basic principles of the Christian life.",
+  },
+  {
+    letter: "S",
+    title: "Send",
+    body: "To equip a disciple in opening a cell group, win souls and become an influential leader.",
   },
 ];
 
@@ -113,37 +166,55 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="border-y border-white/50 bg-white/40 py-16">
+      <section className="section-gap">
         <div className="shell">
-          <SectionHeader
-            eyebrow="What We Believe"
-            title="Our Core Values"
-            centered
-          />
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {VALUES.map((value) => (
-              <Card
-                key={value.title}
-                className="h-full bg-white/75 transition-all hover:-translate-y-1"
-              >
-                <CardContent className="p-6">
-                  <div
-                  className="mb-4 text-2xl"
-                  aria-hidden="true"
-                  style={{ fontSize: "24px" }}
-                >
-                  {value.icon}
-                  </div>
-                  <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
-                  {value.title}
-                </h3>
-                  <p className="mt-3 text-sm leading-6">
-                  {value.body}
-                </p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="overflow-hidden rounded-[28px] border border-[#eadfda] bg-white shadow-[0_18px_40px_rgba(35,23,21,0.08)]">
+            <div className="bg-[#a00000] px-8 py-8 text-white sm:px-10 sm:py-9">
+              <h2 className="font-serif text-4xl font-semibold text-white sm:text-5xl">
+                Our Core Values
+              </h2>
+              <p className="mt-4 max-w-5xl text-base leading-8 text-white/90 sm:text-lg">
+                G12 core values focus on building a committed, multiplying church
+                through 12 foundational principles centered on discipleship, cell
+                life, and leadership development. Key pillars include passion for
+                God, submission to authority, evangelism, and preparing the next
+                generation to fulfill the vision.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-px bg-[#eadfda] sm:grid-cols-2 xl:grid-cols-4">
+              {VALUES.map((value) => (
+                <div key={value.number} className="min-h-[170px] bg-white px-6 py-7 sm:px-7">
+                  <p className="text-lg font-semibold tracking-[0.18em] text-[#d88f8f]">
+                    {value.number}
+                  </p>
+                  <h3 className="mt-4 text-2xl font-semibold leading-tight text-[var(--foreground)]">
+                    {value.title}
+                  </h3>
+                  <p className="mt-4 text-base leading-7 text-[var(--muted-foreground)]">
+                    {value.body}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
+      </section>
+
+      <section className="shell section-gap pt-0">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 xl:grid-cols-4">
+          {WCDS_STEPS.map((step) => (
+            <div key={step.letter} className="mx-auto max-w-[240px] text-center">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#a00000] text-4xl font-semibold text-white">
+                {step.letter}
+              </div>
+              <h3 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
+                {step.title}
+              </h3>
+              <p className="mt-3 text-base leading-8 text-[var(--muted-foreground)]">
+                {step.body}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 

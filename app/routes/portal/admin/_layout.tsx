@@ -19,6 +19,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 const ADMIN_NAV = [
+  { to: "/portal/care", label: "Care Queue"   },
   { to: "/portal/admin/cell-groups", label: "Cell Groups"   },
   { to: "/portal/admin/kids-ministry", label: "Kids Ministry" },
   { to: "/portal/admin/members",  label: "Members"       },
@@ -27,7 +28,6 @@ const ADMIN_NAV = [
   { to: "/portal/admin/events",   label: "Events"        },
   { to: "/portal/admin/visit-plans", label: "Visit Plans" },
   { to: "/portal/admin/posts",    label: "Daily Bread"   },
-  { to: "/portal/admin/prayers",  label: "Prayers"       },
   { to: "/portal/admin/reports",  label: "Reports"       },
   { to: "/portal/admin/settings", label: "Settings"      },
 ];

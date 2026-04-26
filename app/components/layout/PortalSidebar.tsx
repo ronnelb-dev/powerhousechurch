@@ -5,7 +5,7 @@
 // Active state: yellow left border accent
 
 import { Link, useLocation } from "react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 interface NavItem {
   to: string;
@@ -135,6 +135,22 @@ const BookIcon = () => (
     />
   </svg>
 );
+const CareIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M9 15.2 2.6 8.9a3.9 3.9 0 0 1 5.5-5.5L9 4.3l0.9-0.9a3.9 3.9 0 1 1 5.5 5.5L9 15.2Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 const PersonIcon = () => (
   <svg
     width="18"
@@ -216,7 +232,13 @@ function SidebarContent({
         aria-label="Portal navigation"
       >
         <ul role="list" className="space-y-0.5">
-          {NAV_ITEMS.map(({ to, label, icon }) => (
+          {[
+            ...NAV_ITEMS.slice(0, 1),
+            ...(userRole === "ADMIN" || userRole === "CELL_LEADER"
+              ? [{ to: "/portal/care", label: "Care Queue", icon: <CareIcon /> }]
+              : []),
+            ...NAV_ITEMS.slice(1),
+          ].map(({ to, label, icon }) => (
             <li key={to}>
               <Link
                 to={to}
@@ -252,6 +274,7 @@ function SidebarContent({
                 </div>
               </li>
               {[
+                { to: "/portal/care", label: "Care Queue" },
                 { to: "/portal/admin/cell-groups", label: "Cell Groups" },
                 { to: "/portal/admin/kids-ministry", label: "Kids Ministry" },
                 { to: "/portal/admin/members", label: "Members" },

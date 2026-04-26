@@ -35,6 +35,8 @@ model User {
   comments       Comment[]
   assignedPrayerRequests PrayerRequest[] @relation("PrayerRequestOwner")
   assignedVisitPlans VisitPlan[] @relation("VisitPlanOwner")
+  assignedCareCases CareCase[] @relation("CareCaseOwner")
+  memberCareCases   CareCase[] @relation("CareCaseMember")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt      DateTime   @default(now())
@@ -324,6 +326,7 @@ model PrayerRequest {
   status          String   @default("NEW")
   followUpOwnerId String?
   followUpOwner   User?    @relation("PrayerRequestOwner", fields: [followUpOwnerId], references: [id], onDelete: SetNull)
+  careCase        CareCase?
   isAnswered      Boolean  @default(false)
   answeredAt      DateTime?
   submittedAt     DateTime @default(now())
@@ -332,6 +335,30 @@ model PrayerRequest {
   @@index([isAnswered])
   @@index([status, submittedAt])
   @@index([followUpOwnerId])
+}
+
+model CareCase {
+  id              String         @id @default(cuid())
+  category        String
+  memberId        String?
+  member          User?          @relation("CareCaseMember", fields: [memberId], references: [id], onDelete: SetNull)
+  prayerRequestId String?        @unique
+  prayerRequest   PrayerRequest? @relation(fields: [prayerRequestId], references: [id], onDelete: Cascade)
+  assignedOwnerId String?
+  assignedOwner   User?          @relation("CareCaseOwner", fields: [assignedOwnerId], references: [id], onDelete: SetNull)
+  lastContactedAt DateTime?
+  notes           String?
+  nextAction      String?
+  reminderAt      DateTime?
+  isResolved      Boolean        @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([memberId, category])
+  @@index([category, isResolved, reminderAt])
+  @@index([assignedOwnerId, reminderAt])
+  @@index([memberId])
 }
 
 model VisitPlan {
