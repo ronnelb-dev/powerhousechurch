@@ -1,7 +1,6 @@
 // app/routes/portal/community.tsx
 import {
   useLoaderData,
-  useOutletContext,
   Form,
   useNavigation,
   isRouteErrorResponse,
@@ -119,7 +118,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       author:    p.author,
       createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
     })),
-    currentUserId: user.id,
     userRole:      user.role,
     cellGroupId:   user.cellGroupId,
   };
@@ -206,7 +204,7 @@ const inputClass =
   "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all";
 
 export default function CommunityPage() {
-  const { latestSermon, posts, pendingPosts, currentUserId, userRole, cellGroupId } =
+  const { latestSermon, posts, pendingPosts, userRole, cellGroupId } =
     useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isPosting  = navigation.state === "submitting" &&
@@ -442,7 +440,6 @@ export default function CommunityPage() {
             <DevotionPost
               key={post.id}
               post={post}
-              currentUserId={currentUserId}
             />
           ))}
         </div>

@@ -27,8 +27,7 @@ export interface DevotionPostData {
 }
 
 interface DevotionPostProps {
-  post:          DevotionPostData;
-  currentUserId: string;
+  post: DevotionPostData;
 }
 
 // Dove SVG — intentional over emoji for consistent cross-platform rendering
@@ -52,7 +51,7 @@ function DoveIcon({ className }: { className?: string }) {
   );
 }
 
-export function DevotionPost({ post, currentUserId }: DevotionPostProps) {
+export function DevotionPost({ post }: DevotionPostProps) {
   const likeFetcher    = useFetcher();
   const commentFetcher = useFetcher();
 

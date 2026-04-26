@@ -2,7 +2,6 @@
 import {
   useLoaderData,
   Form,
-  useNavigation,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
@@ -135,7 +134,6 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function AttendancePage() {
   const { members, attendanceMap, date, type, isFuture, cellGroups } =
     useLoaderData<typeof loader>();
-  const navigation = useNavigation();
 
   const presentCount = Object.values(attendanceMap).filter((s) => s === "PRESENT").length;
   const absentCount  = Object.values(attendanceMap).filter((s) => s === "ABSENT").length;

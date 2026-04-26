@@ -12,7 +12,10 @@ import {
 import type { MetaFunction } from "react-router";
 import { getSettings } from "~/lib/settings.server";
 import { PageHero } from "~/components/ui/PageHero";
-import { handleContactSubmission } from "~/lib/public-submissions.server";
+import {
+  DEFAULT_CONTACT_FORM_VALUES,
+  handleContactSubmission,
+} from "~/lib/public-submissions.server";
 import {
   getClientIpAddress,
   publicSubmissionRateLimiter,
@@ -29,11 +32,6 @@ export const meta: MetaFunction = () => [
 export async function loader() {
   return { settings: await getSettings() };
 }
-
-type ActionData =
-  | { success: true }
-  | { success: false; errors: Record<string, string[]> }
-  | { success: false; globalError: string };
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -55,8 +53,9 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!limit.ok) {
     return data({
       success: false,
+      values: raw,
       globalError: `Too many messages have been sent from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
-    } satisfies ActionData, { status: 429 });
+    }, { status: 429 });
   }
 
   return handleContactSubmission(raw, {
@@ -108,6 +107,10 @@ export default function ContactPage() {
     actionData?.success === false && "globalError" in actionData
       ? actionData.globalError
       : null;
+  const values =
+    actionData?.success === false && "values" in actionData
+      ? { ...DEFAULT_CONTACT_FORM_VALUES, ...actionData.values }
+      : DEFAULT_CONTACT_FORM_VALUES;
 
   return (
     <>
@@ -256,13 +259,14 @@ export default function ContactPage() {
                     <input type="text" name="honeypot" tabIndex={-1} autoComplete="off" />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-5">
+                  <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label htmlFor="name" className={labelClass}>
                         Name <span className="text-red-500" aria-hidden="true">*</span>
                       </label>
                       <input
                         id="name" type="text" name="name" required
+                        defaultValue={values.name}
                         aria-required="true" aria-invalid={!!errors.name}
                         className={`${inputClass} ${errors.name ? "border-red-300" : ""}`}
                         placeholder="Your name"
@@ -275,6 +279,7 @@ export default function ContactPage() {
                       </label>
                       <input
                         id="contact-email" type="email" name="email" required
+                        defaultValue={values.email}
                         aria-required="true" aria-invalid={!!errors.email}
                         className={`${inputClass} ${errors.email ? "border-red-300" : ""}`}
                         placeholder="your@email.com"
@@ -289,6 +294,7 @@ export default function ContactPage() {
                     </label>
                     <input
                       id="subject" type="text" name="subject" required
+                      defaultValue={values.subject}
                       aria-required="true" aria-invalid={!!errors.subject}
                       className={`${inputClass} ${errors.subject ? "border-red-300" : ""}`}
                       placeholder="What's this about?"
@@ -302,6 +308,7 @@ export default function ContactPage() {
                     </label>
                     <textarea
                       id="message" name="message" rows={6} required
+                      defaultValue={values.message}
                       aria-required="true" aria-invalid={!!errors.message}
                       maxLength={3000}
                       className={`${inputClass} resize-y min-h-[140px] ${errors.message ? "border-red-300" : ""}`}

@@ -172,13 +172,15 @@ export default function AdminSettingsPage() {
                       type={field.type}
                       name={field.key}
                       defaultValue={settings[field.key] ?? ""}
-                      placeholder={"placeholder" in field ? field.placeholder : undefined}
+                      placeholder={
+                        field.key === "youtube.apiKey" && settings[field.key]
+                          ? "••••••••••••••••••••• (set — paste to replace)"
+                          : "placeholder" in field
+                            ? field.placeholder
+                            : undefined
+                      }
                       className={inputClass}
                       autoComplete="off"
-                      // Mask API key field after first character
-                      {...(field.key === "youtube.apiKey" && settings[field.key]
-                        ? { placeholder: "••••••••••••••••••••• (set — paste to replace)" }
-                        : {})}
                     />
                     {"hint" in field && field.hint && (
                       <p className={hintClass}>{field.hint}</p>

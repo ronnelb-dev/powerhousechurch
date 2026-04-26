@@ -132,7 +132,7 @@ export function Navbar() {
       </nav>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent className="lg:hidden">
+        <SheetContent id="mobile-menu" className="lg:hidden">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-serif text-2xl font-semibold text-[var(--foreground)]">

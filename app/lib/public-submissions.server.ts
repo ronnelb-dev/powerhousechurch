@@ -72,6 +72,25 @@ type ContactDeps = {
   }): Promise<unknown>;
 };
 
+export const DEFAULT_CONTACT_FORM_VALUES = {
+  name: "",
+  email: "",
+  subject: "",
+  message: "",
+  honeypot: "",
+};
+
+export type ContactFormValues = typeof DEFAULT_CONTACT_FORM_VALUES;
+
+export type ContactActionData =
+  | { success: true }
+  | {
+      success: false;
+      values: ContactFormValues;
+      errors?: Record<string, string[]>;
+      globalError?: string;
+    };
+
 type PrayerDeps = {
   userId?: string | null;
   db: {
@@ -352,6 +371,13 @@ export async function handleContactSubmission(
     return data(
       {
         success: false,
+        values: {
+          name: raw.name ?? "",
+          email: raw.email ?? "",
+          subject: raw.subject ?? "",
+          message: raw.message ?? "",
+          honeypot: raw.honeypot ?? "",
+        },
         errors: result.error.flatten().fieldErrors,
       },
       { status: 400 },
@@ -362,6 +388,13 @@ export async function handleContactSubmission(
     return data(
       {
         success: false,
+        values: {
+          name: result.data.name,
+          email: result.data.email,
+          subject: result.data.subject,
+          message: result.data.message,
+          honeypot: result.data.honeypot,
+        },
         globalError:
           "Contact email is not configured yet. Please call or email the church directly for now.",
       },
@@ -376,6 +409,13 @@ export async function handleContactSubmission(
     return data(
       {
         success: false,
+        values: {
+          name: result.data.name,
+          email: result.data.email,
+          subject: result.data.subject,
+          message: result.data.message,
+          honeypot: result.data.honeypot,
+        },
         globalError:
           "We couldn't send your message right now. Please try again later or contact the church directly.",
       },

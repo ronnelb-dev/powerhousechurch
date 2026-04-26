@@ -43,14 +43,17 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
 }
 
 export function SheetContent({
+  id,
   className,
   children,
 }: {
+  id?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "absolute right-0 top-0 h-full w-full max-w-sm border-l border-white/10 bg-[var(--card)]/95 p-6 shadow-2xl backdrop-blur-xl",
         className,

@@ -12,6 +12,7 @@
     "noEmit":                 true,
     "resolveJsonModule":      true,
     "allowImportingTsExtensions": true,
+    "rootDirs": [".", "./.react-router/types"],
 
     // Path aliases — matches vite.config.ts resolve.alias
     "baseUrl": ".",
@@ -32,6 +33,7 @@
     // JSX
     "jsx":         "react-jsx",
     "jsxImportSource": "react",
+    "types": ["node", "vite/client"],
 
     // Source maps for debugging
     "sourceMap":   true,

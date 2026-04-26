@@ -144,7 +144,7 @@ export default function HomePage() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-[#f1d2a4]">This week</p>
                     <p className="mt-1 text-lg font-semibold text-white">
-                      Sunday 9:00 AM
+                      {settings["service.sunday2"] ?? settings["service.sunday1"] ?? "Sunday 9:00 AM"}
                     </p>
                   </div>
                   <Link to="/contact" className="text-sm font-semibold uppercase tracking-[0.12em] text-[#f7e3bf]">

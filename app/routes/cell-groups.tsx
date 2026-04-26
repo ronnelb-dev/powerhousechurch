@@ -112,7 +112,7 @@ const inputClass =
   "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all";
 
 export default function CellGroupsPage() {
-  const { cellGroups, barangays } = useLoaderData<typeof loader>();
+  const { cellGroups } = useLoaderData<typeof loader>();
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSubmitting = navigation.state === "submitting";
