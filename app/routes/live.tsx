@@ -1,7 +1,31 @@
 // app/routes/live.tsx
-import { useLoaderData, isRouteErrorResponse, useRouteError } from "react-router";
+// Livestream page with automatic YouTube live detection.
+//
+// Architecture:
+//   Server (loader):
+//     1. Calls getLiveStream() → checks YouTube API for an active broadcast
+//     2. If not live, calls getLatestVideo() → fetches most recent upload
+//     3. Falls back to DB sermon record if YouTube API is unavailable
+//
+//   Client (component):
+//     1. Renders immediately with server-detected state (no flicker)
+//     2. Polls /api/youtube-live every 60 seconds via useEffect
+//     3. Updates the embed URL in-place when status changes
+//        (stream goes live while visitor is on the page)
+//     4. Stops polling when the component unmounts or tab loses focus
+//
+//   The "LIVE" badge is shown ONLY when the YouTube API confirms a live stream.
+//   Previously it showed always — which was misleading outside service hours.
+
+import {
+  useLoaderData,
+  isRouteErrorResponse,
+  useRouteError,
+} from "react-router";
 import type { MetaFunction } from "react-router";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getSettings } from "~/lib/settings.server";
+import { getLatestVideo, buildEmbedUrl, parseVideoId } from "~/lib/youtube.server";
 import { db } from "~/lib/db.server";
 
 export const meta: MetaFunction = () => [
@@ -13,17 +37,69 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader() {
-  const [settings, latestSermon] = await Promise.all([
+  const [settings, liveResult, latestYouTubeVideo, latestSermon] = await Promise.all([
     getSettings(),
+    getLiveStream(),
+    getLatestVideo(),
     db.sermon.findFirst({
-      where: { isPublished: true },
+      where:   { isPublished: true },
       orderBy: { date: "desc" },
-      select: { id: true, title: true, speaker: true, videoUrl: true, date: true },
+      select:  { id: true, title: true, speaker: true, videoUrl: true, date: true },
     }),
   ]);
 
+  const service1 = settings["service.sunday1"]  ?? "7:00 AM";
+  const service2 = settings["service.sunday2"]  ?? "9:00 AM";
+
+  // Determine initial embed source (priority order):
+  //   1. YouTube API confirmed live stream
+  //   2. Latest YouTube video from the channel
+  //   3. Latest sermon video URL from the DB
+  //   4. Manual override from Settings table (legacy fallback)
+  let initialVideoId:  string | null = null;
+  let initialIsLive:   boolean       = false;
+  let initialTitle:    string | null = null;
+
+  if (liveResult.isLive && liveResult.videoId) {
+    // Currently live — use the live stream
+    initialVideoId = liveResult.videoId;
+    initialIsLive  = true;
+    initialTitle   = liveResult.title;
+  } else if (latestYouTubeVideo.videoId) {
+    // Not live — show most recent upload from the channel
+    initialVideoId = latestYouTubeVideo.videoId;
+    initialIsLive  = false;
+    initialTitle   = latestYouTubeVideo.title;
+  } else if (latestSermon?.videoUrl) {
+    // YouTube API unavailable — fall back to DB sermon record
+    const parsed = parseVideoId(latestSermon.videoUrl);
+    if (parsed) {
+      initialVideoId = parsed;
+      initialIsLive  = false;
+      initialTitle   = latestSermon.title;
+    }
+  } else {
+    // Final fallback — manual URL from settings (legacy)
+    const manualUrl =
+      settings["youtube.live"] ||
+      settings["YOUTUBE_LIVESTREAM_URL"];
+    if (manualUrl) {
+      const parsed = parseVideoId(manualUrl);
+      if (parsed) {
+        initialVideoId = parsed;
+        initialIsLive  = true; // manual URL = deliberately set = assume live
+        initialTitle   = null;
+      }
+    }
+  }
+
   return {
     settings,
+    service1,
+    service2,
+    initialVideoId,
+    initialIsLive,
+    initialTitle,
     latestSermon: latestSermon
       ? {
           ...latestSermon,
@@ -35,153 +111,187 @@ export async function loader() {
   };
 }
 
-function getYouTubeEmbedUrl(url: string): string | null {
-  try {
-    const u = new URL(url);
-    const vid =
-      u.searchParams.get("v") ||
-      (u.hostname === "youtu.be" ? u.pathname.slice(1) : null);
-    return vid ? `https://www.youtube.com/embed/${vid}?autoplay=1` : null;
-  } catch {
-    return null;
-  }
+// ── Poll response type from /api/youtube-live ─────────────────────────────
+interface PollResult {
+  isLive:   boolean;
+  videoId:  string | null;
+  title:    string | null;
+  embedUrl: string | null;
 }
 
+const POLL_INTERVAL_MS = 60_000; // 60 seconds
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 export default function LivePage() {
-  const { settings, latestSermon } = useLoaderData<typeof loader>();
+  const {
+    settings,
+    service1,
+    service2,
+    initialVideoId,
+    initialIsLive,
+    initialTitle,
+  } = useLoaderData<typeof loader>();
 
-  const liveUrl =
-    settings["YOUTUBE_LIVESTREAM_URL"] ||
-    settings["youtube.live"] ||
-    process.env.YOUTUBE_LIVESTREAM_URL;
+  // Client state — updated by polling
+  const [videoId, setVideoId]   = useState<string | null>(initialVideoId);
+  const [isLive,  setIsLive]    = useState<boolean>(initialIsLive);
+  const [title,   setTitle]     = useState<string | null>(initialTitle);
 
-  const fbUrl =
-    settings["FACEBOOK_LIVESTREAM_URL"] ||
-    settings["facebook.live"];
+  // Track whether we've been live before so we can show a "stream ended" state
+  const wasLive = useRef(initialIsLive);
 
-  const embedUrl = liveUrl ? getYouTubeEmbedUrl(liveUrl) : null;
+  // Poll /api/youtube-live on a 60-second interval
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch("/api/youtube-live", {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) return;
 
-  const service1 = settings["service.sunday1"] ?? "7:00 AM";
-  const service2 = settings["service.sunday2"] ?? "9:00 AM";
+      const data: PollResult = await res.json();
+
+      setIsLive(data.isLive);
+
+      if (data.videoId) {
+        setVideoId(data.videoId);
+        setTitle(data.title);
+      }
+
+      if (data.isLive) {
+        wasLive.current = true;
+      }
+    } catch {
+      // Network error — silently ignore, keep showing current state
+    }
+  }, []);
+
+  useEffect(() => {
+    // Poll immediately on mount (catches streams that started after SSR)
+    poll();
+
+    const timer = setInterval(poll, POLL_INTERVAL_MS);
+
+    // Pause polling when tab is hidden — resumes on focus
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearInterval(timer);
+      } else {
+        poll(); // immediate check on return
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [poll]);
+
+  const embedUrl = videoId
+    ? buildEmbedUrl(videoId, isLive)
+    : null;
 
   return (
-    <div className="pt-20 bg-gray-950 min-h-screen">
-      {/* Live header */}
-      <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600
-                       text-white text-xs font-sans font-bold rounded-full
-                       animate-pulse"
-            aria-label="Live broadcast indicator"
-          >
+    <div className="bg-gray-950" style={{ minHeight: "100dvh" }}>
+      {/* Header */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          {/* LIVE badge — only shown when confirmed live by the API */}
+          {isLive ? (
             <span
-              className="w-2 h-2 rounded-full bg-white"
-              aria-hidden="true"
-            />
-            LIVE
-          </span>
-          <p className="text-gray-400 text-sm font-sans">
+              className="inline-flex items-center gap-2 px-3 py-1.5
+                         bg-red-600 text-white text-sm font-sans font-bold
+                         rounded-full animate-pulse"
+              aria-label="Currently streaming live"
+            >
+              <span className="w-2 h-2 rounded-full bg-white" aria-hidden="true" />
+              LIVE
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-2 px-3 py-1.5
+                         bg-gray-700 text-gray-300 text-sm font-sans font-bold
+                         rounded-full"
+              aria-label="Not currently live"
+            >
+              <span className="w-2 h-2 rounded-full bg-gray-500" aria-hidden="true" />
+              RECORDED
+            </span>
+          )}
+          <p className="text-gray-400 text-base font-sans">
             Sundays at {service1} &amp; {service2}
           </p>
         </div>
 
-        <h1 className="font-serif text-3xl md:text-4xl font-bold text-white mb-2">
-          Watch Live
+        <h1
+          className="font-serif font-bold text-white mb-2"
+          style={{ fontSize: "clamp(1.75rem, 4vw + 0.75rem, 2.75rem)" }}
+        >
+          {isLive ? "We're Live Now" : "Watch Powerhouse"}
         </h1>
+        {title && (
+          <p className="text-gray-300 font-sans text-base mb-1 line-clamp-1">
+            {title}
+          </p>
+        )}
         <p className="text-gray-400 font-sans text-base">
-          Join us for worship and the Word, wherever you are.
+          {isLive
+            ? "Join us for worship and the Word, wherever you are."
+            : "Catch up on our latest message."}
         </p>
       </div>
 
       {/* Video embed */}
-      <div className="max-w-6xl mx-auto px-6 pb-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10">
         <div
-          className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800"
+          className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 w-full"
           style={{ aspectRatio: "16/9" }}
         >
           {embedUrl ? (
+            /*
+              key={videoId} forces the iframe to fully remount when the
+              video changes. Without this, changing src on a mounted iframe
+              sometimes doesn't update the video on iOS Safari.
+            */
             <iframe
+              key={videoId}
               src={embedUrl}
-              title="Powerhouse Church Live Stream"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media;
-                     gyroscope; picture-in-picture"
+              title={isLive ? "Powerhouse Church Live Stream" : (title ?? "Powerhouse Church")}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="w-full h-full"
               loading="lazy"
             />
           ) : (
-            /* Not live — show last recorded sermon */
-            latestSermon?.videoUrl && getYouTubeEmbedUrl(latestSermon.videoUrl) ? (
-              <iframe
-                src={getYouTubeEmbedUrl(latestSermon.videoUrl)!}
-                title={`Watch: ${latestSermon.title}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media;
-                       gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-                loading="lazy"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex flex-col items-center justify-center
-                           text-center px-8"
-                role="status"
-                aria-label="Stream not currently live"
-              >
-                <div
-                  className="w-20 h-20 rounded-full bg-gray-800 border border-gray-700
-                             flex items-center justify-center mb-5"
-                  aria-hidden="true"
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                       stroke="#be123c" strokeWidth="1.5">
-                    <polygon points="5,3 19,12 5,21"/>
-                  </svg>
-                </div>
-                <p className="text-white font-serif text-xl font-bold mb-2">
-                  Service Not Currently Live
-                </p>
-                <p className="text-gray-400 font-sans text-sm max-w-sm">
-                  Join us on Sundays at {service1} or {service2}. Subscribe to
-                  our YouTube channel to be notified when we go live.
-                </p>
-                {settings["social.youtube"] && (
-                  <a
-                    href={settings["social.youtube"]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-6 px-5 py-2.5 bg-red-700 text-white font-sans
-                               font-bold text-sm rounded-lg hover:bg-red-600
-                               transition-colors"
-                  >
-                    Subscribe on YouTube →
-                  </a>
-                )}
-              </div>
-            )
+            /* No video available — church hasn't uploaded anything yet */
+            <NotLiveState
+              service1={service1}
+              service2={service2}
+              youtubeUrl={settings["social.youtube"]}
+            />
           )}
         </div>
 
-        {/* Info strip below video */}
+        {/* Live viewer count — only shown during live stream */}
+        {isLive && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+            <p className="text-gray-400 text-sm font-sans">Live now — refresh for viewer count</p>
+          </div>
+        )}
+
+        {/* Info strip */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-500 mb-2">
-              Service Times
-            </p>
+          <InfoCard label="Service Times">
             <p className="text-white font-serif text-lg font-bold">
               {service1} &amp; {service2}
             </p>
-            <p className="text-gray-400 text-xs font-sans mt-1">Every Sunday</p>
-          </div>
+            <p className="text-gray-400 text-sm font-sans mt-1">Every Sunday</p>
+          </InfoCard>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-500 mb-2">
-              Chat &amp; Interact
-            </p>
-            <p className="text-gray-300 text-sm font-sans">
+          <InfoCard label="Chat & Interact">
+            <p className="text-gray-300 text-base font-sans">
               Join the conversation on our Facebook page during the live stream.
             </p>
             {settings["social.facebook"] && (
@@ -189,35 +299,98 @@ export default function LivePage() {
                 href={settings["social.facebook"]}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block mt-3 text-xs font-bold text-red-400
-                           hover:text-red-300 transition-colors"
+                className="inline-flex items-center min-h-[44px] text-base font-bold
+                           text-red-400 hover:text-red-300 transition-colors"
               >
                 Open Facebook →
               </a>
             )}
-          </div>
+          </InfoCard>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-500 mb-2">
-              Watch Anytime
-            </p>
-            <p className="text-gray-300 text-sm font-sans">
+          <InfoCard label="Watch Anytime">
+            <p className="text-gray-300 text-base font-sans">
               All past sermons are available in our archive.
             </p>
             <a
               href="/sermons"
-              className="inline-block mt-3 text-xs font-bold text-red-400
-                         hover:text-red-300 transition-colors"
+              className="inline-flex items-center min-h-[44px] text-base font-bold
+                         text-red-400 hover:text-red-300 transition-colors"
             >
               Browse sermons →
             </a>
-          </div>
+          </InfoCard>
         </div>
       </div>
     </div>
   );
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────
+
+function InfoCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <p className="font-sans font-bold tracking-[0.15em] uppercase text-red-500 text-xs mb-3">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function NotLiveState({
+  service1,
+  service2,
+  youtubeUrl,
+}: {
+  service1:   string;
+  service2:   string;
+  youtubeUrl?: string;
+}) {
+  return (
+    <div
+      className="w-full h-full flex flex-col items-center justify-center
+                 text-center px-6"
+      role="status"
+      aria-label="Stream not currently live"
+    >
+      <div
+        className="w-20 h-20 rounded-full bg-gray-800 border border-gray-700
+                   flex items-center justify-center mb-5"
+        aria-hidden="true"
+      >
+        <svg
+          width="32" height="32" viewBox="0 0 24 24"
+          fill="none" stroke="#be123c" strokeWidth="1.5"
+        >
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+      </div>
+      <p className="text-white font-serif text-xl font-bold mb-3">
+        Service Not Currently Live
+      </p>
+      <p className="text-gray-400 font-sans text-base max-w-sm leading-relaxed">
+        Join us on Sundays at {service1} or {service2}. Subscribe to our
+        YouTube channel to be notified when we go live.
+      </p>
+      {youtubeUrl && (
+        <a
+          href={youtubeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 inline-flex items-center justify-center
+                     min-h-[48px] px-6 py-2 rounded-xl
+                     bg-red-700 text-white font-sans font-bold text-base
+                     hover:bg-red-600 transition-colors touch-manipulation"
+        >
+          Subscribe on YouTube →
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ── Error boundary ────────────────────────────────────────────────────────
 
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -227,7 +400,7 @@ export function ErrorBoundary() {
         <h1 className="font-serif text-2xl font-bold text-white mb-2">
           Live stream unavailable
         </h1>
-        <p className="text-gray-400 text-sm">
+        <p className="text-gray-400 text-base">
           {isRouteErrorResponse(error) ? error.data : "Please try again."}
         </p>
       </div>
