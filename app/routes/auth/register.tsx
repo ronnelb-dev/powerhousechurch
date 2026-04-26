@@ -11,6 +11,7 @@ import { handleRegisterSubmission } from "~/lib/auth-actions.server";
 import { getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { sendVerificationEmailForUser } from "~/lib/email-verification.server";
+import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Register — Powerhouse Church Members Portal" },
@@ -30,11 +31,26 @@ export async function loader({ request }: { request: Request }) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const email = ((formData.get("email") as string) ?? "").trim().toLowerCase();
+  const limit = authRateLimiter.consume({
+    bucket: "auth:register",
+    key: `${getClientIpAddress(request)}:${email || "unknown"}`,
+    limit: 4,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!limit.ok) {
+    return {
+      success: false,
+      globalError: `Too many registration attempts from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+    };
+  }
+
   return handleRegisterSubmission(
     {
       firstName: (formData.get("firstName") as string) ?? "",
       lastName: (formData.get("lastName") as string) ?? "",
-      email: (formData.get("email") as string) ?? "",
+      email,
       phone: (formData.get("phone") as string) ?? "",
       password: (formData.get("password") as string) ?? "",
       confirmPassword: (formData.get("confirmPassword") as string) ?? "",

@@ -98,6 +98,10 @@ declare global {
   var __publicSubmissionRateLimiter__:
     | MemoryRateLimiter
     | undefined;
+  // eslint-disable-next-line no-var
+  var __authRateLimiter__:
+    | MemoryRateLimiter
+    | undefined;
 }
 
 export const publicSubmissionRateLimiter =
@@ -106,4 +110,12 @@ export const publicSubmissionRateLimiter =
 
 if (!global.__publicSubmissionRateLimiter__) {
   global.__publicSubmissionRateLimiter__ = publicSubmissionRateLimiter;
+}
+
+export const authRateLimiter =
+  global.__authRateLimiter__ ??
+  createMemoryRateLimiter();
+
+if (!global.__authRateLimiter__) {
+  global.__authRateLimiter__ = authRateLimiter;
 }

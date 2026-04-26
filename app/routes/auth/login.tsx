@@ -12,6 +12,7 @@ import type { MetaFunction } from "react-router";
 import { handleLoginSubmission } from "~/lib/auth-actions.server";
 import { lucia, getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
+import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Member Login — Powerhouse Church" },
@@ -31,9 +32,23 @@ export async function loader({ request }: { request: Request }) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const identifier = ((formData.get("identifier") as string) ?? "").trim().toLowerCase();
+  const limit = authRateLimiter.consume({
+    bucket: "auth:login",
+    key: `${getClientIpAddress(request)}:${identifier || "unknown"}`,
+    limit: 8,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!limit.ok) {
+    return {
+      error: `Too many sign-in attempts from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+    };
+  }
+
   return handleLoginSubmission(
     {
-      identifier: (formData.get("identifier") as string) ?? "",
+      identifier,
       password: (formData.get("password") as string) ?? "",
     },
     {

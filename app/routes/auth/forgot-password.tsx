@@ -9,6 +9,7 @@ import type { MetaFunction } from "react-router";
 
 import { db } from "~/lib/db.server";
 import { sendPasswordResetForUser } from "~/lib/password-reset.server";
+import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Forgot Password — Powerhouse Church Members Portal" },
@@ -33,6 +34,20 @@ export async function action({ request }: ActionFunctionArgs) {
     return {
       success: false,
       message: "Enter the email address tied to your account.",
+    } satisfies ActionData;
+  }
+
+  const limit = authRateLimiter.consume({
+    bucket: "auth:forgot-password",
+    key: `${getClientIpAddress(request)}:${email}`,
+    limit: 4,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (!limit.ok) {
+    return {
+      success: false,
+      message: `Too many reset requests from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
     } satisfies ActionData;
   }
 

@@ -16,6 +16,7 @@ import {
   resetPasswordWithToken,
   validatePasswordResetToken,
 } from "~/lib/password-reset.server";
+import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Reset Password — Powerhouse Church Members Portal" },
@@ -78,6 +79,12 @@ type ActionData =
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const token = (formData.get("token") as string | null)?.trim() ?? "";
+  const limit = authRateLimiter.consume({
+    bucket: "auth:reset-password",
+    key: `${getClientIpAddress(request)}:${token || "missing-token"}`,
+    limit: 6,
+    windowMs: 30 * 60 * 1000,
+  });
   const raw = {
     password: (formData.get("password") as string | null) ?? "",
     confirmPassword: (formData.get("confirmPassword") as string | null) ?? "",
@@ -87,6 +94,13 @@ export async function action({ request }: ActionFunctionArgs) {
     return {
       success: false,
       globalError: "The password reset token is missing.",
+    } satisfies ActionData;
+  }
+
+  if (!limit.ok) {
+    return {
+      success: false,
+      globalError: `Too many password reset attempts from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
     } satisfies ActionData;
   }
 

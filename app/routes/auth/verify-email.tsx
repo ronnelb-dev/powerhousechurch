@@ -16,6 +16,7 @@ import {
   sendVerificationEmailForUser,
   verifyEmailToken,
 } from "~/lib/email-verification.server";
+import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Verify Email — Powerhouse Church Members Portal" },
@@ -76,6 +77,20 @@ export async function action({ request }: ActionFunctionArgs) {
     return {
       success: false,
       message: "Enter the email address used during registration.",
+    } satisfies ActionData;
+  }
+
+  const limit = authRateLimiter.consume({
+    bucket: "auth:verify-email",
+    key: `${getClientIpAddress(request)}:${email}`,
+    limit: 4,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (!limit.ok) {
+    return {
+      success: false,
+      message: `Too many verification email requests from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
     } satisfies ActionData;
   }
 
