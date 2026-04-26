@@ -5,6 +5,15 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph";
 const ADMIN_EMAIL = process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph";
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export async function sendPrayerRequestConfirmation(
   to: string,
   name: string
@@ -36,6 +45,119 @@ export async function notifyAdminOfPrayerRequest(
       <p><strong>Private:</strong> ${isPrivate ? "Yes" : "No"}</p>
       <p><strong>Request:</strong></p>
       <blockquote>${requestText}</blockquote>
+    `,
+  });
+}
+
+export async function sendVisitPlanConfirmation(args: {
+  to: string;
+  firstName: string;
+  preferredService: string;
+  visitDate?: string;
+  bringingKids: boolean;
+  wantsUsherFollowUp: boolean;
+  wantsPastorFollowUp: boolean;
+}) {
+  const {
+    to,
+    firstName,
+    preferredService,
+    visitDate,
+    bringingKids,
+    wantsUsherFollowUp,
+    wantsPastorFollowUp,
+  } = args;
+
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Your visit is planned — Powerhouse Church",
+    html: `
+      <p>Dear ${escapeHtml(firstName)},</p>
+      <p>Thank you for planning your visit with Powerhouse Church. We have your details and are looking forward to welcoming you.</p>
+      <p><strong>Preferred service:</strong> ${escapeHtml(preferredService)}</p>
+      ${visitDate ? `<p><strong>Target visit date:</strong> ${escapeHtml(visitDate)}</p>` : ""}
+      ${bringingKids ? "<p>We noted that you're bringing kids, so our team can help point you to check-in.</p>" : ""}
+      ${
+        wantsUsherFollowUp || wantsPastorFollowUp
+          ? `<p>We also noted your follow-up request${
+              wantsUsherFollowUp && wantsPastorFollowUp
+                ? "s for an usher and a pastor"
+                : wantsUsherFollowUp
+                  ? " for an usher"
+                  : " for a pastor"
+            }.</p>`
+          : ""
+      }
+      <p>If your plans change, simply reply to this email and let us know.</p>
+      <p>Grace and peace,<br/>Powerhouse Church</p>
+    `,
+  });
+}
+
+export async function notifyAdminOfVisitPlan(args: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  city?: string | null;
+  preferredService: string;
+  visitDate?: string | null;
+  adultCount: number;
+  isFirstTimeGuest: boolean;
+  bringingKids: boolean;
+  kidsCount?: number | null;
+  kidsDetails?: string | null;
+  wantsUsherFollowUp: boolean;
+  wantsPastorFollowUp: boolean;
+  notes?: string | null;
+}) {
+  const {
+    name,
+    email,
+    phone,
+    city,
+    preferredService,
+    visitDate,
+    adultCount,
+    isFirstTimeGuest,
+    bringingKids,
+    kidsCount,
+    kidsDetails,
+    wantsUsherFollowUp,
+    wantsPastorFollowUp,
+    notes,
+  } = args;
+
+  return resend.emails.send({
+    from: FROM,
+    to: ADMIN_EMAIL,
+    subject: `New Plan Your Visit submission — ${escapeHtml(name)}`,
+    html: `
+      <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+      ${phone ? `<p><strong>Phone:</strong> ${escapeHtml(phone)}</p>` : ""}
+      ${city ? `<p><strong>City / Barangay:</strong> ${escapeHtml(city)}</p>` : ""}
+      <p><strong>Preferred service:</strong> ${escapeHtml(preferredService)}</p>
+      ${visitDate ? `<p><strong>Target visit date:</strong> ${escapeHtml(visitDate)}</p>` : ""}
+      <p><strong>Adults coming:</strong> ${adultCount}</p>
+      <p><strong>First-time guest:</strong> ${isFirstTimeGuest ? "Yes" : "No"}</p>
+      <p><strong>Bringing kids:</strong> ${bringingKids ? "Yes" : "No"}</p>
+      ${
+        bringingKids
+          ? `<p><strong>Kids count:</strong> ${kidsCount ?? 0}</p>${
+              kidsDetails
+                ? `<p><strong>Kids notes:</strong><br/>${escapeHtml(kidsDetails).replaceAll("\n", "<br/>")}</p>`
+                : ""
+            }`
+          : ""
+      }
+      <p><strong>Usher follow-up requested:</strong> ${wantsUsherFollowUp ? "Yes" : "No"}</p>
+      <p><strong>Pastor follow-up requested:</strong> ${wantsPastorFollowUp ? "Yes" : "No"}</p>
+      ${
+        notes
+          ? `<p><strong>Extra notes:</strong><br/>${escapeHtml(notes).replaceAll("\n", "<br/>")}</p>`
+          : ""
+      }
     `,
   });
 }

@@ -1,48 +1,252 @@
-// app/routes/new-here.tsx
-import { Link } from "react-router";
+import {
+  Form,
+  Link,
+  data,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  type ActionFunctionArgs,
+} from "react-router";
 import type { MetaFunction } from "react-router";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
+import { buttonVariants } from "~/components/ui/Button";
+import { Card, CardContent } from "~/components/ui/card";
+import { db } from "~/lib/db.server";
+import { notifyAdminOfVisitPlan, sendVisitPlanConfirmation } from "~/lib/email.server";
+import { VisitPlanSchema } from "~/lib/schemas.server";
+import { getSettings } from "~/lib/settings.server";
+import { cn } from "~/lib/utils";
 
 export const meta: MetaFunction = () => [
-  { title: "New Here? — Powerhouse Church" },
+  { title: "Plan Your Visit — Powerhouse Church" },
   {
     name: "description",
     content:
-      "New to Powerhouse Church? Find out what to expect, where to go, and who to talk to on your first visit.",
+      "Plan your first visit to Powerhouse Church, choose a service, share kids info, and request follow-up from our ushers or pastors.",
   },
 ];
+
+const DEFAULT_VALUES = {
+  name: "",
+  email: "",
+  phone: "",
+  city: "",
+  preferredService: "",
+  visitDate: "",
+  adultCount: "1",
+  isFirstTimeGuest: "yes",
+  bringingKids: false,
+  kidsCount: "",
+  kidsDetails: "",
+  wantsUsherFollowUp: false,
+  wantsPastorFollowUp: false,
+  notes: "",
+  honeypot: "",
+};
+
+type FormValues = typeof DEFAULT_VALUES;
+
+type ActionData =
+  | {
+      success: true;
+      name: string;
+      preferredService: string;
+      visitDate: string | null;
+      bringingKids: boolean;
+      wantsUsherFollowUp: boolean;
+      wantsPastorFollowUp: boolean;
+    }
+  | {
+      success: false;
+      values: FormValues;
+      errors?: Record<string, string[]>;
+      globalError?: string;
+    };
+
+function getServiceOptions(settings: Record<string, string>) {
+  const firstService = settings["service.sunday1"] ?? "7:00 AM";
+  const secondService = settings["service.sunday2"] ?? "9:00 AM";
+
+  return [
+    {
+      value: `Sunday ${firstService}`,
+      label: `Sunday ${firstService}`,
+      detail: "First service",
+    },
+    {
+      value: `Sunday ${secondService}`,
+      label: `Sunday ${secondService}`,
+      detail: "Second service",
+    },
+    {
+      value: "Help me choose",
+      label: "Help me choose the best service",
+      detail: "We can recommend a good fit",
+    },
+  ];
+}
+
+export async function loader() {
+  const settings = await getSettings();
+
+  return {
+    address: settings["church.address"] ?? "Masbate City, Masbate, Philippines",
+    phone: settings["church.phone"] ?? "",
+    email: settings["church.email"] ?? "",
+    serviceOptions: getServiceOptions(settings),
+  };
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const rawValues: FormValues = {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    city: String(formData.get("city") ?? ""),
+    preferredService: String(formData.get("preferredService") ?? ""),
+    visitDate: String(formData.get("visitDate") ?? ""),
+    adultCount: String(formData.get("adultCount") ?? "1"),
+    isFirstTimeGuest: String(formData.get("isFirstTimeGuest") ?? "yes"),
+    bringingKids: formData.get("bringingKids") === "on",
+    kidsCount: String(formData.get("kidsCount") ?? ""),
+    kidsDetails: String(formData.get("kidsDetails") ?? ""),
+    wantsUsherFollowUp: formData.get("wantsUsherFollowUp") === "on",
+    wantsPastorFollowUp: formData.get("wantsPastorFollowUp") === "on",
+    notes: String(formData.get("notes") ?? ""),
+    honeypot: String(formData.get("honeypot") ?? ""),
+  };
+
+  const settings = await getSettings();
+  const serviceValues = getServiceOptions(settings).map((option) => option.value);
+  const result = VisitPlanSchema.safeParse(rawValues);
+
+  if (!result.success) {
+    return data({
+      success: false,
+      values: rawValues,
+      errors: result.error.flatten().fieldErrors,
+    } satisfies ActionData, { status: 400 });
+  }
+
+  if (!serviceValues.includes(result.data.preferredService)) {
+    return data({
+      success: false,
+      values: rawValues,
+      errors: { preferredService: ["Choose one of the listed service options"] },
+    } satisfies ActionData, { status: 400 });
+  }
+
+  const submission = result.data;
+
+  try {
+    await db.visitPlan.create({
+      data: {
+        name: submission.name,
+        email: submission.email,
+        phone: submission.phone || null,
+        city: submission.city || null,
+        preferredService: submission.preferredService,
+        visitDate: submission.visitDate ? new Date(`${submission.visitDate}T00:00:00`) : null,
+        adultCount: submission.adultCount,
+        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
+        bringingKids: submission.bringingKids,
+        kidsCount: submission.bringingKids ? submission.kidsCount ?? null : null,
+        kidsDetails: submission.bringingKids ? submission.kidsDetails || null : null,
+        wantsUsherFollowUp: submission.wantsUsherFollowUp,
+        wantsPastorFollowUp: submission.wantsPastorFollowUp,
+        notes: submission.notes || null,
+      },
+    });
+  } catch (error) {
+    console.error("[visit-plan] Failed to save visit submission:", error);
+    return data({
+      success: false,
+      values: rawValues,
+      globalError:
+        "We couldn't save your visit details right now. Please try again or contact the church directly.",
+    } satisfies ActionData, { status: 500 });
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    const firstName = submission.name.trim().split(/\s+/)[0] ?? submission.name;
+    const emailJobs = [
+      notifyAdminOfVisitPlan({
+        name: submission.name,
+        email: submission.email,
+        phone: submission.phone || null,
+        city: submission.city || null,
+        preferredService: submission.preferredService,
+        visitDate: submission.visitDate || null,
+        adultCount: submission.adultCount,
+        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
+        bringingKids: submission.bringingKids,
+        kidsCount: submission.kidsCount ?? null,
+        kidsDetails: submission.kidsDetails || null,
+        wantsUsherFollowUp: submission.wantsUsherFollowUp,
+        wantsPastorFollowUp: submission.wantsPastorFollowUp,
+        notes: submission.notes || null,
+      }),
+      sendVisitPlanConfirmation({
+        to: submission.email,
+        firstName,
+        preferredService: submission.preferredService,
+        visitDate: submission.visitDate || undefined,
+        bringingKids: submission.bringingKids,
+        wantsUsherFollowUp: submission.wantsUsherFollowUp,
+        wantsPastorFollowUp: submission.wantsPastorFollowUp,
+      }),
+    ];
+
+    const emailResults = await Promise.allSettled(emailJobs);
+    const emailFailure = emailResults.find((job) => job.status === "rejected");
+    if (emailFailure?.status === "rejected") {
+      console.error("[visit-plan] Email send failed:", emailFailure.reason);
+    }
+  }
+
+  return {
+    success: true,
+    name: submission.name,
+    preferredService: submission.preferredService,
+    visitDate: submission.visitDate || null,
+    bringingKids: submission.bringingKids,
+    wantsUsherFollowUp: submission.wantsUsherFollowUp,
+    wantsPastorFollowUp: submission.wantsPastorFollowUp,
+  } satisfies ActionData;
+}
 
 const STEPS = [
   {
     num: 1,
-    title: "Arrive & Park",
-    body: "Ushers greet you at the gate. Parking is free. Arrive 10 minutes early for the best seat and a relaxed first experience.",
+    title: "Arrive & Get Oriented",
+    body: "Our welcome team will help with parking, directions, and the fastest route into the sanctuary so your first few minutes feel easy.",
   },
   {
     num: 2,
-    title: "Welcome Desk",
-    body: "Stop by our visitor desk just inside the entrance. Grab a welcome pack and meet someone from our hospitality team.",
+    title: "Check In If Needed",
+    body: "If you submitted this form, our team will already have a heads-up. Bringing kids? We'll point you straight to the right check-in area.",
   },
   {
     num: 3,
     title: "Worship Together",
-    body: "We open with 30 minutes of Spirit-filled praise and worship. Sing along, lift your hands, or simply take it in — all are welcome.",
+    body: "We open with Spirit-filled praise and worship. Sing, observe, pray, or take a moment to breathe. There is room for you here.",
   },
   {
     num: 4,
     title: "Hear the Word",
-    body: "Our pastor delivers a 40-minute message rooted in Scripture. We believe the Bible is alive and relevant for everyday life.",
+    body: "Expect biblical preaching that is practical, direct, and centered on Jesus. We want people to leave grounded, not just inspired.",
   },
   {
     num: 5,
-    title: "Connect Card",
-    body: "Fill out a connect card at your seat. It's how our team follows up to say hello and help you find your place here.",
+    title: "Meet Real People",
+    body: "After service, you can take your time, meet leaders, ask questions, and find next steps without pressure.",
   },
   {
     num: 6,
-    title: "Stay for Fellowship",
-    body: "After service, stay for coffee and merienda. This is where friendships begin and community is built.",
+    title: "Take Your Next Step",
+    body: "If you'd like, we can connect you with an usher, a pastor, or the right ministry area after your first visit.",
   },
 ];
 
@@ -73,42 +277,502 @@ const FAQS = [
   },
 ];
 
+const VISIT_BENEFITS = [
+  "We can welcome you by name instead of leaving you to figure things out alone.",
+  "Your preferred service helps our team prepare for seating, kids check-in, and follow-up.",
+  "Optional usher or pastoral follow-up only happens if you ask for it.",
+];
+
+function FieldError({ errors }: { errors?: string[] }) {
+  if (!errors?.length) return null;
+  return (
+    <p role="alert" className="mt-2 text-sm text-red-200">
+      {errors[0]}
+    </p>
+  );
+}
+
+const fieldClass =
+  "w-full rounded-2xl border border-white/12 bg-white/10 px-4 py-3 text-sm text-white " +
+  "placeholder:text-white/55 focus:outline-none focus:ring-2 focus:ring-[#f3cf8e] focus:border-transparent";
+
 export default function NewHerePage() {
+  const { address, phone, email, serviceOptions } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>() as ActionData | undefined;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  const failureData = actionData?.success === false ? actionData : null;
+  const values =
+    failureData
+      ? { ...DEFAULT_VALUES, ...failureData.values }
+      : DEFAULT_VALUES;
+  const errors =
+    failureData && "errors" in failureData && failureData.errors
+      ? failureData.errors
+      : {};
+  const globalError =
+    failureData && "globalError" in failureData
+      ? failureData.globalError ?? null
+      : null;
+
   return (
     <>
       <PageHero
-        title="We're So Glad You Found Us"
-        subtitle="You don't need to have it all together. You just need to show up."
+        title="Plan Your Visit"
+        subtitle="Tell us a little about your first Sunday and we’ll make the welcome feel simple, warm, and clear."
         scripture="Come to me, all you who are weary and burdened, and I will give you rest. — Matthew 11:28"
-      />
+      >
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:text-left">
+          <Card className="border-white/10 bg-white/8 text-white">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#f1d2a4]">
+                Why Fill This Out
+              </p>
+              <div className="mt-5 space-y-3">
+                {VISIT_BENEFITS.map((item) => (
+                  <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-left">
+                    <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#f1d2a4]" />
+                    <p className="text-sm leading-6 text-[#f7ebe4]">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            {serviceOptions.map((option) => (
+              <div key={option.value} className="rounded-[1.6rem] border border-white/12 bg-white/10 px-5 py-4 text-left">
+                <p className="text-xs uppercase tracking-[0.24em] text-[#f1d2a4]">{option.detail}</p>
+                <p className="mt-2 font-serif text-2xl font-semibold text-white">{option.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-8 flex flex-wrap justify-center gap-4 lg:justify-start">
+          <a href="#visit-form" className={buttonVariants({ size: "lg", variant: "secondary" })}>
+            Start My Visit Plan
+          </a>
+          <Link
+            to="/contact"
+            className={buttonVariants({
+              size: "lg",
+              variant: "outline",
+              className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+            })}
+          >
+            Ask a Question
+          </Link>
+        </div>
+      </PageHero>
 
-      {/* What to expect */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
+      <section className="shell section-gap">
+        <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+          <Card className="overflow-hidden bg-[linear-gradient(155deg,#fdf7f1_0%,#fff3e3_100%)]">
+            <CardContent className="p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
+                What Happens Next
+              </p>
+              <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)]">
+                We prepare a smoother first Sunday.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[var(--muted-foreground)]">
+                This form helps us anticipate your arrival, point your family in the right direction, and only arrange follow-up if you want it.
+              </p>
+              <div className="mt-8 space-y-4">
+                <div className="rounded-[1.5rem] border border-[var(--border)] bg-white/85 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--primary)]">
+                    Address
+                  </p>
+                  <p className="mt-2 text-base leading-7 text-[var(--foreground)]">{address}</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-[var(--border)] bg-white/85 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--primary)]">
+                    Need help before Sunday?
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-[var(--muted-foreground)]">
+                    {phone ? <p>{phone}</p> : null}
+                    {email ? <p>{email}</p> : null}
+                    {!phone && !email ? <p>Use the contact page and our team will reply.</p> : null}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            id="visit-form"
+            className="overflow-hidden border-transparent bg-[linear-gradient(145deg,#2a1714_0%,#5b2627_56%,#7e342f_100%)] text-white shadow-[0_34px_80px_-38px_rgba(56,21,19,0.9)]"
+          >
+            <CardContent className="p-8">
+              {actionData?.success ? (
+                <div className="text-center" aria-live="polite">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#f3cf8e]/35 bg-[#f3cf8e]/18">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f3cf8e" strokeWidth="2.2" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <h2 className="mt-6 font-serif text-4xl font-semibold text-white">
+                    You’re on our radar
+                  </h2>
+                  <p className="mt-4 text-base leading-7 text-[#f7e6df]">
+                    We saved your visit details for <strong>{actionData.preferredService}</strong>
+                    {actionData.visitDate ? ` on ${actionData.visitDate}` : ""}.
+                  </p>
+                  <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[#f3cf8e]">Kids</p>
+                      <p className="mt-2 text-sm leading-6 text-[#f7ebe4]">
+                        {actionData.bringingKids
+                          ? "We noted that you’re bringing kids and can help with check-in."
+                          : "No kids details were added for this visit."}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[#f3cf8e]">Follow-Up</p>
+                      <p className="mt-2 text-sm leading-6 text-[#f7ebe4]">
+                        {actionData.wantsUsherFollowUp || actionData.wantsPastorFollowUp
+                          ? "Your requested usher and/or pastoral follow-up has been noted."
+                          : "No follow-up was requested, so we’ll simply be ready to welcome you."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-8 flex flex-wrap justify-center gap-4">
+                    <Link to="/contact" className={buttonVariants({ variant: "secondary" })}>
+                      Get Directions
+                    </Link>
+                    <Link
+                      to="/"
+                      className={buttonVariants({
+                        variant: "outline",
+                        className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                      })}
+                    >
+                      Back Home
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-8">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#f3cf8e]">
+                      First-Time Guest Form
+                    </p>
+                    <h2 className="mt-4 font-serif text-4xl font-semibold text-white">
+                      Tell us about your visit
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[#f7e6df]">
+                      Share the basics, choose a service, add kids information if needed, and opt into follow-up only if you want it.
+                    </p>
+                  </div>
+
+                  {globalError ? (
+                    <div
+                      role="alert"
+                      className="mb-6 rounded-2xl border border-[#f3cf8e]/30 bg-[#f3cf8e]/14 px-4 py-3 text-sm text-[#fff4d8]"
+                    >
+                      {globalError}
+                    </div>
+                  ) : null}
+
+                  <Form method="post" noValidate className="space-y-6" aria-label="Plan your visit form">
+                    <div className="hidden" aria-hidden="true">
+                      <label htmlFor="honeypot">Leave this blank</label>
+                      <input id="honeypot" name="honeypot" type="text" tabIndex={-1} autoComplete="off" />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label htmlFor="name" className="mb-2 block text-sm font-semibold text-white">
+                          Full name <span className="text-[#f3cf8e]">*</span>
+                        </label>
+                        <input
+                          id="name"
+                          name="name"
+                          type="text"
+                          required
+                          defaultValue={values.name}
+                          aria-invalid={!!errors.name}
+                          className={cn(fieldClass, errors.name ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                          placeholder="Your full name"
+                        />
+                        <FieldError errors={errors.name} />
+                      </div>
+                      <div>
+                        <label htmlFor="email" className="mb-2 block text-sm font-semibold text-white">
+                          Email address <span className="text-[#f3cf8e]">*</span>
+                        </label>
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          required
+                          defaultValue={values.email}
+                          aria-invalid={!!errors.email}
+                          className={cn(fieldClass, errors.email ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                          placeholder="you@example.com"
+                        />
+                        <FieldError errors={errors.email} />
+                      </div>
+                      <div>
+                        <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-white">
+                          Mobile number
+                        </label>
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          defaultValue={values.phone}
+                          aria-invalid={!!errors.phone}
+                          className={cn(fieldClass, errors.phone ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                          placeholder="09xx xxx xxxx"
+                        />
+                        <FieldError errors={errors.phone} />
+                      </div>
+                      <div>
+                        <label htmlFor="city" className="mb-2 block text-sm font-semibold text-white">
+                          City or barangay
+                        </label>
+                        <input
+                          id="city"
+                          name="city"
+                          type="text"
+                          defaultValue={values.city}
+                          aria-invalid={!!errors.city}
+                          className={cn(fieldClass, errors.city ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                          placeholder="Where you're coming from"
+                        />
+                        <FieldError errors={errors.city} />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+                      <div>
+                        <label htmlFor="preferredService" className="mb-2 block text-sm font-semibold text-white">
+                          Preferred service <span className="text-[#f3cf8e]">*</span>
+                        </label>
+                        <select
+                          id="preferredService"
+                          name="preferredService"
+                          required
+                          defaultValue={values.preferredService}
+                          aria-invalid={!!errors.preferredService}
+                          className={cn(fieldClass, "appearance-none", errors.preferredService ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                        >
+                          <option value="" className="text-gray-900">
+                            Select a service
+                          </option>
+                          {serviceOptions.map((option) => (
+                            <option key={option.value} value={option.value} className="text-gray-900">
+                              {option.label} · {option.detail}
+                            </option>
+                          ))}
+                        </select>
+                        <FieldError errors={errors.preferredService} />
+                      </div>
+                      <div>
+                        <label htmlFor="visitDate" className="mb-2 block text-sm font-semibold text-white">
+                          Target date
+                        </label>
+                        <input
+                          id="visitDate"
+                          name="visitDate"
+                          type="date"
+                          defaultValue={values.visitDate}
+                          aria-invalid={!!errors.visitDate}
+                          className={cn(fieldClass, errors.visitDate ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                        />
+                        <FieldError errors={errors.visitDate} />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-[0.72fr_1.28fr]">
+                      <div>
+                        <label htmlFor="adultCount" className="mb-2 block text-sm font-semibold text-white">
+                          Adults coming <span className="text-[#f3cf8e]">*</span>
+                        </label>
+                        <input
+                          id="adultCount"
+                          name="adultCount"
+                          type="number"
+                          min={1}
+                          max={12}
+                          defaultValue={values.adultCount}
+                          aria-invalid={!!errors.adultCount}
+                          className={cn(fieldClass, errors.adultCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                        />
+                        <FieldError errors={errors.adultCount} />
+                      </div>
+                      <fieldset className="rounded-[1.6rem] border border-white/10 bg-white/6 px-5 py-4">
+                        <legend className="px-2 text-sm font-semibold text-white">
+                          Is this your first time at Powerhouse?
+                        </legend>
+                        <div className="mt-3 flex flex-wrap gap-5">
+                          {[
+                            { value: "yes", label: "Yes, first time" },
+                            { value: "no", label: "No, I’ve attended before" },
+                          ].map((option) => (
+                            <label key={option.value} className="flex items-center gap-2 text-sm text-[#f7ebe4]">
+                              <input
+                                type="radio"
+                                name="isFirstTimeGuest"
+                                value={option.value}
+                                defaultChecked={values.isFirstTimeGuest === option.value}
+                                className="h-4 w-4 border-white/30 text-[#f3cf8e] focus:ring-[#f3cf8e]"
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    </div>
+
+                    <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-5">
+                      <div className="flex items-start gap-3">
+                        <input
+                          id="bringingKids"
+                          name="bringingKids"
+                          type="checkbox"
+                          defaultChecked={values.bringingKids}
+                          className="mt-1 h-4 w-4 rounded border-white/30 text-[#f3cf8e] focus:ring-[#f3cf8e]"
+                        />
+                        <div>
+                          <label htmlFor="bringingKids" className="text-sm font-semibold text-white">
+                            We’re bringing kids
+                          </label>
+                          <p className="mt-1 text-sm leading-6 text-[#f7e6df]">
+                            Add the headcount and any quick notes so our kids team can be ready.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-5 grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
+                        <div>
+                          <label htmlFor="kidsCount" className="mb-2 block text-sm font-semibold text-white">
+                            Number of kids
+                          </label>
+                          <input
+                            id="kidsCount"
+                            name="kidsCount"
+                            type="number"
+                            min={1}
+                            max={12}
+                            defaultValue={values.kidsCount}
+                            aria-invalid={!!errors.kidsCount}
+                            className={cn(fieldClass, errors.kidsCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                            placeholder="0"
+                          />
+                          <FieldError errors={errors.kidsCount} />
+                        </div>
+                        <div>
+                          <label htmlFor="kidsDetails" className="mb-2 block text-sm font-semibold text-white">
+                            Kids notes
+                          </label>
+                          <textarea
+                            id="kidsDetails"
+                            name="kidsDetails"
+                            rows={3}
+                            defaultValue={values.kidsDetails}
+                            aria-invalid={!!errors.kidsDetails}
+                            className={cn(fieldClass, "min-h-[110px] resize-y", errors.kidsDetails ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                            placeholder="Ages, allergies, or anything helpful for check-in"
+                          />
+                          <FieldError errors={errors.kidsDetails} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="rounded-[1.5rem] border border-white/10 bg-white/6 px-5 py-4">
+                        <span className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            name="wantsUsherFollowUp"
+                            defaultChecked={values.wantsUsherFollowUp}
+                            className="mt-1 h-4 w-4 rounded border-white/30 text-[#f3cf8e] focus:ring-[#f3cf8e]"
+                          />
+                          <span>
+                            <span className="block text-sm font-semibold text-white">
+                              Ask an usher to follow up
+                            </span>
+                            <span className="mt-1 block text-sm leading-6 text-[#f7e6df]">
+                              Helpful if you want someone ready to greet you and point you in the right direction.
+                            </span>
+                          </span>
+                        </span>
+                      </label>
+                      <label className="rounded-[1.5rem] border border-white/10 bg-white/6 px-5 py-4">
+                        <span className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            name="wantsPastorFollowUp"
+                            defaultChecked={values.wantsPastorFollowUp}
+                            className="mt-1 h-4 w-4 rounded border-white/30 text-[#f3cf8e] focus:ring-[#f3cf8e]"
+                          />
+                          <span>
+                            <span className="block text-sm font-semibold text-white">
+                              Ask a pastor to follow up
+                            </span>
+                            <span className="mt-1 block text-sm leading-6 text-[#f7e6df]">
+                              Choose this if you want prayer, a conversation, or extra help getting connected.
+                            </span>
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label htmlFor="notes" className="mb-2 block text-sm font-semibold text-white">
+                        Anything else we should know?
+                      </label>
+                      <textarea
+                        id="notes"
+                        name="notes"
+                        rows={4}
+                        defaultValue={values.notes}
+                        aria-invalid={!!errors.notes}
+                        className={cn(fieldClass, "min-h-[120px] resize-y", errors.notes ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                        placeholder="Prayer needs, accessibility notes, or questions before you arrive"
+                      />
+                      <FieldError errors={errors.notes} />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      aria-busy={isSubmitting}
+                      className="w-full rounded-full bg-[#f3cf8e] px-6 py-4 text-sm font-semibold uppercase tracking-[0.1em] text-[#4a201d] transition hover:bg-[#f7daa3] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting ? "Saving your visit…" : "Save my visit plan"}
+                    </button>
+                  </Form>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="shell pb-4">
         <SectionHeader
           eyebrow="Your First Sunday"
           title="What to Expect"
           subtitle="A step-by-step look at what a Sunday morning at Powerhouse Church is like."
         />
 
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {STEPS.map((step) => (
             <div
               key={step.num}
-              className="bg-white border border-gray-100 rounded-2xl p-6
-                         hover:border-red-200 hover:shadow-sm transition-all"
+              className="rounded-[1.7rem] border border-[var(--border)] bg-[var(--card)] p-6 transition-all hover:-translate-y-1 hover:border-[var(--ring)]"
             >
               <div
-                className="w-10 h-10 rounded-full bg-red-700 text-white
-                           flex items-center justify-center font-serif text-lg
-                           font-bold mb-4"
+                className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] font-serif text-lg font-bold text-white"
                 aria-hidden="true"
               >
                 {step.num}
               </div>
-              <h3 className="font-serif text-lg font-bold text-gray-900 mb-2">
+              <h3 className="font-serif text-xl font-semibold text-[var(--foreground)]">
                 {step.title}
               </h3>
-              <p className="text-sm text-gray-500 font-sans leading-relaxed">
+              <p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">
                 {step.body}
               </p>
             </div>
@@ -116,78 +780,69 @@ export default function NewHerePage() {
         </div>
       </section>
 
-      {/* Service info band */}
-      <section className="bg-red-900 py-14 px-6" aria-labelledby="service-info-heading">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+      <section className="shell section-gap" aria-labelledby="service-info-heading">
+        <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">
+          <CardContent className="grid gap-8 p-8 text-center md:grid-cols-3 md:text-left lg:p-10">
           <div>
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-300 mb-2">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#d6a24c]">
               Service Times
             </p>
-            <p className="font-serif text-white text-2xl font-bold">7:00 AM</p>
-            <p className="text-red-200 text-sm font-sans">First Service</p>
-            <p className="font-serif text-white text-2xl font-bold mt-2">9:00 AM</p>
-            <p className="text-red-200 text-sm font-sans">Second Service</p>
+            {serviceOptions.slice(0, 2).map((option) => (
+              <div key={option.value} className="mt-3">
+                <p className="font-serif text-2xl font-semibold text-white">{option.label}</p>
+                <p className="text-sm text-[#d8ded7]">{option.detail}</p>
+              </div>
+            ))}
           </div>
           <div>
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-300 mb-2">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#d6a24c]">
               Location
             </p>
-            <p className="font-serif text-white text-xl font-bold leading-snug">
+            <p className="font-serif text-2xl font-semibold text-white leading-snug">
               Powerhouse Church
             </p>
-            <p className="text-red-200 text-sm font-sans mt-1">
-              Masbate City, Masbate
-            </p>
+            <p className="mt-2 text-sm leading-7 text-[#d8ded7]">{address}</p>
           </div>
           <div>
-            <p className="text-xs font-sans font-bold tracking-widest uppercase
-                          text-red-300 mb-2">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#d6a24c]">
               Questions?
             </p>
-            <p className="text-red-200 text-sm font-sans leading-relaxed">
+            <p className="text-sm leading-7 text-[#d8ded7]">
               Our team is happy to help before your visit.
             </p>
             <Link
               to="/contact"
-              className="inline-block mt-3 px-5 py-2 border border-red-600
-                         text-red-200 text-sm font-sans font-bold rounded-lg
-                         hover:bg-red-800 transition-colors focus:outline-none
-                         focus:ring-2 focus:ring-red-400"
+              className={buttonVariants({
+                variant: "secondary",
+                className: "mt-4",
+              })}
             >
               Contact Us
             </Link>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       </section>
 
-      {/* FAQ */}
-      <section className="max-w-3xl mx-auto px-6 py-16">
+      <section className="shell pb-16">
         <SectionHeader
           eyebrow="Common Questions"
           title="You're Probably Wondering…"
         />
-        <div className="mt-8 space-y-3">
+        <div className="mx-auto mt-8 max-w-3xl space-y-3">
           {FAQS.map((faq, i) => (
             <details
               key={i}
-              className="group bg-white border border-gray-100 rounded-xl
-                         overflow-hidden hover:border-red-200 transition-colors"
+              className="group overflow-hidden rounded-[1.4rem] border border-[var(--border)] bg-[var(--card)] transition-colors hover:border-[var(--ring)]"
             >
               <summary
-                className="flex items-center justify-between px-6 py-4
-                           cursor-pointer list-none focus:outline-none
-                           focus:ring-2 focus:ring-inset focus:ring-red-300"
+                className="flex list-none items-center justify-between px-6 py-5 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--ring)] cursor-pointer"
               >
-                <span className="font-sans font-bold text-sm text-gray-800 pr-4">
+                <span className="pr-4 text-sm font-semibold text-[var(--foreground)]">
                   {faq.q}
                 </span>
                 <span
-                  className="flex-shrink-0 w-6 h-6 rounded-full border border-gray-200
-                             flex items-center justify-center text-gray-400
-                             group-open:border-red-300 group-open:text-red-600
-                             transition-all"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted-foreground)] transition-all group-open:border-[var(--ring)] group-open:text-[var(--primary)]"
                   aria-hidden="true"
                 >
                   <svg
@@ -199,39 +854,13 @@ export default function NewHerePage() {
                   </svg>
                 </span>
               </summary>
-              <div className="px-6 pb-5">
-                <p className="text-sm text-gray-500 font-sans leading-relaxed">
+              <div className="px-6 pb-6">
+                <p className="text-sm leading-7 text-[var(--muted-foreground)]">
                   {faq.a}
                 </p>
               </div>
             </details>
           ))}
-        </div>
-      </section>
-
-      {/* Plan visit CTA */}
-      <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div
-          className="bg-red-700 rounded-2xl px-8 py-12 flex flex-col md:flex-row
-                     items-center justify-between gap-6 text-center md:text-left"
-        >
-          <div>
-            <h2 className="font-serif text-2xl font-bold text-white mb-2">
-              Ready to visit?
-            </h2>
-            <p className="text-red-200 font-sans text-base">
-              Let us know you're coming so we can roll out the welcome.
-            </p>
-          </div>
-          <Link
-            to="/contact?subject=First+Visit"
-            className="flex-shrink-0 px-8 py-4 bg-yellow-400 text-red-900
-                       font-sans font-bold text-sm tracking-wide rounded-lg
-                       hover:bg-yellow-300 transition-colors focus:outline-none
-                       focus:ring-2 focus:ring-yellow-200"
-          >
-            Plan My Visit →
-          </Link>
         </div>
       </section>
     </>

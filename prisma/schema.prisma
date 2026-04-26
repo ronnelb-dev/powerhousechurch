@@ -330,6 +330,32 @@ model PrayerRequest {
   @@index([followUpOwnerId])
 }
 
+model VisitPlan {
+  id                   String   @id @default(cuid())
+  name                 String
+  email                String
+  phone                String?
+  city                 String?
+  preferredService     String
+  visitDate            DateTime?
+  adultCount           Int      @default(1)
+  isFirstTimeGuest     Boolean  @default(true)
+  bringingKids         Boolean  @default(false)
+  kidsCount            Int?
+  kidsDetails          String?
+  wantsUsherFollowUp   Boolean  @default(false)
+  wantsPastorFollowUp  Boolean  @default(false)
+  notes                String?
+  status               String   @default("NEW")
+  submittedAt          DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([submittedAt])
+  @@index([status, submittedAt])
+  @@index([preferredService, submittedAt])
+  @@index([visitDate])
+}
+
 model GivingRecord {
   id              String   @id @default(cuid())
   stripePaymentId String   @unique
