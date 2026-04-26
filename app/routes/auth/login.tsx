@@ -9,7 +9,7 @@ import {
   redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { verify } from "@node-rs/argon2";
+import { handleLoginSubmission } from "~/lib/auth-actions.server";
 import { lucia, getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 
@@ -29,53 +29,25 @@ export async function loader({ request }: { request: Request }) {
   return null;
 }
 
-type ActionData =
-  | { error: string; needsVerification?: false }
-  | { error: string; needsVerification: true; email: string }
-  | null;
-
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
-  const identifier = (formData.get("identifier") as string)?.trim();
-  const password = formData.get("password") as string;
-
-  if (!identifier || !password) {
-    return { error: "Email/phone and password are required." } satisfies ActionData;
-  }
-
-  const user = await db.user.findFirst({
-    where: {
-      isActive: true,
-      OR: [{ email: identifier }, { phone: identifier }],
+  return handleLoginSubmission(
+    {
+      identifier: (formData.get("identifier") as string) ?? "",
+      password: (formData.get("password") as string) ?? "",
     },
-  });
-
-  if (!user) {
-    return { error: "Invalid credentials. Please try again." } satisfies ActionData;
-  }
-
-  const validPassword = await verify(user.passwordHash, password, {
-    memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1,
-  });
-
-  if (!validPassword) {
-    return { error: "Invalid credentials. Please try again." } satisfies ActionData;
-  }
-
-  if (!user.isEmailVerified) {
-    return {
-      error: "Please verify your email before accessing the portal.",
-      needsVerification: true,
-      email: user.email ?? "",
-    } satisfies ActionData;
-  }
-
-  const session = await lucia.createSession(user.id, {});
-  const sessionCookie = lucia.createSessionCookie(session.id);
-
-  return redirect("/portal/dashboard", {
-    headers: { "Set-Cookie": sessionCookie.serialize() },
-  });
+    {
+      db,
+      createSession: async (userId) => {
+        const session = await lucia.createSession(userId, {});
+        const sessionCookie = lucia.createSessionCookie(session.id);
+        return {
+          sessionId: session.id,
+          cookie: sessionCookie.serialize(),
+        };
+      },
+    },
+  );
 }
 
 const inputClass =

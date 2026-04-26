@@ -9,7 +9,6 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { z } from "zod";
 import { EventCard } from "~/components/church/EventCard";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { Card, CardContent } from "~/components/ui/card";
@@ -22,6 +21,14 @@ import {
 } from "~/lib/calendar";
 import { db } from "~/lib/db.server";
 import { sendEventRegistrationConfirmation } from "~/lib/email.server";
+import {
+  handleRsvpSubmission,
+  type RSVPActionData as ActionData,
+} from "~/lib/public-submissions.server";
+import {
+  getClientIpAddress,
+  publicSubmissionRateLimiter,
+} from "~/lib/rate-limit.server";
 
 const prisma = db as any;
 
@@ -33,34 +40,6 @@ export const meta: MetaFunction = () => [
       "Upcoming services, celebrations, and gatherings at Powerhouse Church.",
   },
 ];
-
-const RSVP_SCHEMA = z.object({
-  intent: z.literal("rsvp"),
-  eventId: z.string().min(1),
-  name: z.string().min(1, "Name is required").max(100),
-  email: z.string().email("Enter a valid email address").max(200),
-  phone: z.string().min(7, "Phone number is required").max(30),
-  notes: z
-    .string()
-    .max(500, "Notes must be 500 characters or fewer")
-    .optional()
-    .or(z.literal("")),
-  honeypot: z.string().max(0, "Bot detected").default(""),
-});
-
-type ActionData =
-  | {
-      success: true;
-      eventId: string;
-      status: "CONFIRMED" | "WAITLISTED";
-      message: string;
-    }
-  | {
-      success: false;
-      eventId?: string;
-      formError?: string;
-      errors: Record<string, string[]>;
-    };
 
 type RSVPFieldErrors = Partial<Record<"name" | "email" | "phone" | "notes", string[]>>;
 
@@ -102,161 +81,28 @@ export async function action({ request }: ActionFunctionArgs) {
     notes: String(formData.get("notes") ?? "").trim(),
     honeypot: String(formData.get("honeypot") ?? ""),
   };
+  const limit = publicSubmissionRateLimiter.consume({
+    bucket: "public:rsvp",
+    key: getClientIpAddress(request),
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  });
 
-  const parsed = RSVP_SCHEMA.safeParse(raw);
-  if (!parsed.success) {
+  if (!limit.ok) {
     return {
       success: false,
       eventId: raw.eventId || undefined,
-      errors: parsed.error.flatten().fieldErrors,
-    } satisfies ActionData;
-  }
-
-  try {
-    const result = await prisma.$transaction(async (tx: any) => {
-      const event = await tx.event.findUnique({
-        where: { id: parsed.data.eventId },
-        include: {
-          registrations: {
-            select: { status: true },
-          },
-        },
-      });
-
-      if (!event || !event.isPublished) {
-        return {
-          kind: "error" as const,
-          formError: "This event is no longer available for registration.",
-        };
-      }
-
-      if (!event.requiresRegistration) {
-        return {
-          kind: "error" as const,
-          formError: "This event does not require RSVP.",
-        };
-      }
-
-      const now = new Date();
-      if (event.startDate < now) {
-        return {
-          kind: "error" as const,
-          formError: "This event has already started.",
-        };
-      }
-
-      if (event.registrationDeadline && event.registrationDeadline < now) {
-        return {
-          kind: "error" as const,
-          formError: "Registration for this event has already closed.",
-        };
-      }
-
-      const existing = await tx.eventRegistration.findUnique({
-        where: {
-          eventId_email: {
-            eventId: event.id,
-            email: parsed.data.email,
-          },
-        },
-      });
-
-      if (existing) {
-        return {
-          kind: "error" as const,
-          formError: "This email address is already registered for the event.",
-        };
-      }
-
-      const confirmedCount = event.registrations.filter(
-        (entry: { status: string }) => entry.status === "CONFIRMED",
-      ).length;
-      const status: "CONFIRMED" | "WAITLISTED" =
-        typeof event.capacity === "number" && confirmedCount >= event.capacity
-          ? "WAITLISTED"
-          : "CONFIRMED";
-
-      await tx.eventRegistration.create({
-        data: {
-          eventId: event.id,
-          name: parsed.data.name,
-          email: parsed.data.email,
-          phone: parsed.data.phone,
-          notes: parsed.data.notes || null,
-          status,
-        },
-      });
-
-      return {
-        kind: "success" as const,
-        status,
-        event: {
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          location: event.location,
-          startDate: event.startDate,
-          endDate: event.endDate,
-        },
-      };
-    });
-
-    if (result.kind === "error") {
-      return {
-        success: false,
-        eventId: parsed.data.eventId,
-        formError: result.formError,
-        errors: {},
-      } satisfies ActionData;
-    }
-
-    const currentUrl = new URL(request.url);
-    const origin =
-      process.env.APP_URL || process.env.PUBLIC_APP_URL || currentUrl.origin;
-    const eventUrl = `${origin}/events#${result.event.id}`;
-    const calendarUrl = buildEventCalendarUrl(origin, result.event.id);
-    const googleCalendarUrl = buildGoogleCalendarUrl({
-      id: result.event.id,
-      title: result.event.title,
-      description: result.event.description,
-      location: result.event.location,
-      startDate: result.event.startDate,
-      endDate: result.event.endDate,
-      url: eventUrl,
-    });
-
-    await Promise.allSettled([
-      sendEventRegistrationConfirmation({
-        to: parsed.data.email,
-        name: parsed.data.name,
-        eventTitle: result.event.title,
-        eventLocation: result.event.location,
-        eventStartDate: result.event.startDate,
-        eventEndDate: result.event.endDate,
-        status: result.status,
-        calendarUrl,
-        googleCalendarUrl,
-        eventUrl,
-      }),
-    ]);
-
-    return {
-      success: true,
-      eventId: parsed.data.eventId,
-      status: result.status,
-      message:
-        result.status === "CONFIRMED"
-          ? "Your RSVP is confirmed. A confirmation email is on its way."
-          : "The event is full, so you have been added to the waitlist. A confirmation email is on its way.",
-    } satisfies ActionData;
-  } catch {
-    return {
-      success: false,
-      eventId: parsed.data.eventId,
-      formError: "We could not complete your RSVP. Please try again.",
+      formError: `Too many RSVP attempts. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
       errors: {},
     } satisfies ActionData;
   }
+
+  return handleRsvpSubmission(raw, request.url, {
+    db: prisma,
+    sendEventRegistrationConfirmation,
+    buildEventCalendarUrl,
+    buildGoogleCalendarUrl,
+  });
 }
 
 export async function loader() {

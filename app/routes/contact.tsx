@@ -10,9 +10,13 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { z } from "zod";
 import { getSettings } from "~/lib/settings.server";
 import { PageHero } from "~/components/ui/PageHero";
+import { handleContactSubmission } from "~/lib/public-submissions.server";
+import {
+  getClientIpAddress,
+  publicSubmissionRateLimiter,
+} from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Contact — Powerhouse Church" },
@@ -25,14 +29,6 @@ export const meta: MetaFunction = () => [
 export async function loader() {
   return { settings: await getSettings() };
 }
-
-const ContactSchema = z.object({
-  name:     z.string().min(1, "Name is required").max(100),
-  email:    z.string().email("Invalid email address"),
-  subject:  z.string().min(1, "Subject is required").max(200),
-  message:  z.string().min(10, "Please write at least a sentence").max(3000),
-  honeypot: z.string().max(0).default(""),
-});
 
 type ActionData =
   | { success: true }
@@ -49,50 +45,38 @@ export async function action({ request }: ActionFunctionArgs) {
     honeypot: (formData.get("honeypot") as string) ?? "",
   };
 
-  const result = ContactSchema.safeParse(raw);
-  if (!result.success) {
+  const limit = publicSubmissionRateLimiter.consume({
+    bucket: "public:contact",
+    key: getClientIpAddress(request),
+    limit: 4,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!limit.ok) {
     return data({
       success: false,
-      errors: result.error.flatten().fieldErrors,
-    } satisfies ActionData, { status: 400 });
+      globalError: `Too many messages have been sent from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+    } satisfies ActionData, { status: 429 });
   }
 
-  const { name, email, subject, message } = result.data;
-
-  if (!process.env.RESEND_API_KEY) {
-    return data({
-      success: false,
-      globalError:
-        "Contact email is not configured yet. Please call or email the church directly for now.",
-    } satisfies ActionData, { status: 503 });
-  }
-
-  try {
-    // Dynamic import to avoid loading Resend on every page
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
-      to: process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph",
-      subject: `Contact Form: ${subject}`,
-      html: `
-        <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
-        <p><strong>Subject:</strong> ${subject}</p>
-        <hr/>
-        <p>${message.replace(/\n/g, "<br/>")}</p>
-      `,
-    });
-  } catch (error) {
-    console.error("[contact] Failed to send contact email:", error);
-    return data({
-      success: false,
-      globalError:
-        "We couldn't send your message right now. Please try again later or contact the church directly.",
-    } satisfies ActionData, { status: 502 });
-  }
-
-  return { success: true } satisfies ActionData;
+  return handleContactSubmission(raw, {
+    resendApiKey: process.env.RESEND_API_KEY,
+    sendContactEmail: async ({ name, email, subject, message }) => {
+      const { Resend } = await import("resend");
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
+        to: process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph",
+        subject: `Contact Form: ${subject}`,
+        html: `
+          <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
+          <p><strong>Subject:</strong> ${subject}</p>
+          <hr/>
+          <p>${message.replace(/\n/g, "<br/>")}</p>
+        `,
+      });
+    },
+  });
 }
 
 function FieldError({ errors }: { errors?: string[] }) {

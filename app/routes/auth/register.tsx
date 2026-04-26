@@ -7,8 +7,7 @@ import {
   redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { z } from "zod";
-import { hash } from "@node-rs/argon2";
+import { handleRegisterSubmission } from "~/lib/auth-actions.server";
 import { getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { sendVerificationEmailForUser } from "~/lib/email-verification.server";
@@ -29,116 +28,25 @@ export async function loader({ request }: { request: Request }) {
   return null;
 }
 
-const RegisterSchema = z
-  .object({
-    firstName: z.string().min(1, "First name is required").max(50),
-    lastName: z.string().min(1, "Last name is required").max(50),
-    email: z.string().email("Valid email address is required"),
-    phone: z
-      .string()
-      .regex(/^[0-9+\s\-(). ]{7,20}$/, "Invalid phone number")
-      .optional()
-      .or(z.literal("")),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Must contain an uppercase letter")
-      .regex(/[0-9]/, "Must contain a number"),
-    confirmPassword: z.string(),
-    age: z.coerce.number().int().min(5, "Age must be at least 5").max(120),
-    gender: z.enum(["MALE", "FEMALE"], { message: "Select a gender" }),
-    birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use format YYYY-MM-DD"),
-  })
-  .refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type ActionData =
-  | { success: false; errors: Record<string, string[]> }
-  | { success: false; globalError: string }
-  | null;
-
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
-
-  const raw = {
-    firstName: formData.get("firstName") as string,
-    lastName: formData.get("lastName") as string,
-    email: (formData.get("email") as string) ?? "",
-    phone: (formData.get("phone") as string) ?? "",
-    password: formData.get("password") as string,
-    confirmPassword: formData.get("confirmPassword") as string,
-    age: formData.get("age") as string,
-    gender: formData.get("gender") as string,
-    birthday: formData.get("birthday") as string,
-  };
-
-  const result = RegisterSchema.safeParse(raw);
-  if (!result.success) {
-    return {
-      success: false,
-      errors: result.error.flatten().fieldErrors,
-    } satisfies ActionData;
-  }
-
-  const { firstName, lastName, email, phone, password, age, gender, birthday } =
-    result.data;
-
-  const existing = await db.user.findFirst({
-    where: {
-      OR: [
-        { email },
-        ...(phone ? [{ phone }] : []),
-      ],
+  return handleRegisterSubmission(
+    {
+      firstName: (formData.get("firstName") as string) ?? "",
+      lastName: (formData.get("lastName") as string) ?? "",
+      email: (formData.get("email") as string) ?? "",
+      phone: (formData.get("phone") as string) ?? "",
+      password: (formData.get("password") as string) ?? "",
+      confirmPassword: (formData.get("confirmPassword") as string) ?? "",
+      age: (formData.get("age") as string) ?? "",
+      gender: (formData.get("gender") as string) ?? "",
+      birthday: (formData.get("birthday") as string) ?? "",
     },
-  });
-
-  if (existing) {
-    return {
-      success: false,
-      globalError:
-        "An account with that email or phone already exists. Please log in instead.",
-    } satisfies ActionData;
-  }
-
-  const passwordHash = await hash(password, {
-    memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1,
-  });
-
-  const user = await db.user.create({
-    data: {
-      firstName,
-      lastName,
-      email,
-      phone: phone || null,
-      passwordHash,
-      age,
-      gender,
-      birthday: new Date(birthday),
-      role: "MEMBER",
-      isEmailVerified: false,
-      emailVerifiedAt: null,
+    request.url,
+    {
+      db,
+      sendVerificationEmailForUser,
     },
-  });
-
-  try {
-    await sendVerificationEmailForUser(
-      { id: user.id, email: user.email!, firstName: user.firstName },
-      new URL(request.url).origin,
-    );
-  } catch (error) {
-    await db.user.delete({ where: { id: user.id } });
-    console.error("[auth.register] Failed to send verification email:", error);
-    return {
-      success: false,
-      globalError:
-        "We could not send the verification email right now. Please try again.",
-    } satisfies ActionData;
-  }
-
-  return redirect(
-    `/auth/verify-email?email=${encodeURIComponent(email)}&sent=1`,
   );
 }
 

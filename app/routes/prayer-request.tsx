@@ -8,24 +8,20 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { z } from "zod";
 import { db } from "~/lib/db.server";
 import { sendPrayerRequestConfirmation, notifyAdminOfPrayerRequest } from "~/lib/email.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { getSession } from "~/lib/auth.server";
+import { handlePrayerRequestSubmission } from "~/lib/public-submissions.server";
+import {
+  getClientIpAddress,
+  publicSubmissionRateLimiter,
+} from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Prayer Request — Powerhouse Church" },
   { name: "description", content: "Submit a prayer request to the Powerhouse Church pastoral team." },
 ];
-
-const PrayerRequestSchema = z.object({
-  name:      z.string().min(1, "Name is required").max(100),
-  email:     z.string().email("Invalid email").optional().or(z.literal("")),
-  request:   z.string().min(10, "Please share a bit more about your request").max(2000),
-  isPrivate: z.coerce.boolean().default(false),
-  honeypot:  z.string().max(0, "Bot detected").default(""),
-});
 
 type ActionData =
   | { success: true }
@@ -42,35 +38,30 @@ export async function action({ request }: ActionFunctionArgs) {
     isPrivate: formData.get("isPrivate") === "on",
     honeypot:  (formData.get("honeypot") as string) ?? "",
   };
-
-  const result = PrayerRequestSchema.safeParse(raw);
-
-  if (!result.success) {
-    return { success: false, errors: result.error.flatten().fieldErrors } satisfies ActionData;
-  }
-
-  const { name, email, request: prayerText, isPrivate } = result.data;
-
-  await db.prayerRequest.create({
-    data: {
-      memberId: user?.id ?? null,
-      name,
-      email: email || null,
-      request: prayerText,
-      isPrivate,
-    },
+  const limit = publicSubmissionRateLimiter.consume({
+    bucket: "public:prayer-request",
+    key: getClientIpAddress(request),
+    limit: 4,
+    windowMs: 30 * 60 * 1000,
   });
 
-  // Send emails — fire-and-forget pattern; don't block on email failure
-  const emailJobs: Promise<unknown>[] = [
-    notifyAdminOfPrayerRequest(name, prayerText, isPrivate),
-  ];
-  if (email) {
-    emailJobs.push(sendPrayerRequestConfirmation(email, name));
+  if (!limit.ok) {
+    return {
+      success: false,
+      errors: {
+        request: [
+          `Too many prayer requests were submitted from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+        ],
+      },
+    } satisfies ActionData;
   }
-  await Promise.allSettled(emailJobs);
 
-  return { success: true } satisfies ActionData;
+  return handlePrayerRequestSubmission(raw, {
+    userId: user?.id,
+    db,
+    notifyAdminOfPrayerRequest,
+    sendPrayerRequestConfirmation,
+  });
 }
 
 function FieldError({ errors }: { errors?: string[] }) {

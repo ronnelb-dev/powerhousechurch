@@ -14,8 +14,17 @@ import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
 import { db } from "~/lib/db.server";
 import { notifyAdminOfVisitPlan, sendVisitPlanConfirmation } from "~/lib/email.server";
-import { VisitPlanSchema } from "~/lib/schemas.server";
+import {
+  DEFAULT_VISIT_FORM_VALUES,
+  getServiceOptions,
+  handleVisitPlanSubmission,
+  type VisitFormValues as FormValues,
+} from "~/lib/public-submissions.server";
 import { getSettings } from "~/lib/settings.server";
+import {
+  getClientIpAddress,
+  publicSubmissionRateLimiter,
+} from "~/lib/rate-limit.server";
 import { cn } from "~/lib/utils";
 
 export const meta: MetaFunction = () => [
@@ -26,26 +35,6 @@ export const meta: MetaFunction = () => [
       "Plan your first visit to Powerhouse Church, choose a service, share kids info, and request follow-up from our ushers or pastors.",
   },
 ];
-
-const DEFAULT_VALUES = {
-  name: "",
-  email: "",
-  phone: "",
-  city: "",
-  preferredService: "",
-  visitDate: "",
-  adultCount: "1",
-  isFirstTimeGuest: "yes",
-  bringingKids: false,
-  kidsCount: "",
-  kidsDetails: "",
-  wantsUsherFollowUp: false,
-  wantsPastorFollowUp: false,
-  notes: "",
-  honeypot: "",
-};
-
-type FormValues = typeof DEFAULT_VALUES;
 
 type ActionData =
   | {
@@ -63,29 +52,6 @@ type ActionData =
       errors?: Record<string, string[]>;
       globalError?: string;
     };
-
-function getServiceOptions(settings: Record<string, string>) {
-  const firstService = settings["service.sunday1"] ?? "7:00 AM";
-  const secondService = settings["service.sunday2"] ?? "9:00 AM";
-
-  return [
-    {
-      value: `Sunday ${firstService}`,
-      label: `Sunday ${firstService}`,
-      detail: "First service",
-    },
-    {
-      value: `Sunday ${secondService}`,
-      label: `Sunday ${secondService}`,
-      detail: "Second service",
-    },
-    {
-      value: "Help me choose",
-      label: "Help me choose the best service",
-      detail: "We can recommend a good fit",
-    },
-  ];
-}
 
 export async function loader() {
   const settings = await getSettings();
@@ -119,102 +85,29 @@ export async function action({ request }: ActionFunctionArgs) {
   };
 
   const settings = await getSettings();
-  const serviceValues = getServiceOptions(settings).map((option) => option.value);
-  const result = VisitPlanSchema.safeParse(rawValues);
+  const limit = publicSubmissionRateLimiter.consume({
+    bucket: "public:visit-plan",
+    key: getClientIpAddress(request),
+    limit: 4,
+    windowMs: 30 * 60 * 1000,
+  });
 
-  if (!result.success) {
-    return data({
-      success: false,
-      values: rawValues,
-      errors: result.error.flatten().fieldErrors,
-    } satisfies ActionData, { status: 400 });
-  }
-
-  if (!serviceValues.includes(result.data.preferredService)) {
-    return data({
-      success: false,
-      values: rawValues,
-      errors: { preferredService: ["Choose one of the listed service options"] },
-    } satisfies ActionData, { status: 400 });
-  }
-
-  const submission = result.data;
-
-  try {
-    await db.visitPlan.create({
-      data: {
-        name: submission.name,
-        email: submission.email,
-        phone: submission.phone || null,
-        city: submission.city || null,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate ? new Date(`${submission.visitDate}T00:00:00`) : null,
-        adultCount: submission.adultCount,
-        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
-        bringingKids: submission.bringingKids,
-        kidsCount: submission.bringingKids ? submission.kidsCount ?? null : null,
-        kidsDetails: submission.bringingKids ? submission.kidsDetails || null : null,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-        notes: submission.notes || null,
-      },
-    });
-  } catch (error) {
-    console.error("[visit-plan] Failed to save visit submission:", error);
+  if (!limit.ok) {
     return data({
       success: false,
       values: rawValues,
       globalError:
-        "We couldn't save your visit details right now. Please try again or contact the church directly.",
-    } satisfies ActionData, { status: 500 });
+        `Too many visit plans were submitted from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+    } satisfies ActionData, { status: 429 });
   }
 
-  if (process.env.RESEND_API_KEY) {
-    const firstName = submission.name.trim().split(/\s+/)[0] ?? submission.name;
-    const emailJobs = [
-      notifyAdminOfVisitPlan({
-        name: submission.name,
-        email: submission.email,
-        phone: submission.phone || null,
-        city: submission.city || null,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate || null,
-        adultCount: submission.adultCount,
-        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
-        bringingKids: submission.bringingKids,
-        kidsCount: submission.kidsCount ?? null,
-        kidsDetails: submission.kidsDetails || null,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-        notes: submission.notes || null,
-      }),
-      sendVisitPlanConfirmation({
-        to: submission.email,
-        firstName,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate || undefined,
-        bringingKids: submission.bringingKids,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-      }),
-    ];
-
-    const emailResults = await Promise.allSettled(emailJobs);
-    const emailFailure = emailResults.find((job) => job.status === "rejected");
-    if (emailFailure?.status === "rejected") {
-      console.error("[visit-plan] Email send failed:", emailFailure.reason);
-    }
-  }
-
-  return {
-    success: true,
-    name: submission.name,
-    preferredService: submission.preferredService,
-    visitDate: submission.visitDate || null,
-    bringingKids: submission.bringingKids,
-    wantsUsherFollowUp: submission.wantsUsherFollowUp,
-    wantsPastorFollowUp: submission.wantsPastorFollowUp,
-  } satisfies ActionData;
+  return handleVisitPlanSubmission(rawValues, {
+    settings,
+    db,
+    resendApiKey: process.env.RESEND_API_KEY,
+    notifyAdminOfVisitPlan,
+    sendVisitPlanConfirmation,
+  });
 }
 
 const STEPS = [
@@ -304,8 +197,8 @@ export default function NewHerePage() {
   const failureData = actionData?.success === false ? actionData : null;
   const values =
     failureData
-      ? { ...DEFAULT_VALUES, ...failureData.values }
-      : DEFAULT_VALUES;
+      ? { ...DEFAULT_VISIT_FORM_VALUES, ...failureData.values }
+      : DEFAULT_VISIT_FORM_VALUES;
   const errors =
     failureData && "errors" in failureData && failureData.errors
       ? failureData.errors
