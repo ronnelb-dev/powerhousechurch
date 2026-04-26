@@ -22,6 +22,15 @@ const GUARDIAN_SLOTS = [0, 1, 2] as const;
 const SERVICE_TYPES = ["KIDS_CHURCH", "NURSERY", "SPECIAL_EVENT"] as const;
 const ATTENDANCE_STATUSES = ["PRESENT", "ABSENT"] as const;
 
+type AttendanceDetail = {
+  status: "PRESENT" | "ABSENT";
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  pickupGuardianName: string | null;
+  pickupGuardianRelationship: string | null;
+  pickupNotes: string | null;
+};
+
 function normalizeText(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
 }
@@ -29,6 +38,21 @@ function normalizeText(value: FormDataEntryValue | null) {
 function normalizeOptional(value: FormDataEntryValue | null) {
   const normalized = normalizeText(value);
   return normalized || null;
+}
+
+function formatTimeLabel(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getClassroomLabel(classroom: string | null) {
+  return classroom || "Unassigned";
 }
 
 function parseChildFilters(search: string, classroom: string, activeStatus: string) {
@@ -138,16 +162,24 @@ async function buildGuardians(formData: FormData) {
 function ChildAttendanceRow({
   childId,
   displayName,
+  preferredName,
   classroom,
+  allergies,
+  medicalNotes,
+  notes,
   guardians,
-  currentStatus,
+  attendance,
   date,
   serviceType,
   disabled,
 }: {
   childId: string;
   displayName: string;
+  preferredName: string | null;
   classroom: string | null;
+  allergies: string | null;
+  medicalNotes: string | null;
+  notes: string | null;
   guardians: Array<{
     id: string;
     firstName: string;
@@ -155,89 +187,184 @@ function ChildAttendanceRow({
     relationship: string;
     phone: string | null;
     isPrimaryContact: boolean;
+    canPickup: boolean;
   }>;
-  currentStatus: "PRESENT" | "ABSENT" | null;
+  attendance: AttendanceDetail | null;
   date: string;
   serviceType: string;
   disabled: boolean;
 }) {
   const fetcher = useFetcher();
-  const optimisticStatus = fetcher.formData
-    ? String(fetcher.formData.get("status")) as "PRESENT" | "ABSENT"
-    : currentStatus;
   const primaryGuardian = guardians.find((guardian) => guardian.isPrimaryContact) ?? guardians[0] ?? null;
+  const approvedGuardians = guardians.filter((guardian) => guardian.canPickup);
   const initials = displayName
     .split(" ")
     .map((part) => part[0] ?? "")
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const hasAllergyFlag = Boolean(allergies);
+  const hasMedicalFlag = Boolean(medicalNotes);
+  const isPresent = attendance?.status === "PRESENT";
+  const isCheckedOut = Boolean(attendance?.checkedOutAt);
+  const awaitingPickup = isPresent && !isCheckedOut;
+  const stateLabel = isCheckedOut
+    ? `Checked out${attendance?.pickupGuardianName ? ` to ${attendance.pickupGuardianName}` : ""}${attendance?.checkedOutAt ? ` at ${formatTimeLabel(attendance.checkedOutAt)}` : ""}`
+    : awaitingPickup
+      ? `Checked in${attendance?.checkedInAt ? ` at ${formatTimeLabel(attendance.checkedInAt)}` : ""}`
+      : attendance?.status === "ABSENT"
+        ? "Marked absent"
+        : "Ready for check-in";
 
   return (
-    <li className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border
-                     border-sky-100 bg-sky-50 font-sans text-sm font-bold text-sky-700"
-          aria-hidden="true"
-        >
-          {initials}
+    <li className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-sky-100 bg-sky-50 font-sans text-sm font-bold text-sky-700"
+            aria-hidden="true"
+          >
+            {initials}
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-gray-800">
+                {displayName}
+                {preferredName ? ` (${preferredName})` : ""}
+              </p>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  isCheckedOut
+                    ? "bg-slate-100 text-slate-700"
+                    : awaitingPickup
+                      ? "bg-green-100 text-green-700"
+                      : attendance?.status === "ABSENT"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {stateLabel}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              {classroom ?? "No classroom assigned"}
+              {primaryGuardian && ` · ${primaryGuardian.firstName} ${primaryGuardian.lastName}`}
+              {primaryGuardian?.phone ? ` · ${primaryGuardian.phone}` : ""}
+            </p>
+            {(hasAllergyFlag || hasMedicalFlag || notes) && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {hasAllergyFlag && (
+                  <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">
+                    Allergy alert
+                  </span>
+                )}
+                {hasMedicalFlag && (
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                    Medical note
+                  </span>
+                )}
+                {notes && (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                    Has internal notes
+                  </span>
+                )}
+              </div>
+            )}
+            {(allergies || medicalNotes) && (
+              <p className="mt-2 text-xs text-gray-500">
+                {allergies ? `Allergies: ${allergies}` : ""}
+                {allergies && medicalNotes ? " · " : ""}
+                {medicalNotes ? `Medical: ${medicalNotes}` : ""}
+              </p>
+            )}
+            {attendance?.pickupNotes && (
+              <p className="mt-2 text-xs text-gray-500">Pickup note: {attendance.pickupNotes}</p>
+            )}
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold text-gray-800">{displayName}</p>
-          <p className="text-xs text-gray-400">
-            {classroom ?? "No classroom assigned"}
-            {primaryGuardian && ` · ${primaryGuardian.firstName} ${primaryGuardian.lastName}`}
-            {primaryGuardian?.phone ? ` · ${primaryGuardian.phone}` : ""}
-          </p>
-          {optimisticStatus && (
-            <p
-              className={`mt-1 text-xs font-bold ${
-                optimisticStatus === "PRESENT" ? "text-green-600" : "text-red-600"
+
+        <div className="flex flex-col gap-3 lg:min-w-[320px]">
+          <fetcher.Form method="post" className="flex flex-wrap gap-2">
+            <input type="hidden" name="intent" value="markAttendance" />
+            <input type="hidden" name="childId" value={childId} />
+            <input type="hidden" name="date" value={date} />
+            <input type="hidden" name="serviceType" value={serviceType} />
+            <button
+              type="submit"
+              name="status"
+              value="PRESENT"
+              disabled={disabled}
+              className={`min-h-11 rounded-xl border px-4 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-40 ${
+                isPresent && !isCheckedOut
+                  ? "border-green-600 bg-green-600 text-white"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:text-green-700"
               }`}
             >
-              {optimisticStatus === "PRESENT" ? "Checked in" : "Marked absent"}
-            </p>
+              {isCheckedOut ? "Re-open check-in" : isPresent ? "Checked in" : "Check in"}
+            </button>
+            <button
+              type="submit"
+              name="status"
+              value="ABSENT"
+              disabled={disabled}
+              className={`min-h-11 rounded-xl border px-4 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 ${
+                attendance?.status === "ABSENT"
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-red-400 hover:text-red-700"
+              }`}
+            >
+              Mark absent
+            </button>
+          </fetcher.Form>
+
+          {awaitingPickup && (
+            approvedGuardians.length > 0 ? (
+              <fetcher.Form method="post" className="rounded-xl border border-green-100 bg-green-50 p-3">
+                <input type="hidden" name="intent" value="checkOutChild" />
+                <input type="hidden" name="childId" value={childId} />
+                <input type="hidden" name="date" value={date} />
+                <input type="hidden" name="serviceType" value={serviceType} />
+                <div className="grid gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-green-700">
+                    Approved pickup guardian
+                    <select
+                      name="guardianId"
+                      className="mt-1 w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-300"
+                      defaultValue={approvedGuardians[0]?.id ?? ""}
+                    >
+                      {approvedGuardians.map((guardian) => (
+                        <option key={guardian.id} value={guardian.id}>
+                          {guardian.firstName} {guardian.lastName} · {guardian.relationship}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-green-700">
+                    Pickup note
+                    <input
+                      type="text"
+                      name="pickupNotes"
+                      placeholder="ID checked, auntie picked up, sent by parent..."
+                      className="mt-1 w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-300"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    className="rounded-lg bg-green-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-800 disabled:opacity-40"
+                  >
+                    Verify pickup and check out
+                  </button>
+                </div>
+              </fetcher.Form>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                No guardian is approved for pickup yet. Update the child profile before check-out.
+              </div>
+            )
           )}
         </div>
       </div>
-
-      <fetcher.Form method="post" className="flex gap-2">
-        <input type="hidden" name="intent" value="markAttendance" />
-        <input type="hidden" name="childId" value={childId} />
-        <input type="hidden" name="date" value={date} />
-        <input type="hidden" name="serviceType" value={serviceType} />
-        <button
-          type="submit"
-          name="status"
-          value="PRESENT"
-          disabled={disabled}
-          className={[
-            "min-h-11 rounded-xl border px-4 text-sm font-bold transition-all",
-            "focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-40",
-            optimisticStatus === "PRESENT"
-              ? "border-green-600 bg-green-600 text-white"
-              : "border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:text-green-700",
-          ].join(" ")}
-        >
-          Present
-        </button>
-        <button
-          type="submit"
-          name="status"
-          value="ABSENT"
-          disabled={disabled}
-          className={[
-            "min-h-11 rounded-xl border px-4 text-sm font-bold transition-all",
-            "focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40",
-            optimisticStatus === "ABSENT"
-              ? "border-red-600 bg-red-600 text-white"
-              : "border-gray-200 bg-white text-gray-600 hover:border-red-400 hover:text-red-700",
-          ].join(" ")}
-        >
-          Absent
-        </button>
-      </fetcher.Form>
     </li>
   );
 }
@@ -258,91 +385,199 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const date = url.searchParams.get("date") ?? defaultDate;
   const selectedDate = new Date(`${date}T00:00:00`);
   const normalizedDate = Number.isNaN(selectedDate.getTime()) ? defaultDate : date;
-  const attendanceDate = Number.isNaN(selectedDate.getTime())
-    ? today
-    : selectedDate;
+  const attendanceDate = Number.isNaN(selectedDate.getTime()) ? today : selectedDate;
   const isFuture = attendanceDate > today;
   const where = parseChildFilters(search, classroom, activeStatus);
 
-  const [children, total, classrooms, attendanceRecords, parents, editingChild, activeChildren, todayPresent] =
-    await Promise.all([
-      db.childProfile.findMany({
-        where,
-        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-        skip: (page - 1) * PER_PAGE,
-        take: PER_PAGE,
-        include: {
-          guardians: {
-            orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "asc" }],
-            select: {
-              id: true,
-              relationship: true,
-              firstName: true,
-              lastName: true,
-              phone: true,
-              email: true,
-              isPrimaryContact: true,
-              canPickup: true,
-              notes: true,
-              userId: true,
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
+  const [
+    children,
+    total,
+    classrooms,
+    attendanceRecords,
+    parents,
+    editingChild,
+    activeChildren,
+    rosterChildren,
+  ] = await Promise.all([
+    db.childProfile.findMany({
+      where,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
+      include: {
+        guardians: {
+          orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            relationship: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+            isPrimaryContact: true,
+            canPickup: true,
+            notes: true,
+            userId: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
               },
             },
           },
         },
-      }),
-      db.childProfile.count({ where }),
-      db.childProfile.findMany({
-        where: { classroom: { not: null } },
-        distinct: ["classroom"],
-        select: { classroom: true },
-        orderBy: { classroom: "asc" },
-      }),
-      db.childAttendance.findMany({
-        where: {
-          date: attendanceDate,
-          serviceType,
-        },
-        select: { childId: true, status: true },
-      }),
-      db.user.findMany({
-        where: { isActive: true },
-        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-        },
-      }),
-      editId
-        ? db.childProfile.findUnique({
-            where: { id: editId },
-            include: {
-              guardians: {
-                orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "asc" }],
-              },
+      },
+    }),
+    db.childProfile.count({ where }),
+    db.childProfile.findMany({
+      where: { classroom: { not: null } },
+      distinct: ["classroom"],
+      select: { classroom: true },
+      orderBy: { classroom: "asc" },
+    }),
+    db.childAttendance.findMany({
+      where: {
+        date: attendanceDate,
+        serviceType,
+      },
+      select: {
+        childId: true,
+        status: true,
+        checkedInAt: true,
+        checkedOutAt: true,
+        pickupGuardianName: true,
+        pickupGuardianRelationship: true,
+        pickupNotes: true,
+      },
+    }),
+    db.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+      },
+    }),
+    editId
+      ? db.childProfile.findUnique({
+          where: { id: editId },
+          include: {
+            guardians: {
+              orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "asc" }],
             },
-          })
-        : null,
-      db.childProfile.count({ where: { isActive: true } }),
-      db.childAttendance.count({
-        where: {
-          date: attendanceDate,
-          serviceType,
-          status: "PRESENT",
-        },
-      }),
-    ]);
+          },
+        })
+      : null,
+    db.childProfile.count({ where: { isActive: true } }),
+    db.childProfile.findMany({
+      where,
+      orderBy: [{ classroom: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        preferredName: true,
+        classroom: true,
+        isActive: true,
+        allergies: true,
+        medicalNotes: true,
+      },
+    }),
+  ]);
 
-  const attendanceMap = Object.fromEntries(
-    attendanceRecords.map((record) => [record.childId, record.status as "PRESENT" | "ABSENT"]),
-  );
+  const attendanceDetails = Object.fromEntries(
+    attendanceRecords.map((record) => [
+      record.childId,
+      {
+        status: record.status as "PRESENT" | "ABSENT",
+        checkedInAt: record.checkedInAt?.toISOString() ?? null,
+        checkedOutAt: record.checkedOutAt?.toISOString() ?? null,
+        pickupGuardianName: record.pickupGuardianName,
+        pickupGuardianRelationship: record.pickupGuardianRelationship,
+        pickupNotes: record.pickupNotes,
+      } satisfies AttendanceDetail,
+    ]),
+  ) as Record<string, AttendanceDetail>;
+
+  const filteredActiveChildren = rosterChildren.filter((child) => child.isActive);
+  const checkedInCount = filteredActiveChildren.filter(
+    (child) => attendanceDetails[child.id]?.status === "PRESENT",
+  ).length;
+  const checkedOutCount = filteredActiveChildren.filter(
+    (child) => Boolean(attendanceDetails[child.id]?.checkedOutAt),
+  ).length;
+  const awaitingPickupCount = filteredActiveChildren.filter((child) => {
+    const attendance = attendanceDetails[child.id];
+    return attendance?.status === "PRESENT" && !attendance.checkedOutAt;
+  }).length;
+  const flaggedChildrenCount = filteredActiveChildren.filter(
+    (child) => child.allergies || child.medicalNotes,
+  ).length;
+
+  const classroomRosters = Array.from(
+    rosterChildren.reduce((map, child) => {
+      const key = getClassroomLabel(child.classroom);
+      const record = attendanceDetails[child.id] ?? null;
+      const existing = map.get(key) ?? {
+        classroom: key,
+        total: 0,
+        checkedIn: 0,
+        checkedOut: 0,
+        awaitingPickup: 0,
+        flagged: 0,
+        children: [] as Array<{
+          id: string;
+          label: string;
+          isActive: boolean;
+          status: "PRESENT" | "ABSENT" | null;
+          checkedOut: boolean;
+          hasEmergencyInfo: boolean;
+        }>,
+      };
+
+      existing.total += 1;
+      if (record?.status === "PRESENT") {
+        existing.checkedIn += 1;
+      }
+      if (record?.checkedOutAt) {
+        existing.checkedOut += 1;
+      }
+      if (record?.status === "PRESENT" && !record.checkedOutAt) {
+        existing.awaitingPickup += 1;
+      }
+      if (child.allergies || child.medicalNotes) {
+        existing.flagged += 1;
+      }
+      existing.children.push({
+        id: child.id,
+        label: `${child.firstName} ${child.lastName}${child.preferredName ? ` (${child.preferredName})` : ""}`,
+        isActive: child.isActive,
+        status: record?.status ?? null,
+        checkedOut: Boolean(record?.checkedOutAt),
+        hasEmergencyInfo: Boolean(child.allergies || child.medicalNotes),
+      });
+      map.set(key, existing);
+      return map;
+    }, new Map<string, {
+      classroom: string;
+      total: number;
+      checkedIn: number;
+      checkedOut: number;
+      awaitingPickup: number;
+      flagged: number;
+      children: Array<{
+        id: string;
+        label: string;
+        isActive: boolean;
+        status: "PRESENT" | "ABSENT" | null;
+        checkedOut: boolean;
+        hasEmergencyInfo: boolean;
+      }>;
+    }>()),
+  ).map(([, roster]) => roster);
 
   return {
     children: children.map((child) => ({
@@ -355,7 +590,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     classrooms: classrooms
       .map((item) => item.classroom)
       .filter((room): room is string => Boolean(room)),
-    attendanceMap,
+    attendanceDetails,
+    classroomRosters,
     parents,
     editingChild: editingChild
       ? {
@@ -372,15 +608,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     stats: {
       activeChildren,
-      presentToday: todayPresent,
-      absentToday: attendanceRecords.filter((record) => record.status === "ABSENT").length,
-      unmarkedToday: Math.max(
-        children.filter((child) => child.isActive).length -
-          attendanceRecords.filter((record) =>
-            children.some((child) => child.id === record.childId && child.isActive),
-          ).length,
-        0,
-      ),
+      checkedInCount,
+      checkedOutCount,
+      awaitingPickupCount,
+      flaggedChildrenCount,
+      unmarkedToday: Math.max(filteredActiveChildren.length - checkedInCount - filteredActiveChildren.filter((child) => attendanceDetails[child.id]?.status === "ABSENT").length, 0),
     },
     isFuture,
   };
@@ -523,6 +755,53 @@ export async function action({ request }: ActionFunctionArgs) {
       return { error: "Cannot mark attendance for a future date." };
     }
 
+    const existingRecord = await db.childAttendance.findUnique({
+      where: {
+        childId_serviceType_date: {
+          childId,
+          serviceType,
+          date: selectedDate,
+        },
+      },
+      select: {
+        id: true,
+        checkedInAt: true,
+      },
+    });
+
+    if (status === "PRESENT") {
+      const checkedInAt = existingRecord?.checkedInAt ?? new Date();
+
+      if (existingRecord) {
+        await db.childAttendance.update({
+          where: { id: existingRecord.id },
+          data: {
+            status,
+            markedById: user.id,
+            checkedInAt,
+            checkedOutAt: null,
+            checkedOutById: null,
+            pickupGuardianName: null,
+            pickupGuardianRelationship: null,
+            pickupNotes: null,
+          },
+        });
+      } else {
+        await db.childAttendance.create({
+          data: {
+            childId,
+            serviceType,
+            status,
+            date: selectedDate,
+            markedById: user.id,
+            checkedInAt,
+          },
+        });
+      }
+
+      return { success: "Child checked in." };
+    }
+
     await db.childAttendance.upsert({
       where: {
         childId_serviceType_date: {
@@ -534,6 +813,12 @@ export async function action({ request }: ActionFunctionArgs) {
       update: {
         status,
         markedById: user.id,
+        checkedInAt: null,
+        checkedOutAt: null,
+        checkedOutById: null,
+        pickupGuardianName: null,
+        pickupGuardianRelationship: null,
+        pickupNotes: null,
       },
       create: {
         childId,
@@ -545,6 +830,81 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     return { success: "Attendance saved." };
+  }
+
+  if (intent === "checkOutChild") {
+    const childId = normalizeText(formData.get("childId"));
+    const guardianId = normalizeText(formData.get("guardianId"));
+    const date = normalizeText(formData.get("date"));
+    const serviceType = normalizeText(formData.get("serviceType")) || "KIDS_CHURCH";
+    const pickupNotes = normalizeOptional(formData.get("pickupNotes"));
+
+    if (!childId || !guardianId) {
+      return { error: "Choose an approved guardian before check-out." };
+    }
+
+    if (!SERVICE_TYPES.includes(serviceType as (typeof SERVICE_TYPES)[number])) {
+      return { error: "Invalid kids service type." };
+    }
+
+    const selectedDate = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(selectedDate.getTime())) {
+      return { error: "Choose a valid attendance date." };
+    }
+
+    const attendance = await db.childAttendance.findUnique({
+      where: {
+        childId_serviceType_date: {
+          childId,
+          serviceType,
+          date: selectedDate,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!attendance || attendance.status !== "PRESENT") {
+      return { error: "Check the child in before verifying pickup." };
+    }
+
+    const child = await db.childProfile.findUnique({
+      where: { id: childId },
+      select: {
+        guardians: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            relationship: true,
+            canPickup: true,
+          },
+        },
+      },
+    });
+
+    const approvedGuardian = child?.guardians.find(
+      (guardian) => guardian.id === guardianId && guardian.canPickup,
+    );
+
+    if (!approvedGuardian) {
+      return { error: "That guardian is not approved for pickup." };
+    }
+
+    await db.childAttendance.update({
+      where: { id: attendance.id },
+      data: {
+        checkedOutAt: new Date(),
+        checkedOutById: user.id,
+        pickupGuardianName: `${approvedGuardian.firstName} ${approvedGuardian.lastName}`,
+        pickupGuardianRelationship: approvedGuardian.relationship,
+        pickupNotes,
+      },
+    });
+
+    return { success: "Pickup verified and child checked out." };
   }
 
   if (intent === "exportChildren") {
@@ -564,7 +924,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const csv = [
       "Last Name,First Name,Preferred Name,Birthday,Classroom,Status,Primary Guardian,Relationship,Phone,Email,Allergies,Medical Notes",
       ...children.map((child) => {
-        const guardian = child.guardians.find((entry) => entry.isPrimaryContact) ?? child.guardians[0] ?? null;
+        const guardian =
+          child.guardians.find((entry) => entry.isPrimaryContact) ?? child.guardians[0] ?? null;
         return [
           child.lastName,
           child.firstName,
@@ -578,7 +939,9 @@ export async function action({ request }: ActionFunctionArgs) {
           guardian?.email ?? "",
           child.allergies ?? "",
           child.medicalNotes ?? "",
-        ].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",");
+        ]
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(",");
       }),
     ].join("\n");
 
@@ -595,8 +958,20 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function KidsMinistryPage() {
-  const { children, total, page, totalPages, classrooms, parents, editingChild, filters, attendanceMap, stats, isFuture } =
-    useLoaderData<typeof loader>();
+  const {
+    children,
+    total,
+    page,
+    totalPages,
+    classrooms,
+    parents,
+    editingChild,
+    filters,
+    attendanceDetails,
+    classroomRosters,
+    stats,
+    isFuture,
+  } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -613,15 +988,15 @@ export default function KidsMinistryPage() {
         <div>
           <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">Kids Ministry</h1>
           <p className="text-sm text-gray-400">
-            Separate child records, parent links, and kids-only attendance tracking.
+            Sunday check-in, pickup verification, and classroom visibility in one place.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: "Active Kids", value: stats.activeChildren },
-            { label: "Present Today", value: stats.presentToday },
-            { label: "Absent Today", value: stats.absentToday },
-            { label: "Matching Records", value: total },
+            { label: "Checked In", value: stats.checkedInCount },
+            { label: "Awaiting Pickup", value: stats.awaitingPickupCount },
+            { label: "Emergency Flags", value: stats.flaggedChildrenCount },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-gray-100 bg-white px-4 py-3">
               <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
@@ -904,7 +1279,7 @@ export default function KidsMinistryPage() {
 
         <div className="space-y-6">
           <div className="rounded-2xl border border-gray-100 bg-white p-6">
-            <h2 className="mb-4 font-serif text-lg font-bold text-gray-900">Attendance Console</h2>
+            <h2 className="mb-4 font-serif text-lg font-bold text-gray-900">Sunday Flow</h2>
             <Form method="get" className="grid gap-3 md:grid-cols-2">
               <input type="hidden" name="search" value={filters.search} />
               <input type="hidden" name="classroom" value={filters.classroom} />
@@ -935,12 +1310,13 @@ export default function KidsMinistryPage() {
                 type="submit"
                 className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 md:col-span-2"
               >
-                Load Attendance
+                Load Sunday roster
               </button>
             </Form>
-            <p className="mt-4 text-xs text-gray-400">
-              Attendance stays separate from adult Sunday service and cell group records.
-            </p>
+            <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+              <p className="font-bold text-slate-800">Recommended order</p>
+              <p className="mt-1">1. Load the service roster. 2. Check children in as they arrive. 3. Verify pickup with an approved guardian before check-out.</p>
+            </div>
             {isFuture && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 Future dates can be viewed, but they cannot be marked yet.
@@ -949,11 +1325,11 @@ export default function KidsMinistryPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-100 bg-white p-6">
-            <h2 className="mb-2 font-serif text-lg font-bold text-gray-900">Quick Notes</h2>
+            <h2 className="mb-2 font-serif text-lg font-bold text-gray-900">Operations Snapshot</h2>
             <ul className="space-y-2 text-sm text-gray-500">
-              <li>Primary guardians are surfaced first in the roster and exports.</li>
-              <li>Linked parent accounts stay optional, so visitors’ children can still be tracked.</li>
-              <li>Pickup approval can be recorded per guardian for safer Sunday operations.</li>
+              <li>{stats.checkedOutCount} child{stats.checkedOutCount === 1 ? "" : "ren"} already checked out for this service.</li>
+              <li>{stats.unmarkedToday} active child{stats.unmarkedToday === 1 ? "" : "ren"} still need a Sunday status.</li>
+              <li>Emergency and allergy flags stay visible in both the classroom roster and the live check-in list.</li>
             </ul>
           </div>
         </div>
@@ -1010,12 +1386,66 @@ export default function KidsMinistryPage() {
         </div>
       </Form>
 
+      <div className="mb-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-gray-900">Classroom Rosters</h2>
+            <p className="text-sm text-gray-400">
+              Grouped view for the currently filtered children and selected Sunday service.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {classroomRosters.map((roster) => (
+            <section key={roster.classroom} className="rounded-2xl border border-gray-100 bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-gray-900">{roster.classroom}</h3>
+                  <p className="text-xs uppercase tracking-widest text-gray-400">
+                    {roster.total} child{roster.total === 1 ? "" : "ren"} · {roster.checkedIn} checked in · {roster.awaitingPickup} awaiting pickup
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                    Checked out {roster.checkedOut}
+                  </span>
+                  {roster.flagged > 0 && (
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">
+                      Flags {roster.flagged}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {roster.children.map((child) => (
+                  <span
+                    key={child.id}
+                    className={`rounded-full border px-3 py-1 text-xs ${
+                      child.checkedOut
+                        ? "border-slate-200 bg-slate-50 text-slate-700"
+                        : child.status === "PRESENT"
+                          ? "border-green-200 bg-green-50 text-green-700"
+                          : child.status === "ABSENT"
+                            ? "border-rose-200 bg-rose-50 text-rose-700"
+                            : "border-amber-200 bg-amber-50 text-amber-700"
+                    } ${!child.isActive ? "opacity-60" : ""}`}
+                  >
+                    {child.label}
+                    {child.hasEmergencyInfo ? " · Flagged" : ""}
+                    {child.checkedOut ? " · Checked out" : child.status === "PRESENT" ? " · Checked in" : child.status === "ABSENT" ? " · Absent" : " · Unmarked"}
+                  </span>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-serif text-xl font-bold text-gray-900">Children Roster</h2>
           <p className="text-sm text-gray-400">
             {total} matching child record{total === 1 ? "" : "s"}.
-            {filters.activeStatus === "active" && ` ${stats.unmarkedToday} active child${stats.unmarkedToday === 1 ? "" : "ren"} still unmarked for this service.`}
           </p>
         </div>
         <Form method="post">
@@ -1035,7 +1465,12 @@ export default function KidsMinistryPage() {
       {children.length > 0 ? (
         <div className="space-y-4">
           {children.map((child) => (
-            <div key={child.id} className={`overflow-hidden rounded-2xl border bg-white ${child.isActive ? "border-gray-100" : "border-gray-200 opacity-70"}`}>
+            <div
+              key={child.id}
+              className={`overflow-hidden rounded-2xl border bg-white ${
+                child.isActive ? "border-gray-100" : "border-gray-200 opacity-70"
+              }`}
+            >
               <div className="flex flex-col gap-4 border-b border-gray-100 px-5 py-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1057,23 +1492,38 @@ export default function KidsMinistryPage() {
                         {child.classroom}
                       </span>
                     )}
+                    {child.allergies && (
+                      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                        Allergy Alert
+                      </span>
+                    )}
+                    {child.medicalNotes && (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                        Medical Note
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-sm text-gray-400">
-                    Born {new Date(child.birthday).toLocaleDateString("en-PH", {
+                    Born{" "}
+                    {new Date(child.birthday).toLocaleDateString("en-PH", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
-                    {child.allergies ? ` · Allergies: ${child.allergies}` : ""}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {child.guardians.map((guardian) => (
                       <span
                         key={guardian.id}
-                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-600"
+                        className={`rounded-full border px-3 py-1 text-xs ${
+                          guardian.canPickup
+                            ? "border-gray-200 bg-gray-50 text-gray-600"
+                            : "border-amber-200 bg-amber-50 text-amber-700"
+                        }`}
                       >
                         {guardian.firstName} {guardian.lastName} · {guardian.relationship}
                         {guardian.isPrimaryContact ? " · Primary" : ""}
+                        {guardian.canPickup ? " · Pickup approved" : " · No pickup"}
                         {guardian.user ? ` · linked to ${guardian.user.firstName} ${guardian.user.lastName}` : ""}
                       </span>
                     ))}
@@ -1103,9 +1553,13 @@ export default function KidsMinistryPage() {
                 <ChildAttendanceRow
                   childId={child.id}
                   displayName={`${child.firstName} ${child.lastName}`}
+                  preferredName={child.preferredName}
                   classroom={child.classroom}
+                  allergies={child.allergies}
+                  medicalNotes={child.medicalNotes}
+                  notes={child.notes}
                   guardians={child.guardians}
-                  currentStatus={attendanceMap[child.id] ?? null}
+                  attendance={attendanceDetails[child.id] ?? null}
                   date={filters.date}
                   serviceType={filters.serviceType}
                   disabled={isFuture}

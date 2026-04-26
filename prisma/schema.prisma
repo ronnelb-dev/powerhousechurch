@@ -30,6 +30,7 @@ model User {
   attendance     Attendance[]
   childGuardians ChildGuardian[]
   childAttendanceMarked ChildAttendance[] @relation("ChildAttendanceMarker")
+  childAttendanceCheckedOut ChildAttendance[] @relation("ChildAttendanceCheckoutMarker")
   posts          Post[]
   likes          Like[]
   comments       Comment[]
@@ -169,12 +170,20 @@ model ChildAttendance {
   date        DateTime
   markedById  String?
   markedBy    User?        @relation("ChildAttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+  checkedInAt DateTime?
+  checkedOutAt DateTime?
+  checkedOutById String?
+  checkedOutBy User?        @relation("ChildAttendanceCheckoutMarker", fields: [checkedOutById], references: [id], onDelete: SetNull)
+  pickupGuardianName String?
+  pickupGuardianRelationship String?
+  pickupNotes String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@unique([childId, serviceType, date])
   @@index([childId, date])
   @@index([date, serviceType])
+  @@index([checkedOutAt])
 }
 
 model Sermon {
