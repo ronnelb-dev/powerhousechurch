@@ -190,8 +190,8 @@ export async function action({ request }: ActionFunctionArgs) {
     ok: true,
     message:
       result.failedCount === 0
-        ? `Sent "${subject}" to ${result.sentCount} recipient${result.sentCount === 1 ? "" : "s"}.`
-        : `Sent "${subject}" to ${result.sentCount} recipient${result.sentCount === 1 ? "" : "s"}. ${result.failedCount} failed.`,
+        ? `Queued "${subject}" for ${result.queuedCount} recipient${result.queuedCount === 1 ? "" : "s"}. ${result.sentCount > 0 ? `${result.sentCount} delivered immediately.` : "Delivery will continue from the email queue."}`
+        : `Queued "${subject}" for ${result.queuedCount} recipient${result.queuedCount === 1 ? "" : "s"}. ${result.sentCount} delivered immediately and ${result.failedCount} moved to retry.`,
     values: { subject: "", body: "" },
   } satisfies CommunicationsActionData;
 }

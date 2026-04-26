@@ -481,6 +481,31 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+model OutboundEmail {
+  id            String   @id @default(cuid())
+  toEmail       String
+  recipientName String?
+  subject       String
+  html          String
+  textBody      String?
+  tag           String?
+  status        String   @default("PENDING")
+  attempts      Int      @default(0)
+  maxAttempts   Int      @default(5)
+  nextAttemptAt DateTime @default(now())
+  sentAt        DateTime?
+  lastError     String?
+  lastAttemptAt DateTime?
+  lockedAt      DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@index([tag, createdAt])
+}
+
 model AdminAuditLog {
   id         String   @id @default(cuid())
   actorId    String?

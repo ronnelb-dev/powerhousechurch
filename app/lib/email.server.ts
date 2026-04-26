@@ -1,8 +1,8 @@
-import { Resend } from "resend";
+import {
+  enqueueOutboundEmail,
+  processPendingOutboundEmails,
+} from "~/lib/email-queue.server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph";
 const ADMIN_EMAIL = process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph";
 
 function escapeHtml(value: string) {
@@ -23,16 +23,39 @@ function textToHtmlParagraphs(value: string) {
     .join("");
 }
 
+async function queueEmail(args: {
+  to: string;
+  subject: string;
+  html: string;
+  recipientName?: string | null;
+  tag?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const job = await enqueueOutboundEmail({
+    toEmail: args.to,
+    recipientName: args.recipientName,
+    subject: args.subject,
+    html: args.html,
+    tag: args.tag,
+    metadata: args.metadata ?? null,
+  });
+
+  await processPendingOutboundEmails({ limit: 10 });
+  return job;
+}
+
 export async function sendPrayerRequestConfirmation(
   to: string,
-  name: string
+  name: string,
 ) {
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: name,
     subject: "We received your prayer request — Powerhouse Church",
+    tag: "prayer-confirmation",
+    metadata: { type: "prayer_confirmation" },
     html: `
-      <p>Dear ${name},</p>
+      <p>Dear ${escapeHtml(name)},</p>
       <p>Thank you for sharing your heart with us. Your prayer request has been received and will be lifted up by our pastoral team.</p>
       <p>You are seen. You are prayed for. You are not alone.</p>
       <p>In His grace,<br/>Powerhouse Church</p>
@@ -43,17 +66,18 @@ export async function sendPrayerRequestConfirmation(
 export async function notifyAdminOfPrayerRequest(
   name: string,
   requestText: string,
-  isPrivate: boolean
+  isPrivate: boolean,
 ) {
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to: ADMIN_EMAIL,
     subject: `New Prayer Request — ${name}`,
+    tag: "prayer-admin-notify",
+    metadata: { type: "prayer_admin_notification", isPrivate },
     html: `
-      <p><strong>From:</strong> ${name}</p>
+      <p><strong>From:</strong> ${escapeHtml(name)}</p>
       <p><strong>Private:</strong> ${isPrivate ? "Yes" : "No"}</p>
       <p><strong>Request:</strong></p>
-      <blockquote>${requestText}</blockquote>
+      <blockquote>${escapeHtml(requestText)}</blockquote>
     `,
   });
 }
@@ -77,10 +101,12 @@ export async function sendVisitPlanConfirmation(args: {
     wantsPastorFollowUp,
   } = args;
 
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: firstName,
     subject: "Your visit is planned — Powerhouse Church",
+    tag: "visit-confirmation",
+    metadata: { type: "visit_plan_confirmation", preferredService },
     html: `
       <p>Dear ${escapeHtml(firstName)},</p>
       <p>Thank you for planning your visit with Powerhouse Church. We have your details and are looking forward to welcoming you.</p>
@@ -137,10 +163,11 @@ export async function notifyAdminOfVisitPlan(args: {
     notes,
   } = args;
 
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to: ADMIN_EMAIL,
     subject: `New Plan Your Visit submission — ${escapeHtml(name)}`,
+    tag: "visit-admin-notify",
+    metadata: { type: "visit_plan_admin_notification", preferredService },
     html: `
       <p><strong>Name:</strong> ${escapeHtml(name)}</p>
       <p><strong>Email:</strong> ${escapeHtml(email)}</p>
@@ -172,12 +199,14 @@ export async function notifyAdminOfVisitPlan(args: {
 }
 
 export async function sendWelcomeEmail(to: string, firstName: string) {
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: firstName,
     subject: `Welcome to Powerhouse Church, ${firstName}!`,
+    tag: "welcome-email",
+    metadata: { type: "welcome_email" },
     html: `
-      <p>Dear ${firstName},</p>
+      <p>Dear ${escapeHtml(firstName)},</p>
       <p>Your member account has been created. You can now log in to the Members Portal to connect with your cell group, track attendance, and participate in Daily Bread devotions.</p>
       <p>Welcome home.</p>
       <p>— The Powerhouse Church Team</p>
@@ -190,12 +219,14 @@ export async function sendEmailVerificationEmail(
   firstName: string,
   verifyUrl: string,
 ) {
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: firstName,
     subject: "Verify your email — Powerhouse Church",
+    tag: "verify-email",
+    metadata: { type: "verify_email", verifyUrl },
     html: `
-      <p>Dear ${firstName},</p>
+      <p>Dear ${escapeHtml(firstName)},</p>
       <p>Thanks for registering for the Powerhouse Church Members Portal.</p>
       <p>Please verify your email address before accessing the portal.</p>
       <p><a href="${verifyUrl}">Verify my email</a></p>
@@ -212,12 +243,14 @@ export async function sendPasswordResetEmail(
   firstName: string,
   resetUrl: string,
 ) {
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: firstName,
     subject: "Reset your password — Powerhouse Church",
+    tag: "password-reset",
+    metadata: { type: "password_reset", resetUrl },
     html: `
-      <p>Dear ${firstName},</p>
+      <p>Dear ${escapeHtml(firstName)},</p>
       <p>We received a request to reset your Members Portal password.</p>
       <p><a href="${resetUrl}">Reset my password</a></p>
       <p>If the button does not work, copy and paste this link into your browser:</p>
@@ -296,17 +329,19 @@ export async function sendEventRegistrationConfirmation(args: {
     ? `<p><a href="${eventUrl}">View event details</a></p>`
     : "";
 
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: name,
     subject,
+    tag: "event-registration-confirmation",
+    metadata: { type: "event_registration_confirmation", eventTitle, status },
     html: `
-      <p>Dear ${name},</p>
-      <p>Thank you for registering for <strong>${eventTitle}</strong>.</p>
+      <p>Dear ${escapeHtml(name)},</p>
+      <p>Thank you for registering for <strong>${escapeHtml(eventTitle)}</strong>.</p>
       ${statusBody}
       <p><strong>Date:</strong> ${formattedDate}</p>
       ${formattedEndDate ? `<p><strong>Ends:</strong> ${formattedEndDate}</p>` : ""}
-      <p><strong>Location:</strong> ${eventLocation}</p>
+      <p><strong>Location:</strong> ${escapeHtml(eventLocation)}</p>
       ${calendarLinks}
       ${eventLink}
       <p>Grace and peace,<br/>Powerhouse Church</p>
@@ -354,16 +389,18 @@ export async function sendEventReminderEmail(args: {
       })
     : null;
 
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName: name,
     subject: `Reminder: ${eventTitle} is coming up — Powerhouse Church`,
+    tag: "event-reminder",
+    metadata: { type: "event_reminder", eventTitle },
     html: `
-      <p>Dear ${name},</p>
-      <p>This is a reminder that <strong>${eventTitle}</strong> is coming up soon.</p>
+      <p>Dear ${escapeHtml(name)},</p>
+      <p>This is a reminder that <strong>${escapeHtml(eventTitle)}</strong> is coming up soon.</p>
       <p><strong>Starts:</strong> ${formattedStartDate}</p>
       ${formattedEndDate ? `<p><strong>Ends:</strong> ${formattedEndDate}</p>` : ""}
-      <p><strong>Location:</strong> ${eventLocation}</p>
+      <p><strong>Location:</strong> ${escapeHtml(eventLocation)}</p>
       ${
         googleCalendarUrl || calendarUrl
           ? `<p>${
@@ -394,10 +431,12 @@ export async function sendTargetedEmail(args: {
   const { to, recipientName, subject, body, audienceLabel } = args;
   const greeting = recipientName?.trim() ? `Dear ${escapeHtml(recipientName.trim())},` : "Hello,";
 
-  return resend.emails.send({
-    from: FROM,
+  return queueEmail({
     to,
+    recipientName,
     subject,
+    tag: "targeted-email",
+    metadata: { type: "targeted_email", audienceLabel },
     html: `
       <p>${greeting}</p>
       ${textToHtmlParagraphs(body)}

@@ -1,5 +1,8 @@
 import { db } from "~/lib/db.server";
-import { sendTargetedEmail } from "~/lib/email.server";
+import {
+  enqueueOutboundEmails,
+  processPendingOutboundEmails,
+} from "~/lib/email-queue.server";
 
 export const COMMUNICATION_AUDIENCE_TYPES = [
   "CELL_GROUP",
@@ -226,33 +229,58 @@ export async function sendCommunicationToAudience(args: {
   recipients: CommunicationRecipient[];
 }) {
   const { subject, body, audienceLabel, recipients } = args;
-  const results: Array<{ ok: boolean; email: string }> = [];
-  const batchSize = 10;
+  const greetingHtml = (recipientName?: string) =>
+    recipientName?.trim()
+      ? `Dear ${escapeHtml(recipientName.trim())},`
+      : "Hello,";
 
-  for (let index = 0; index < recipients.length; index += batchSize) {
-    const batch = recipients.slice(index, index + batchSize);
-    const batchResults = await Promise.all(
-      batch.map((recipient) =>
-        sendTargetedEmail({
-          to: recipient.email,
-          recipientName: recipient.name,
-          subject,
-          body,
-          audienceLabel,
-        })
-          .then(() => ({ ok: true, email: recipient.email }))
-          .catch(() => ({ ok: false, email: recipient.email })),
-      ),
-    );
+  await enqueueOutboundEmails(
+    recipients.map((recipient) => ({
+      toEmail: recipient.email,
+      recipientName: recipient.name,
+      subject,
+      tag: "targeted-email",
+      metadata: {
+        type: "targeted_email",
+        audienceLabel,
+        sourceLabel: recipient.sourceLabel,
+      },
+      html: `
+        <p>${greetingHtml(recipient.name)}</p>
+        ${textToHtmlParagraphs(body)}
+        <p style="margin-top: 20px; color: #6b7280; font-size: 12px;">
+          You are receiving this update from Powerhouse Church for: ${escapeHtml(audienceLabel)}.
+        </p>
+        <p>Grace and peace,<br/>Powerhouse Church</p>
+      `,
+    })),
+  );
 
-    results.push(...batchResults);
-  }
-
-  const sentCount = results.filter((result) => result.ok).length;
-  const failedCount = results.length - sentCount;
+  const processing = await processPendingOutboundEmails({
+    limit: Math.min(recipients.length, 25),
+  });
 
   return {
-    sentCount,
-    failedCount,
+    queuedCount: recipients.length,
+    sentCount: processing.sent,
+    failedCount: processing.failed,
   };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function textToHtmlParagraphs(value: string) {
+  return escapeHtml(value)
+    .split(/\r?\n\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${paragraph.replaceAll("\n", "<br/>")}</p>`)
+    .join("");
 }
