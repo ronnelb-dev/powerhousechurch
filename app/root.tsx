@@ -22,11 +22,7 @@ export const links: Route.LinksFunction = () => [
     },
     {
       rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Lato:wght@300;400;700&display=swap",
-    },
-    {
-      rel: "stylesheet",
-      href: "/app/styles/tailwind.css",
+      href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
     },
 
 ];
@@ -41,6 +37,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only fixed left-4 top-4 z-[100] rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--primary-foreground)]"
+        >
+          Skip to content
+        </a>
         {children}
         <ScrollRestoration />
         <Scripts />

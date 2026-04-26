@@ -1,6 +1,10 @@
 import { Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 
+import { Button, buttonVariants } from "~/components/ui/Button";
+import { Sheet, SheetContent } from "~/components/ui/sheet";
+import { cn } from "~/lib/utils";
+
 const NAV_LINKS = [
   { to: "/",           label: "Home"       },
   { to: "/sermons",    label: "Sermons"    },
@@ -30,23 +34,27 @@ export function Navbar() {
     <header
       className={[
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled ? "bg-white shadow-lg" : "bg-white/95 backdrop-blur-sm",
+        isScrolled
+          ? "border-b border-white/50 bg-[rgba(255,247,240,0.82)] shadow-[0_18px_50px_-30px_rgba(31,17,15,0.45)] backdrop-blur-xl"
+          : "bg-transparent",
       ].join(" ")}
       role="banner"
     >
-      <nav
-        className="max-w-7xl mx-auto px-6"
-        aria-label="Main navigation"
-      >
-        <div className="flex items-center justify-between h-16 lg:h-20">
-
-          {/* Logo */}
+      <nav className="shell" aria-label="Main navigation">
+        <div
+          className={cn(
+            "mt-3 flex items-center justify-between rounded-full px-4 py-3 transition-all duration-300 lg:px-6",
+            isScrolled
+              ? "bg-white/55"
+              : "bg-[rgba(255,250,245,0.52)] shadow-[0_16px_45px_-34px_rgba(42,18,12,0.65)] backdrop-blur-md",
+          )}
+        >
           <Link
             to="/"
             className="flex items-center gap-3"
             aria-label="Powerhouse Church — Home"
           >
-            <div className="w-10 h-10 flex-shrink-0">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-sm">
               <img
                 src="/logo_red.webp"
                 alt="Powerhouse Church logo"
@@ -54,27 +62,26 @@ export function Navbar() {
               />
             </div>
             <div className="hidden sm:block">
-              <p className="text-xl lg:text-2xl font-serif font-bold text-gray-900 leading-tight">
+              <p className="font-serif text-2xl font-semibold leading-tight text-[var(--foreground)]">
                 Powerhouse Church
               </p>
-              <p className="text-xs text-gray-500 tracking-widest uppercase font-sans hidden lg:block">
+              <p className="hidden font-sans text-[0.65rem] uppercase tracking-[0.34em] text-[var(--muted-foreground)] lg:block">
                 Christian Fellowship Intl.
               </p>
             </div>
           </Link>
 
-          {/* Desktop nav links */}
-          <ul className="hidden lg:flex items-center gap-1" role="list">
+          <ul className="hidden items-center gap-1.5 lg:flex" role="list">
             {NAV_LINKS.map(({ to, label }) => (
               <li key={to}>
                 <Link
                   to={to}
-                  className={[
-                    "px-3 py-2 rounded-md text-sm font-sans font-bold tracking-wide transition-all duration-150",
+                  className={cn(
+                    "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-all duration-150",
                     isActive(to)
-                      ? "text-red-800 bg-red-50"
-                      : "text-gray-700 hover:text-red-800 hover:bg-red-50",
-                  ].join(" ")}
+                      ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:bg-white/75 hover:text-[var(--foreground)]",
+                  )}
                   aria-current={isActive(to) ? "page" : undefined}
                 >
                   {label}
@@ -83,31 +90,26 @@ export function Navbar() {
             ))}
           </ul>
 
-          {/* Desktop CTAs */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden items-center gap-3 lg:flex">
             <Link
               to="/new-here"
-              className="px-4 py-2 rounded-full border-2 border-red-800
-                         text-red-800 text-sm font-sans font-bold tracking-wide
-                         hover:bg-red-800 hover:text-white transition-all duration-150"
+              className="rounded-full border border-[var(--border)] bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--foreground)] transition hover:border-[var(--ring)] hover:bg-white"
               aria-label="New to Powerhouse Church? Start here"
             >
               New Here?
             </Link>
             <Link
               to="/portal/dashboard"
-              className="px-4 py-2 rounded-md bg-red-800 text-white
-                         text-sm font-sans font-bold tracking-wide
-                         hover:bg-red-900 transition-all duration-150"
+              className={buttonVariants({ size: "sm" })}
             >
               Member Login
             </Link>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="lg:hidden p-2 text-gray-700 hover:text-red-800 transition-colors
-                       focus:outline-none focus:ring-2 focus:ring-red-800/30 rounded-md"
+          <Button
+            variant="outline"
+            size="icon"
+            className="lg:hidden rounded-full bg-white/80"
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
@@ -125,31 +127,47 @@ export function Navbar() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             )}
-          </button>
+          </Button>
         </div>
+      </nav>
 
-        {/* Mobile menu — smooth max-h transition */}
-        <div
-          id="mobile-menu"
-          className={[
-            "lg:hidden transition-all duration-300 overflow-hidden",
-            menuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0",
-          ].join(" ")}
-          role="navigation"
-          aria-label="Mobile navigation"
-        >
-          <div className="py-4 border-t border-gray-200">
-            <ul className="flex flex-col" role="list">
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent className="lg:hidden">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-serif text-2xl font-semibold text-[var(--foreground)]">
+                Powerhouse Church
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">
+                Christian Fellowship Intl.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </Button>
+          </div>
+
+          <div className="mt-8 rounded-[var(--radius)] border border-white/50 bg-white/60 p-3 shadow-[var(--shadow-soft)]">
+            <ul className="space-y-1" role="list">
               {NAV_LINKS.map(({ to, label }) => (
                 <li key={to}>
                   <Link
                     to={to}
-                    className={[
-                      "block px-4 py-3 text-sm font-sans font-bold transition-colors",
+                    className={cn(
+                      "block rounded-2xl px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] transition-colors",
                       isActive(to)
-                        ? "text-red-800 bg-red-50"
-                        : "text-gray-700 hover:text-red-800 hover:bg-gray-50",
-                    ].join(" ")}
+                        ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                        : "text-[var(--foreground)] hover:bg-[var(--muted)]",
+                    )}
                     aria-current={isActive(to) ? "page" : undefined}
                   >
                     {label}
@@ -157,27 +175,20 @@ export function Navbar() {
                 </li>
               ))}
             </ul>
-
-            <div className="px-4 pt-4 flex flex-col gap-3 border-t border-gray-200 mt-2">
-              <Link
-                to="/new-here"
-                className="block text-center px-4 py-3 rounded-full border-2
-                           border-red-800 text-red-800 text-sm font-bold
-                           hover:bg-red-800 hover:text-white transition-all"
-              >
-                New Here? ✦
-              </Link>
-              <Link
-                to="/portal/dashboard"
-                className="block text-center px-4 py-3 rounded-md bg-red-800
-                           text-white text-sm font-bold hover:bg-red-900 transition-all"
-              >
-                Member Login
-              </Link>
-            </div>
           </div>
-        </div>
-      </nav>
+
+          <div className="mt-6 space-y-3">
+            <Link to="/new-here" className="block">
+              <span className={buttonVariants({ variant: "secondary", className: "flex w-full" })}>
+                Plan a Visit
+              </span>
+            </Link>
+            <Link to="/portal/dashboard" className="block">
+              <span className={buttonVariants({ className: "flex w-full" })}>Member Login</span>
+            </Link>
+          </div>
+        </SheetContent>
+      </Sheet>
     </header>
   );
 }

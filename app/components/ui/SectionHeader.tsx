@@ -2,6 +2,8 @@
 // Section heading used throughout public pages.
 // Eyebrow (small caps), title (fluid serif), red accent bar, optional subtitle.
 
+import { cn } from "~/lib/utils";
+
 interface SectionHeaderProps {
   eyebrow?:  string;
   title:     string;
@@ -15,43 +17,28 @@ export function SectionHeader({
   subtitle,
   centered = false,
 }: SectionHeaderProps) {
-  const align = centered ? "text-center" : "";
-
   return (
-    <div className={align}>
+    <div className={cn(centered && "text-center")}>
       {eyebrow && (
-        <p
-          className="font-sans font-bold text-red-600 tracking-[0.15em]
-                     uppercase text-xs sm:text-[0.7rem] mb-2"
-        >
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
           {eyebrow}
         </p>
       )}
 
-      <h2
-        className="font-serif font-bold text-gray-900 leading-tight mb-3"
-        style={{ fontSize: "clamp(1.5rem, 3vw + 0.75rem, 2.5rem)" }}
-      >
+      <h2 className="text-balance mb-4 font-serif text-4xl font-semibold leading-none sm:text-5xl">
         {title}
       </h2>
 
-      {/* Red underline accent */}
       <div
-        className={[
-          "w-10 h-1 bg-red-700 rounded-full mb-4",
-          centered ? "mx-auto" : "",
-        ].join(" ")}
+        className={cn(
+          "mb-5 h-px w-24 bg-gradient-to-r from-[var(--accent)] via-[var(--primary)] to-transparent",
+          centered && "mx-auto",
+        )}
         aria-hidden="true"
       />
 
       {subtitle && (
-        <p
-          className={[
-            "text-gray-500 font-sans leading-relaxed",
-            "text-base sm:text-lg max-w-xl",
-            centered ? "mx-auto" : "",
-          ].join(" ")}
-        >
+        <p className={cn("max-w-2xl text-base leading-7 sm:text-lg", centered && "mx-auto")}>
           {subtitle}
         </p>
       )}

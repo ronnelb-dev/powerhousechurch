@@ -49,7 +49,8 @@ export default [
   // Portal Layout
   layout("routes/portal/_layout.tsx", [
     ...prefix("portal", [
-      index("routes/portal/dashboard.tsx"),
+      index("routes/portal/_index.tsx"),
+      route("dashboard", "routes/portal/dashboard.tsx"),
       route("profile", "routes/portal/profile.tsx"),
       route("directory", "routes/portal/directory.tsx"),
       route("community", "routes/portal/community.tsx"),
@@ -58,7 +59,9 @@ export default [
       // Admin sub-layout (nested)
       layout("routes/portal/admin/_layout.tsx", [
         ...prefix("admin", [
-          index("routes/portal/admin/reports.tsx"),
+          index("routes/portal/admin/_index.tsx"),
+          route("cell-groups", "routes/portal/admin/cell-groups.tsx"),
+          route("reports", "routes/portal/admin/reports.tsx"),
           route("members", "routes/portal/admin/members.tsx"),
           route("sermons", "routes/portal/admin/sermons.tsx"),
           route("events", "routes/portal/admin/events.tsx"),

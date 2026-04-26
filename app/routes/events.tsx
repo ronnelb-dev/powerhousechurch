@@ -3,6 +3,7 @@ import {
   useLoaderData,
   isRouteErrorResponse,
   useRouteError,
+  Link,
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";
@@ -10,6 +11,7 @@ import { PageHero } from "~/components/ui/PageHero";
 import { EventCard } from "~/components/church/EventCard";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { Card, CardContent } from "~/components/ui/card";
 
 export const meta: MetaFunction = () => [
   { title: "Events — Powerhouse Church" },
@@ -57,14 +59,14 @@ export default function EventsPage() {
         scripture="Let us not give up meeting together — Hebrews 10:25"
       />
 
-      <div className="max-w-5xl mx-auto px-6 py-16">
-        {/* Upcoming */}
+      <div className="shell section-gap">
         <SectionHeader
           eyebrow="What's Next"
           title="Upcoming Events"
+          subtitle="Mark your calendar for gatherings designed to strengthen faith and deepen friendship."
         />
         {upcoming.length > 0 ? (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (
               <div key={event.id} id={event.id}>
                 <EventCard
@@ -75,9 +77,8 @@ export default function EventsPage() {
                   endDate={event.endDate}
                   imageUrl={event.imageUrl}
                 />
-                {/* Full description shown on events page */}
                 <div className="mt-3 px-1">
-                  <p className="text-sm text-gray-500 font-sans leading-relaxed">
+                  <p className="text-sm leading-6">
                     {event.description}
                   </p>
                 </div>
@@ -92,33 +93,30 @@ export default function EventsPage() {
           />
         )}
 
-        {/* Past events */}
         {past.length > 0 && (
           <div className="mt-20">
             <details className="group">
               <summary
-                className="flex items-center justify-between cursor-pointer
-                           list-none focus:outline-none"
+                className="list-none cursor-pointer rounded-[var(--radius)] border border-white/60 bg-white/70 px-6 py-5 focus:outline-none"
               >
-                <SectionHeader eyebrow="Recently Past" title="Past Events" />
-                <span
-                  className="text-sm font-sans font-bold text-red-600
-                             group-open:hidden"
-                >
-                  Show →
-                </span>
-                <span
-                  className="text-sm font-sans font-bold text-red-600
-                             hidden group-open:inline"
-                >
-                  Hide ↑
-                </span>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">Recently Past</p>
+                    <h2 className="font-serif text-4xl font-semibold text-[var(--foreground)]">Past Events</h2>
+                  </div>
+                  <span className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)] group-open:hidden">
+                    Show →
+                  </span>
+                  <span className="hidden text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)] group-open:inline">
+                    Hide ↑
+                  </span>
+                </div>
               </summary>
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {past.map((event) => (
                   <div
                     key={event.id}
-                    className="opacity-60 hover:opacity-80 transition-opacity"
+                    className="opacity-75 transition-opacity hover:opacity-100"
                   >
                     <EventCard
                       id={event.id}
@@ -134,6 +132,22 @@ export default function EventsPage() {
             </details>
           </div>
         )}
+
+        <div className="mt-20">
+          <Card className="bg-[linear-gradient(135deg,rgba(255,250,245,0.92),rgba(239,226,210,0.78))]">
+            <CardContent className="grid gap-6 p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">Need Prayer?</p>
+                <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)]">
+                  Let us stand with you before the next gathering.
+                </h2>
+              </div>
+              <Link to="/prayer-request" className="inline-flex items-center text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
+                Submit a prayer request →
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

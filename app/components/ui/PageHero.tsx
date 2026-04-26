@@ -5,6 +5,9 @@
 // - Optional background image with red overlay for readability
 // - Optional scripture quote in italic serif
 
+import { Badge } from "~/components/ui/badge";
+import { cn } from "~/lib/utils";
+
 interface PageHeroProps {
   title:      string;
   subtitle?:  string;
@@ -24,7 +27,7 @@ export function PageHero({
 }: PageHeroProps) {
   return (
     <section
-      className="relative overflow-hidden"
+      className="relative overflow-hidden pt-28 sm:pt-32"
       style={
         bgImage
           ? {
@@ -36,57 +39,56 @@ export function PageHero({
       }
       aria-labelledby="page-hero-title"
     >
-      {/* Gradient overlay — always present; more opaque over images */}
       <div
-        className="absolute inset-0 bg-linear-to-br from-red-700 via-red-800 to-red-950"
+        className="absolute inset-0 bg-[linear-gradient(135deg,#2b1815_0%,#5b2627_48%,#8f3c37_100%)]"
         style={{ opacity: bgImage ? 0.9 : 1 }}
         aria-hidden="true"
       />
-
-      {/* Decorative circles — purely atmospheric */}
       <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/4 pointer-events-none"
+        className="hero-glow absolute inset-0"
         aria-hidden="true"
       />
       <div
-        className="absolute -bottom-32 left-1/3 w-96 h-96 rounded-full bg-white/3 pointer-events-none"
+        className="warm-grid absolute inset-0 opacity-10"
         aria-hidden="true"
       />
-      {/* Red accent line at bottom */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-red-400/30 to-transparent"
+        className="absolute -right-12 top-16 h-56 w-56 rounded-full border border-white/15 bg-white/8 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute -left-16 bottom-10 h-48 w-48 rounded-full border border-[#d6a24c]/20 bg-[#d6a24c]/10 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#f7d493]/60 to-transparent"
         aria-hidden="true"
       />
 
-      {/* Content */}
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 pt-28 sm:pt-32 lg:pt-36 pb-16 sm:pb-20 lg:pb-24 text-center">
-        <h1
-          id="page-hero-title"
-          className="font-serif font-bold text-white leading-tight mb-4"
-          style={{ fontSize: "clamp(2rem, 5vw + 1rem, 3.5rem)" }}
-        >
-          {title}
-        </h1>
-
-        {subtitle && (
-          <p
-            className="text-red-200 max-w-2xl mx-auto leading-relaxed mb-4"
-            style={{ fontSize: "clamp(1rem, 1.5vw + 0.5rem, 1.2rem)" }}
+      <div className="shell relative pb-16 sm:pb-20 lg:pb-24">
+        <div className={cn("mx-auto max-w-4xl text-center", children ? "max-w-5xl" : undefined)}>
+          <Badge className="border-white/10 bg-white/10 text-white">Powerhouse Church</Badge>
+          <h1
+            id="page-hero-title"
+            className="text-balance mt-6 font-serif text-5xl font-semibold leading-none text-white sm:text-6xl lg:text-7xl"
           >
+          {title}
+          </h1>
+
+          {subtitle && (
+            <p className="mx-auto mt-5 max-w-2xl text-balance text-lg leading-8 text-[#f5dbd2] sm:text-xl">
             {subtitle}
-          </p>
-        )}
+            </p>
+          )}
 
-        {scripture && (
-          <p className="font-serif italic text-red-300 max-w-xl mx-auto mt-5"
-             style={{ fontSize: "clamp(0.95rem, 1.2vw + 0.4rem, 1.1rem)" }}>
-            "{scripture}"
-          </p>
-        )}
+          {scripture && (
+            <p className="mx-auto mt-6 max-w-xl font-serif text-xl italic text-[#f1d2a4] sm:text-2xl">
+              "{scripture}"
+            </p>
+          )}
 
-        {children && (
-          <div className="mt-8">{children}</div>
-        )}
+          {children && <div className="mt-10">{children}</div>}
+        </div>
       </div>
     </section>
   );

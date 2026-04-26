@@ -6,6 +6,10 @@
 
 import { Link } from "react-router";
 
+import { Badge } from "~/components/ui/badge";
+import { Card, CardContent } from "~/components/ui/card";
+import { cn } from "~/lib/utils";
+
 interface EventCardProps {
   id:        string;
   title:     string;
@@ -34,8 +38,8 @@ export function EventCard({
   title,
   location,
   startDate,
-  endDate,
-  imageUrl,
+  endDate: _endDate,
+  imageUrl: _imageUrl,
 }: EventCardProps) {
   const start    = new Date(startDate);
   const month    = start.toLocaleDateString("en-PH", { month: "short" }).toUpperCase();
@@ -49,72 +53,56 @@ export function EventCard({
   const isToday   = countdown === "Today!";
 
   return (
-    <article
-      className={[
-        "bg-white border-t-4 border-red-700 border-x border-b ",
-        "rounded-2xl p-4 sm:p-5",
-        "hover:shadow-md hover:shadow-red-100 hover:border-t-red-600",
-        "transition-all duration-200",
-        isPast ? "opacity-60" : "",
-      ].join(" ")}
-    >
-      <div className="flex gap-4">
-        {/* Date badge */}
+    <Card className={cn("h-full overflow-hidden transition-transform duration-200 hover:-translate-y-1", isPast && "opacity-70")}>
+      <CardContent className="p-5">
+        <div className="flex gap-4">
         <div
-          className="shrink-0 flex flex-col items-center justify-center
-                     bg-red-700 text-white rounded-xl w-14 h-14 sm:w-16 sm:h-16"
+          className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-[1.25rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_18px_35px_-24px_rgba(146,48,52,0.85)]"
           aria-label={`Event date: ${month} ${day}`}
         >
-          <span className="font-sans text-[0.6rem] font-bold tracking-wider uppercase opacity-80">
+          <span className="text-[0.6rem] font-semibold tracking-[0.24em] uppercase opacity-80">
             {month}
           </span>
-          <span className="font-serif text-2xl sm:text-3xl font-bold leading-none">
+          <span className="font-serif text-3xl font-semibold leading-none">
             {day}
           </span>
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
-          {/* Countdown pill */}
-          <span
-            className={[
-              "inline-block font-sans font-bold text-xs rounded-full px-2.5 py-0.5 mb-1.5",
+          <Badge
+            className={cn(
+              "mb-2",
               isToday
-                ? "bg-green-100 text-green-700 border border-green-200"
+                ? "bg-emerald-100 text-emerald-900"
                 : isPast
-                ? "bg-gray-100 text-gray-500 border border-gray-200"
-                : "bg-red-50 text-red-600 border border-red-100",
-            ].join(" ")}
+                ? "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                : "bg-[rgba(146,48,52,0.12)] text-[var(--primary)]",
+            )}
           >
             {countdown}
-          </span>
+          </Badge>
 
-          <h3
-            className="font-serif font-bold text-gray-900 leading-snug line-clamp-2 mb-1"
-            style={{ fontSize: "clamp(0.9rem, 1.5vw + 0.4rem, 1.1rem)" }}
-          >
+          <h3 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)]">
             {title}
           </h3>
 
-          <p className="font-sans text-sm text-gray-400 truncate">
+          <p className="mt-2 truncate text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
             {time} · {location}
           </p>
         </div>
-      </div>
+        </div>
 
-      {/* CTA */}
-      <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
         <Link
           to={`/events#${id}`}
-          className="inline-flex items-center gap-1 font-sans font-bold text-sm
-                     text-red-700 hover:text-red-900 transition-colors
-                     min-h-11
-                     focus:outline-none focus:underline"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)] transition-colors hover:text-[color-mix(in_oklab,var(--primary)_82%,black)]"
           aria-label={`View details for ${title}`}
         >
-          View details →
+          View details
+          <span aria-hidden="true">→</span>
         </Link>
-      </div>
-    </article>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

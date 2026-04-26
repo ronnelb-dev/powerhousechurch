@@ -11,13 +11,18 @@ export default function PublicLayout() {
   const settings = data?.settings ?? {};
 
   return (
-    <>
+    <div className="relative min-h-screen">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_top,rgba(146,48,52,0.12),transparent_56%)]" />
+        <div className="absolute right-0 top-[32rem] h-80 w-80 rounded-full bg-[rgba(214,162,76,0.12)] blur-3xl" />
+        <div className="absolute left-0 top-[80rem] h-96 w-96 rounded-full bg-[rgba(34,73,59,0.08)] blur-3xl" />
+      </div>
       <Navbar />
       <main id="main-content">
         <Outlet />
       </main>
       <Footer settings={settings} />
-    </>
+    </div>
   );
 }
 

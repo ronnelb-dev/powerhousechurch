@@ -4,6 +4,9 @@
 // sm+: 3 columns side by side with dividers.
 // Lifted above the section below with shadow.
 
+import { Badge } from "~/components/ui/badge";
+import { Card } from "~/components/ui/card";
+
 interface ServiceTime {
   label:  string;
   time:   string;
@@ -16,36 +19,29 @@ interface ServiceTimesBarProps {
 
 export function ServiceTimesBar({ times }: ServiceTimesBarProps) {
   return (
-    <section
-      className="bg-white rounded-2xl shadow-lg shadow-red-900/10
-                 border border-red-100 overflow-hidden"
-      aria-label="Service times"
-    >
+    <Card className="overflow-hidden bg-[rgba(255,250,245,0.86)]" aria-label="Service times">
       <div
         className={[
-          "grid divide-y divide-red-100",
-          "sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:divide-red-100",
+          "grid divide-y divide-[var(--border)]",
+          "sm:grid-cols-3 sm:divide-x sm:divide-y-0",
         ].join(" ")}
         style={{ gridTemplateColumns: times.length === 3 ? undefined : `repeat(${times.length}, 1fr)` }}
       >
         {times.map((item, i) => (
           <div
             key={i}
-            className="flex flex-col items-center text-center px-4 py-5 sm:py-6"
+            className="flex flex-col items-center px-4 py-6 text-center sm:py-7"
           >
-            <p
-              className="font-sans font-bold text-red-600 tracking-[0.15em]
-                         uppercase text-xs mb-1.5"
-            >
+            <Badge variant="outline" className="border-white/60 bg-white/65">
               {item.label}
-            </p>
-            <p className="font-serif font-bold text-gray-900 text-2xl sm:text-3xl mb-1">
+            </Badge>
+            <p className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
               {item.time}
             </p>
-            <p className="font-sans text-gray-400 text-sm">{item.detail}</p>
+            <p className="mt-1 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">{item.detail}</p>
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }

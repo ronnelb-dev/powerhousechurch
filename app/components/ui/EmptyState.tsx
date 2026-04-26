@@ -3,6 +3,11 @@
 // role="status" so screen readers announce it as a live region update.
 // Icon is decorative; message provides full context.
 
+import { Link } from "react-router";
+
+import { buttonVariants } from "~/components/ui/Button";
+import { Card } from "~/components/ui/card";
+
 interface EmptyStateProps {
   title:   string;
   message: string;
@@ -55,51 +60,41 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className="flex flex-col items-center justify-center text-center py-16 px-6"
+      className="px-6 py-16"
       role="status"
       aria-label={title}
     >
-      {/* Icon */}
-      <div
-        className="w-16 h-16 rounded-full bg-red-50 border border-red-100
-                   flex items-center justify-center mb-5 shrink-0"
-        aria-hidden="true"
-      >
-        <svg
-          width="28" height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#be123c"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <Card className="mx-auto max-w-xl bg-white/75 p-8 text-center">
+        <div
+          className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(146,48,52,0.12)]"
+          aria-hidden="true"
         >
-          {ICON_PATHS[icon]}
-        </svg>
-      </div>
+          <svg
+            width="28" height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#923034"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {ICON_PATHS[icon]}
+          </svg>
+        </div>
 
-      {/* Copy */}
-      <h3 className="font-serif text-xl font-bold text-gray-800 mb-2">
-        {title}
-      </h3>
-      <p className="font-sans text-base text-gray-500 max-w-sm leading-relaxed mb-6">
-        {message}
-      </p>
+        <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
+          {title}
+        </h3>
+        <p className="mx-auto mt-3 max-w-sm text-base leading-7">
+          {message}
+        </p>
 
-      {/* Optional CTA */}
-      {action && (
-        <a
-          href={action.to}
-          className="inline-flex items-center justify-center
-                     min-h-12 px-6 py-3
-                     bg-red-700 text-white text-base font-sans font-bold
-                     rounded-xl hover:bg-red-800 active:bg-red-900
-                     transition-colors touch-manipulation
-                     focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          {action.label}
-        </a>
-      )}
+        {action && (
+          <Link to={action.to} className={buttonVariants({ className: "mt-6 inline-flex" })}>
+            {action.label}
+          </Link>
+        )}
+      </Card>
     </div>
   );
 }

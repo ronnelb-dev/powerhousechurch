@@ -13,6 +13,9 @@ import { db } from "~/lib/db.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { SermonCard } from "~/components/church/SermonCard";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { Card, CardContent } from "~/components/ui/card";
+import { Select } from "~/components/ui/select";
+import { buttonVariants } from "~/components/ui/Button";
 
 export const meta: MetaFunction = () => [
   { title: "Sermons — Powerhouse Church" },
@@ -89,10 +92,13 @@ export default function SermonsPage() {
         scripture="Faith comes from hearing, and hearing through the word of Christ. — Romans 10:17"
       />
 
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Filter bar */}
-        <Form method="get" className="flex flex-wrap gap-3 mb-8" role="search">
-          <select
+      <div className="shell section-gap !pt-12">
+        <Card className="mb-10 bg-white/75">
+          <CardContent className="p-5">
+            <Form method="get" className="flex flex-col gap-3 lg:flex-row lg:items-center" role="search">
+              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <Select
             name="series"
             defaultValue={filters.series}
             onChange={(e) => {
@@ -101,18 +107,18 @@ export default function SermonsPage() {
               data.set("page", "1");
               setSearchParams(Object.fromEntries(data.entries()) as Record<string, string>);
             }}
-            className="text-sm font-sans px-4 py-2.5 rounded-lg border border-gray-200
-                       bg-white text-gray-700 focus:outline-none focus:ring-2
-                       focus:ring-red-300 focus:border-transparent cursor-pointer"
             aria-label="Filter by series"
           >
             <option value="">All Series</option>
             {allSeries.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
-          </select>
+                  </Select>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">⌄</span>
+                </div>
 
-          <select
+                <div className="relative">
+                  <Select
             name="speaker"
             defaultValue={filters.speaker}
             onChange={(e) => {
@@ -121,37 +127,36 @@ export default function SermonsPage() {
               data.set("page", "1");
               setSearchParams(Object.fromEntries(data.entries()) as Record<string, string>);
             }}
-            className="text-sm font-sans px-4 py-2.5 rounded-lg border border-gray-200
-                       bg-white text-gray-700 focus:outline-none focus:ring-2
-                       focus:ring-red-300 focus:border-transparent cursor-pointer"
             aria-label="Filter by speaker"
           >
             <option value="">All Speakers</option>
             {allSpeakers.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
-          </select>
+                  </Select>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">⌄</span>
+                </div>
+              </div>
 
-          {(filters.series || filters.speaker) && (
+              {(filters.series || filters.speaker) && (
             <Link
               to="/sermons"
-              className="px-4 py-2.5 text-sm font-sans font-bold text-red-600
-                         hover:text-red-800 transition-colors focus:outline-none
-                         focus:underline"
+                  className="inline-flex items-center text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]"
             >
               Clear filters ×
             </Link>
-          )}
+              )}
 
-          <p className="ml-auto text-sm text-gray-400 font-sans self-center">
+              <p className="text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)] lg:ml-auto">
             {total} {total === 1 ? "sermon" : "sermons"}
             {filters.series || filters.speaker ? " found" : " total"}
           </p>
-        </Form>
+            </Form>
+          </CardContent>
+        </Card>
 
-        {/* Grid */}
         {sermons.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sermons.map((sermon) => (
               <SermonCard
                 key={sermon.id}
@@ -174,33 +179,26 @@ export default function SermonsPage() {
           />
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <nav
-            className="mt-12 flex items-center justify-center gap-2"
+            className="mt-12 flex items-center justify-center gap-3"
             aria-label="Sermon pagination"
           >
             {page > 1 && (
               <Link
                 to={`/sermons?series=${filters.series}&speaker=${filters.speaker}&page=${page - 1}`}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm
-                           font-sans font-bold text-gray-600 hover:border-red-300
-                           hover:text-red-700 transition-all focus:outline-none
-                           focus:ring-2 focus:ring-red-300"
+                className={buttonVariants({ variant: "outline" })}
               >
                 ← Previous
               </Link>
             )}
-            <span className="text-sm font-sans text-gray-500 px-4">
+            <span className="px-4 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
               Page {page} of {totalPages}
             </span>
             {page < totalPages && (
               <Link
                 to={`/sermons?series=${filters.series}&speaker=${filters.speaker}&page=${page + 1}`}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm
-                           font-sans font-bold text-gray-600 hover:border-red-300
-                           hover:text-red-700 transition-all focus:outline-none
-                           focus:ring-2 focus:ring-red-300"
+                className={buttonVariants({ variant: "outline" })}
               >
                 Next →
               </Link>

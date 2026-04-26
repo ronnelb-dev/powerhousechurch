@@ -32,11 +32,14 @@
       "routes/auth/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/register": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/dashboard": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/profile": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/directory": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/community": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/attendance": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/portal/admin/cell-groups": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/reports": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/members": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -215,12 +218,19 @@
         "file": "app/routes/portal/_layout.tsx",
         "config": {}
       },
+      "routes/portal/_index": {
+        "id": "routes/portal/_index",
+        "parentId": "routes/portal/_layout",
+        "file": "app/routes/portal/_index.tsx",
+        "path": "portal",
+        "index": true,
+        "config": {}
+      },
       "routes/portal/dashboard": {
         "id": "routes/portal/dashboard",
         "parentId": "routes/portal/_layout",
         "file": "app/routes/portal/dashboard.tsx",
-        "path": "portal",
-        "index": true,
+        "path": "portal/dashboard",
         "config": {}
       },
       "routes/portal/profile": {
@@ -257,12 +267,26 @@
         "file": "app/routes/portal/admin/_layout.tsx",
         "config": {}
       },
+      "routes/portal/admin/_index": {
+        "id": "routes/portal/admin/_index",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/_index.tsx",
+        "path": "portal/admin",
+        "index": true,
+        "config": {}
+      },
+      "routes/portal/admin/cell-groups": {
+        "id": "routes/portal/admin/cell-groups",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "app/routes/portal/admin/cell-groups.tsx",
+        "path": "portal/admin/cell-groups",
+        "config": {}
+      },
       "routes/portal/admin/reports": {
         "id": "routes/portal/admin/reports",
         "parentId": "routes/portal/admin/_layout",
         "file": "app/routes/portal/admin/reports.tsx",
-        "path": "portal/admin",
-        "index": true,
+        "path": "portal/admin/reports",
         "config": {}
       },
       "routes/portal/admin/members": {
@@ -467,12 +491,18 @@
         "parentId": "root",
         "file": "routes/portal/_layout.tsx"
       },
+      "routes/portal/_index": {
+        "id": "routes/portal/_index",
+        "parentId": "routes/portal/_layout",
+        "file": "routes/portal/_index.tsx",
+        "path": "portal",
+        "index": true
+      },
       "routes/portal/dashboard": {
         "id": "routes/portal/dashboard",
         "parentId": "routes/portal/_layout",
         "file": "routes/portal/dashboard.tsx",
-        "path": "portal",
-        "index": true
+        "path": "portal/dashboard"
       },
       "routes/portal/profile": {
         "id": "routes/portal/profile",
@@ -503,12 +533,24 @@
         "parentId": "routes/portal/_layout",
         "file": "routes/portal/admin/_layout.tsx"
       },
+      "routes/portal/admin/_index": {
+        "id": "routes/portal/admin/_index",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/_index.tsx",
+        "path": "portal/admin",
+        "index": true
+      },
+      "routes/portal/admin/cell-groups": {
+        "id": "routes/portal/admin/cell-groups",
+        "parentId": "routes/portal/admin/_layout",
+        "file": "routes/portal/admin/cell-groups.tsx",
+        "path": "portal/admin/cell-groups"
+      },
       "routes/portal/admin/reports": {
         "id": "routes/portal/admin/reports",
         "parentId": "routes/portal/admin/_layout",
         "file": "routes/portal/admin/reports.tsx",
-        "path": "portal/admin",
-        "index": true
+        "path": "portal/admin/reports"
       },
       "routes/portal/admin/members": {
         "id": "routes/portal/admin/members",
@@ -656,9 +698,13 @@
             "file": "routes/portal/_layout.tsx",
             "children": [
               {
-                "file": "routes/portal/dashboard.tsx",
+                "file": "routes/portal/_index.tsx",
                 "index": true,
                 "path": "portal"
+              },
+              {
+                "file": "routes/portal/dashboard.tsx",
+                "path": "portal/dashboard"
               },
               {
                 "file": "routes/portal/profile.tsx",
@@ -680,9 +726,17 @@
                 "file": "routes/portal/admin/_layout.tsx",
                 "children": [
                   {
-                    "file": "routes/portal/admin/reports.tsx",
+                    "file": "routes/portal/admin/_index.tsx",
                     "index": true,
                     "path": "portal/admin"
+                  },
+                  {
+                    "file": "routes/portal/admin/cell-groups.tsx",
+                    "path": "portal/admin/cell-groups"
+                  },
+                  {
+                    "file": "routes/portal/admin/reports.tsx",
+                    "path": "portal/admin/reports"
                   },
                   {
                     "file": "routes/portal/admin/members.tsx",

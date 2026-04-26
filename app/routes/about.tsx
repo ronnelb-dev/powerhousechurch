@@ -5,6 +5,8 @@ import { getSettings } from "~/lib/settings.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import { Link } from "react-router";
+import { buttonVariants } from "~/components/ui/Button";
+import { Card, CardContent } from "~/components/ui/card";
 
 export const meta: MetaFunction = () => [
   { title: "About Us — Powerhouse Church" },
@@ -53,7 +55,7 @@ const VALUES = [
 ];
 
 export default function AboutPage() {
-  const { settings } = useLoaderData<typeof loader>();
+  useLoaderData<typeof loader>();
 
   return (
     <>
@@ -63,11 +65,11 @@ export default function AboutPage() {
         scripture="Built on the foundation of the apostles and prophets, Christ Jesus himself being the cornerstone. — Ephesians 2:20"
       />
 
-      {/* Story */}
-      <section className="max-w-3xl mx-auto px-6 py-16">
+      <section className="shell section-gap">
         <SectionHeader eyebrow="Our Story" title="Who We Are" />
-        <div className="mt-6 space-y-4 text-gray-600 font-sans text-base leading-relaxed">
-          <p>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4 text-base leading-8">
+            <p>
             Powerhouse Church Christian Fellowship International began as a small
             gathering of believers committed to one thing: experiencing the raw,
             unfiltered presence of God. What started in a living room has grown
@@ -85,47 +87,69 @@ export default function AboutPage() {
             Sunday service, every cell group, every devotion shared on Daily
             Bread — flows from that vision.
           </p>
+          </div>
+          <Card className="bg-[linear-gradient(160deg,rgba(255,250,245,0.95),rgba(239,226,210,0.72))]">
+            <CardContent className="p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
+                What Shapes Us
+              </p>
+              <h3 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)]">
+                Word and Spirit, held together with humility.
+              </h3>
+              <div className="mt-8 space-y-4">
+                {[
+                  ["Spirit-filled worship", "We make room for reverence, joy, and the work of the Holy Spirit."],
+                  ["Biblical teaching", "We want every sermon and every ministry to be anchored in Scripture."],
+                  ["Relational discipleship", "Growth happens best in circles, not just rows."],
+                ].map(([title, body]) => (
+                  <div key={title} className="rounded-2xl border border-white/60 bg-white/70 p-4">
+                    <h4 className="font-serif text-2xl font-semibold text-[var(--foreground)]">{title}</h4>
+                    <p className="mt-2 text-sm leading-6">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
-      {/* Values */}
-      <section className="bg-primary-50 border-y border-primary-100 py-16 px-6">
-        <div className="max-w-5xl mx-auto">
+      <section className="border-y border-white/50 bg-white/40 py-16">
+        <div className="shell">
           <SectionHeader
             eyebrow="What We Believe"
             title="Our Core Values"
             centered
           />
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {VALUES.map((value) => (
-              <div
+              <Card
                 key={value.title}
-                className="bg-white border border-gray-100 rounded-2xl p-6
-                           hover:border-red-200 hover:shadow-sm transition-all"
+                className="h-full bg-white/75 transition-all hover:-translate-y-1"
               >
-                <div
-                  className="text-2xl mb-4"
+                <CardContent className="p-6">
+                  <div
+                  className="mb-4 text-2xl"
                   aria-hidden="true"
                   style={{ fontSize: "24px" }}
                 >
                   {value.icon}
-                </div>
-                <h3 className="font-serif text-lg font-bold text-gray-900 mb-2">
+                  </div>
+                  <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
                   {value.title}
                 </h3>
-                <p className="text-sm text-gray-500 font-sans leading-relaxed">
+                  <p className="mt-3 text-sm leading-6">
                   {value.body}
                 </p>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Statement of faith */}
-      <section className="max-w-3xl mx-auto px-6 py-16">
+      <section className="shell section-gap">
         <SectionHeader eyebrow="Doctrine" title="What We Believe" />
-        <div className="mt-6 space-y-3">
+        <div className="mt-10 space-y-3">
           {[
             "We believe in the Trinity — one God eternally existing in three persons: Father, Son, and Holy Spirit.",
             "We believe the Bible is the inspired and infallible Word of God, the final authority in all matters of faith and conduct.",
@@ -137,11 +161,10 @@ export default function AboutPage() {
           ].map((statement, i) => (
             <div
               key={i}
-              className="flex gap-3 items-start py-3 border-b border-gray-100 last:border-0"
+              className="flex items-start gap-4 rounded-2xl border border-white/60 bg-white/70 px-5 py-4"
             >
               <div
-                className="w-5 h-5 rounded-full bg-red-700 flex-shrink-0 mt-0.5
-                           flex items-center justify-center"
+                className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary)]"
                 aria-hidden="true"
               >
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="white">
@@ -149,7 +172,7 @@ export default function AboutPage() {
                             stroke="white" fill="none" strokeLinecap="round"/>
                 </svg>
               </div>
-              <p className="text-sm text-gray-600 font-sans leading-relaxed">
+              <p className="text-sm leading-7">
                 {statement}
               </p>
             </div>
@@ -157,35 +180,32 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-red-900 py-16 px-6 text-center">
-        <h2 className="font-serif text-3xl font-bold text-white mb-4">
+      <section className="shell pb-24 text-center">
+        <Card className="overflow-hidden bg-[linear-gradient(135deg,#923034_0%,#231715_100%)] text-white">
+          <CardContent className="p-10">
+            <h2 className="font-serif text-4xl font-semibold text-white sm:text-5xl">
           Come and See
         </h2>
-        <p className="text-red-200 font-sans text-base max-w-md mx-auto mb-8">
+            <p className="mx-auto mt-4 max-w-md text-base leading-7 text-[#f1ddd4]">
           The best way to know who we are is to join us on a Sunday. Come hungry,
           come as you are, and come expecting.
         </p>
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Link
-            to="/new-here"
-            className="px-8 py-4 bg-yellow-400 text-red-900 font-sans font-bold
-                       text-sm tracking-wide rounded-lg hover:bg-yellow-300
-                       transition-colors focus:outline-none focus:ring-2
-                       focus:ring-yellow-200"
-          >
-            Plan My Visit →
-          </Link>
-          <Link
-            to="/contact"
-            className="px-8 py-4 border-2 border-red-600 text-red-200
-                       font-sans font-bold text-sm rounded-lg hover:bg-red-800
-                       transition-colors focus:outline-none focus:ring-2
-                       focus:ring-red-400"
-          >
-            Get in Touch
-          </Link>
-        </div>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link to="/new-here" className={buttonVariants({ variant: "secondary" })}>
+                Plan My Visit
+              </Link>
+              <Link
+                to="/contact"
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                })}
+              >
+                Get in Touch
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </section>
     </>
   );

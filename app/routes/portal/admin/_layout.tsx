@@ -19,6 +19,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 const ADMIN_NAV = [
+  { to: "/portal/admin/cell-groups", label: "Cell Groups"   },
   { to: "/portal/admin/members",  label: "Members"       },
   { to: "/portal/admin/sermons",  label: "Sermons"       },
   { to: "/portal/admin/events",   label: "Events"        },

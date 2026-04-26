@@ -6,6 +6,9 @@
 
 import { Link } from "react-router";
 
+import { Badge } from "~/components/ui/badge";
+import { Card } from "~/components/ui/card";
+
 interface SermonCardProps {
   id:         string;
   title:      string;
@@ -51,93 +54,70 @@ export function SermonCard({
     <article className="group">
       <Link
         to={`/sermons/${id}`}
-        className={[
-          "block bg-white border border-gray-100 rounded-2xl overflow-hidden",
-          "hover:border-red-200 hover:shadow-md hover:shadow-red-100",
-          "active:scale-[0.99]",
-          "transition-all duration-200",
-          "focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2",
-        ].join(" ")}
+        className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         aria-label={`Listen to sermon: ${title} by ${speaker}, ${formattedDate}`}
       >
-        {/* Thumbnail — aspect-ratio wrapper prevents CLS */}
-        <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-          {thumbnail ? (
-            <img
-              src={thumbnail}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover
-                         group-hover:scale-[1.03] transition-transform duration-300"
-            />
-          ) : (
-            <div
-              className={`absolute inset-0 bg-linear-to-br ${gradient}
-                          flex items-center justify-center`}
-            >
-              <span className="text-white/20 font-serif text-6xl font-bold" aria-hidden="true">
-                ✝
-              </span>
-            </div>
-          )}
-
-          {/* Play overlay on hover */}
-          <div
-            className="absolute inset-0 flex items-center justify-center
-                       bg-black/0 group-hover:bg-black/20 transition-all duration-200"
-            aria-hidden="true"
-          >
-            <div
-              className="w-12 h-12 rounded-full border-2
-                         border-transparent group-hover:border-white/70
-                         flex items-center justify-center
-                         transition-all duration-200"
-            >
-              <svg
-                width="20" height="20" viewBox="0 0 20 20" fill="white"
-                className="translate-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        <Card className="overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]">
+          <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+            {thumbnail ? (
+              <img
+                src={thumbnail}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              />
+            ) : (
+              <div
+                className={`absolute inset-0 bg-linear-to-br ${gradient}
+                            flex items-center justify-center`}
               >
-                <polygon points="5,3 17,10 5,17"/>
-              </svg>
+                <span className="font-serif text-6xl font-semibold text-white/20" aria-hidden="true">
+                  ✝
+                </span>
+              </div>
+            )}
+
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1f1614]/75 via-transparent to-transparent" aria-hidden="true" />
+            <div className="absolute bottom-4 left-4">
+              {series && <Badge>{series}</Badge>}
+            </div>
+            <div
+              className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-300 group-hover:bg-black/15"
+              aria-hidden="true"
+            >
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-full border border-white/0 bg-white/10 backdrop-blur-sm transition-all duration-300 group-hover:border-white/70 group-hover:bg-white/20"
+              >
+                <svg
+                  width="20" height="20" viewBox="0 0 20 20" fill="white"
+                  className="translate-x-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <polygon points="5,3 17,10 5,17"/>
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Body */}
-        <div className="p-4 sm:p-5">
-          {series && (
-            <p className="font-sans font-bold text-red-600 tracking-[0.12em]
-                          uppercase text-[0.65rem] mb-2 truncate">
-              {series}
+          <div className="p-5">
+            <h3 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-[var(--primary)]">
+              {title}
+            </h3>
+
+            <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+              {speaker} · {formattedDate}
             </p>
-          )}
 
-          <h3
-            className="font-serif font-bold text-gray-900 leading-snug mb-2
-                       line-clamp-2 group-hover:text-red-800 transition-colors"
-            style={{ fontSize: "clamp(1rem, 1.5vw + 0.5rem, 1.2rem)" }}
-          >
-            {title}
-          </h3>
-
-          <p className="font-sans text-sm text-gray-400 mb-3">
-            {speaker} · {formattedDate}
-          </p>
-
-          {tagList.length > 0 && (
-            <div className="flex flex-wrap gap-1.5" aria-label="Tags">
-              {tagList.slice(0, 3).map((tag) => (
-                <span
-                  key={tag}
-                  className="font-sans font-bold text-red-700 bg-red-50
-                             border border-red-100 text-xs px-2.5 py-0.5 rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+            {tagList.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2" aria-label="Tags">
+                {tagList.slice(0, 3).map((tag) => (
+                  <Badge key={tag} variant="outline" className="bg-white/75">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
       </Link>
     </article>
   );

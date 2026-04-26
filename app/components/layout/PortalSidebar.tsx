@@ -252,6 +252,7 @@ function SidebarContent({
                 </div>
               </li>
               {[
+                { to: "/portal/admin/cell-groups", label: "Cell Groups" },
                 { to: "/portal/admin/members", label: "Members" },
                 { to: "/portal/admin/sermons", label: "Sermons" },
                 { to: "/portal/admin/events", label: "Events" },

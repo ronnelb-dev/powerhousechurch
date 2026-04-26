@@ -7,6 +7,9 @@ import { SectionHeader } from "~/components/ui/SectionHeader";
 import { SermonCard } from "~/components/church/SermonCard";
 import { EventCard } from "~/components/church/EventCard";
 import { ServiceTimesBar } from "~/components/ui/ServiceTimesBar";
+import { Badge } from "~/components/ui/badge";
+import { buttonVariants } from "~/components/ui/Button";
+import { Card, CardContent } from "~/components/ui/card";
 
 export const meta: MetaFunction = () => [
   { title: "Powerhouse Church Christian Fellowship Intl. — Where Faith Meets Community" },
@@ -76,78 +79,96 @@ export default function HomePage() {
 
   return (
     <>
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section
-        className="relative pt-24 pb-24 px-6 overflow-hidden"
-        aria-labelledby="hero-heading"
-      >
-        {/* Background gradient */}
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-800 to-red-900"
-          aria-hidden="true"
-        />
-        {/* Decorative circles */}
-        <div
-          className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-white/5 pointer-events-none"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -bottom-32 left-1/4 w-[500px] h-[500px] rounded-full bg-white/[0.03] pointer-events-none"
-          aria-hidden="true"
-        />
+      <section className="relative overflow-hidden pb-24 pt-32 sm:pb-28 sm:pt-36" aria-labelledby="hero-heading">
+        <div className="absolute inset-0 bg-[linear-gradient(145deg,#241816_0%,#572527_42%,#8a3a36_100%)]" aria-hidden="true" />
+        <div className="hero-glow absolute inset-0 opacity-90" aria-hidden="true" />
+        <div className="warm-grid absolute inset-0 opacity-10" aria-hidden="true" />
+        <div className="absolute -left-24 top-20 h-72 w-72 rounded-full border border-white/10 bg-white/5 blur-3xl" aria-hidden="true" />
+        <div className="absolute -right-10 bottom-8 h-64 w-64 rounded-full bg-[rgba(214,162,76,0.16)] blur-3xl" aria-hidden="true" />
 
-        <div className="relative max-w-5xl mx-auto">
-          <p className="text-xs font-sans font-bold tracking-widest uppercase text-red-300 mb-4">
+        <div className="shell relative">
+          <Badge className="border-white/10 bg-white/10 text-white">
             {settings["church.name"] ?? "Powerhouse Church Christian Fellowship Intl."}
-          </p>
-          <h1
-            id="hero-heading"
-            className="font-serif text-white text-5xl md:text-6xl lg:text-7xl
-                       font-bold leading-tight mb-5 max-w-3xl"
-          >
-            Where Faith<br />Meets Community
+          </Badge>
+          <div className="mt-8 grid items-end gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="max-w-3xl">
+              <h1 id="hero-heading" className="text-balance font-serif text-6xl font-semibold leading-none text-white sm:text-7xl lg:text-[5.4rem]">
+                A church home with warmth, conviction, and room to grow.
           </h1>
-          <p className="font-serif italic text-red-200 text-lg md:text-xl max-w-xl mb-10">
+              <p className="mt-6 max-w-2xl text-balance text-lg leading-8 text-[#f1ddd4] sm:text-xl">
+                Join a Spirit-filled community rooted in Scripture, alive in worship, and committed to walking with people through every season of life.
+              </p>
+              <p className="mt-5 font-serif text-2xl italic text-[#f1d2a4]">
             "You are no longer strangers and foreigners, but fellow citizens with
             the saints…" — Ephesians 2:19
           </p>
-          <div className="flex flex-wrap gap-4">
+              <div className="mt-10 flex flex-wrap gap-4">
             <Link
               to="/new-here"
-              className="px-7 py-4 bg-yellow-400 text-red-900 font-sans font-bold
-                         text-sm tracking-wide rounded-lg hover:bg-yellow-300
-                         transition-colors focus:outline-none focus:ring-2
-                         focus:ring-yellow-200"
+                  className={buttonVariants({ size: "lg", variant: "secondary" })}
             >
-              Join Us Sunday →
+                  Plan Your Sunday
             </Link>
             <Link
               to="/live"
-              className="px-7 py-4 bg-white/10 text-white border border-white/30
-                         font-sans font-bold text-sm tracking-wide rounded-lg
-                         hover:bg-white/20 transition-colors focus:outline-none
-                         focus:ring-2 focus:ring-white/40"
+                  className={buttonVariants({
+                    size: "lg",
+                    variant: "outline",
+                    className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                  })}
             >
               Watch Live
             </Link>
+              </div>
+            </div>
+
+            <Card className="border-white/10 bg-white/8 text-white shadow-[0_30px_80px_-40px_rgba(10,5,5,0.75)]">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.28em] text-[#f1d2a4]">Sunday Experience</p>
+                <h2 className="mt-4 font-serif text-4xl font-semibold text-white">
+                  Come expectant. Leave strengthened.
+                </h2>
+                <div className="mt-8 grid gap-4">
+                  {[
+                    "Passionate worship and practical preaching",
+                    "Prayer support and meaningful community",
+                    "Clear next steps for kids, youth, and families",
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[#f1d2a4]" />
+                      <p className="text-sm leading-6 text-[#f7ebe4]">{item}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-5">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-[#f1d2a4]">This week</p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      Sunday 9:00 AM
+                    </p>
+                  </div>
+                  <Link to="/contact" className="text-sm font-semibold uppercase tracking-[0.12em] text-[#f7e3bf]">
+                    Get Directions
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* ── Service Times ─────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-6 -mt-8 relative z-10">
+      <div className="shell relative z-10 -mt-10">
         <ServiceTimesBar times={serviceTimes} />
       </div>
 
-      {/* ── Latest Sermon ─────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
+      <section className="shell section-gap">
         <SectionHeader
           eyebrow="From the Pulpit"
           title="Latest Message"
-          subtitle="Catch up on our most recent Sunday sermon."
+          subtitle="Catch up on the latest message and carry the Word with you into the week ahead."
         />
         {latestSermon ? (
-          <div className="mt-8">
+          <div className="mt-10">
             <SermonCard
               id={latestSermon.id}
               title={latestSermon.title}
@@ -166,58 +187,58 @@ export default function HomePage() {
           </p>
         )}
         <div className="mt-8">
-          <Link
-            to="/sermons"
-            className="inline-flex items-center gap-2 text-red-700 font-sans
-                       font-bold text-sm hover:text-red-900 transition-colors
-                       focus:outline-none focus:underline"
-          >
+          <Link to="/sermons" className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
             Browse all sermons →
           </Link>
         </div>
       </section>
 
-      {/* ── Mission Statement ─────────────────────────────── */}
-      <section className="bg-red-900 py-20 px-6" aria-labelledby="mission-heading">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-xs font-sans font-bold tracking-widest uppercase
-                        text-red-300 mb-4">
+      <section className="shell pb-10" aria-labelledby="mission-heading">
+        <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">
+          <CardContent className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[0.9fr_1.1fr] lg:p-12">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d6a24c]">
             Our Mission
           </p>
           <h2
             id="mission-heading"
-            className="font-serif text-white text-3xl md:text-4xl font-bold
-                       leading-tight mb-6"
+                className="mt-4 font-serif text-4xl font-semibold leading-none text-white sm:text-5xl"
           >
-            Making Disciples. Building Community.<br />
-            Declaring His Excellence.
+                Making disciples, building community, and declaring His excellence.
           </h2>
-          <p className="text-red-200 font-sans text-base leading-relaxed mb-8">
+              <p className="mt-5 max-w-md text-base leading-7 text-[#d8ded7]">
             Powerhouse Church exists to see every person know Jesus, grow in
             community, and go with purpose. We are a Spirit-filled congregation
             anchored in the Word and sent into the world.
           </p>
-          <Link
-            to="/about"
-            className="inline-block px-6 py-3 border-2 border-yellow-400
-                       text-yellow-300 font-sans font-bold text-sm rounded-lg
-                       hover:bg-yellow-400 hover:text-red-900 transition-all
-                       focus:outline-none focus:ring-2 focus:ring-yellow-200"
-          >
-            Learn more about us
-          </Link>
-        </div>
+              <Link to="/about" className={buttonVariants({ variant: "secondary", className: "mt-8" })}>
+                Learn More
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                ["Know Jesus", "Encounter Christ through Scripture, worship, and prayer."],
+                ["Find Family", "Move from attending services to belonging in community."],
+                ["Live Sent", "Serve your city with compassion, courage, and conviction."],
+              ].map(([title, body]) => (
+                <div key={title} className="rounded-[1.4rem] border border-white/10 bg-white/7 p-5">
+                  <h3 className="font-serif text-2xl font-semibold text-white">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-[#d8ded7]">{body}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
-      {/* ── Upcoming Events ───────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
+      <section className="shell section-gap">
         <SectionHeader
           eyebrow="What's Coming"
           title="Upcoming Events"
-          subtitle="Join us for these upcoming gatherings and celebrations."
+          subtitle="Plan ahead for the moments we’ll worship, celebrate, and grow together."
         />
         {upcomingEvents.length > 0 ? (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             {upcomingEvents.map((event) => (
               <EventCard
                 key={event.id}
@@ -236,36 +257,30 @@ export default function HomePage() {
           </p>
         )}
         <div className="mt-8">
-          <Link
-            to="/events"
-            className="inline-flex items-center gap-2 text-red-700 font-sans
-                       font-bold text-sm hover:text-red-900 transition-colors
-                       focus:outline-none focus:underline"
-          >
+          <Link to="/events" className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
             See all events →
           </Link>
         </div>
       </section>
 
-      {/* ── New Here CTA ──────────────────────────────────── */}
-      <section className="bg-primary-50 border-y border-primary-200 py-16 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-serif text-3xl font-bold text-gray-900 mb-3">
+      <section className="shell pb-24">
+        <Card className="overflow-hidden bg-[rgba(255,250,245,0.92)]">
+          <CardContent className="grid gap-8 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">First Time Here?</p>
+              <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)] sm:text-5xl">
             New to Powerhouse?
           </h2>
-          <p className="text-gray-500 font-sans text-base mb-8 max-w-md mx-auto">
+              <p className="mt-4 max-w-2xl text-base leading-7">
             We'd love to meet you. Find out what to expect on your first Sunday
             visit — no surprises, just a warm welcome.
           </p>
-          <Link
-            to="/new-here"
-            className="inline-block px-8 py-4 bg-red-700 text-white font-sans
-                       font-bold text-sm tracking-wide rounded-lg hover:bg-red-800
-                       transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-          >
-            Plan My First Visit →
-          </Link>
-        </div>
+            </div>
+            <Link to="/new-here" className={buttonVariants({ size: "lg" })}>
+              Plan My First Visit
+            </Link>
+          </CardContent>
+        </Card>
       </section>
     </>
   );

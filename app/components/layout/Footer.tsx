@@ -12,6 +12,9 @@ import {
   faMapMarkerAlt,
 } from '@fortawesome/free-solid-svg-icons'
 
+import { buttonVariants } from "~/components/ui/Button";
+import { cn } from "~/lib/utils";
+
 interface FooterProps {
   settings: Record<string, string>;
 }
@@ -27,38 +30,55 @@ export function Footer({ settings }: FooterProps) {
   ];
 
   return (
-    <footer className="bg-gray-900 text-white py-12" role="contentinfo">
-      <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-4 gap-8">
-
-          {/* Church Info */}
-          <div className="md:col-span-2">
-            <h3 className="text-2xl font-bold mb-4">Powerhouse Church</h3>
-            <p className="text-gray-300 mb-6 leading-relaxed">
+    <footer className="relative overflow-hidden border-t border-white/50 bg-[#231715] py-16 text-white" role="contentinfo">
+      <div className="absolute inset-0 hero-glow opacity-30" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d6a24c]/70 to-transparent" aria-hidden="true" />
+      <div className="shell relative">
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
+          <div className="max-w-xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#e7c07d]">Gather. Grow. Go.</p>
+            <h3 className="mt-4 font-serif text-4xl font-semibold text-[#fff8f1]">
+              {churchName}
+            </h3>
+            <p className="mt-4 max-w-lg leading-relaxed text-[#d6ccc4]">
               A community of faith where everyone is welcome to experience God's love, grow in their relationship with
               Christ, and serve others with purpose.
             </p>
 
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <FontAwesomeIcon icon={faMapMarkerAlt} className="w-5 h-5 mr-3 text-red-800" />
-                <span className="text-gray-300">2nd Flr. Sundrel Business Center Bldg Cabuyao City, Laguna</span>
+            <div className="mt-8 grid gap-3">
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <FontAwesomeIcon icon={faMapMarkerAlt} className="mt-1 h-4 w-4 text-[#e7c07d]" />
+                <span className="text-sm text-[#f1e8df]">2nd Flr. Sundrel Business Center Bldg Cabuyao City, Laguna</span>
               </div>
-              <div className="flex items-center">
-                <FontAwesomeIcon icon={faPhone} className="w-5 h-5 mr-3 text-red-800" />
-                <span className="text-gray-300">(555) 123-4567</span>
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <FontAwesomeIcon icon={faPhone} className="mt-1 h-4 w-4 text-[#e7c07d]" />
+                <span className="text-sm text-[#f1e8df]">(555) 123-4567</span>
               </div>
-              <div className="flex items-center">
-                <FontAwesomeIcon icon={faEnvelope} className="w-5 h-5 mr-3 text-red-800" />
-                <span className="text-gray-300">info@powerhousechurch.org</span>
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <FontAwesomeIcon icon={faEnvelope} className="mt-1 h-4 w-4 text-[#e7c07d]" />
+                <span className="text-sm text-[#f1e8df]">info@powerhousechurch.org</span>
               </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/new-here" className={buttonVariants({ variant: "secondary" })}>
+                Plan a Visit
+              </Link>
+              <Link
+                to="/give"
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                })}
+              >
+                Give Online
+              </Link>
             </div>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-            <ul className="space-y-2" role="list">
+            <h4 className="font-serif text-2xl font-semibold text-[#fff8f1]">Quick Links</h4>
+            <ul className="mt-5 space-y-3" role="list">
               {[
                 { to: "/about",       label: "About Us"   },
                 { to: "/sermons",     label: "Sermons"  },
@@ -67,7 +87,7 @@ export function Footer({ settings }: FooterProps) {
                 { to: "/contact",     label: "Contact"    },
               ].map(({ to, label }) => (
                 <li key={to}>
-                  <Link to={to} className="text-gray-300 hover:text-white transition-colors">
+                  <Link to={to} className="text-sm uppercase tracking-[0.14em] text-[#d6ccc4] transition-colors hover:text-white">
                     {label}
                   </Link>
                 </li>
@@ -75,12 +95,10 @@ export function Footer({ settings }: FooterProps) {
             </ul>
           </div>
 
-          {/* Connect */}
           <div>
-            <h4 className="text-lg font-semibold mb-4">Connect With Us</h4>
+            <h4 className="font-serif text-2xl font-semibold text-[#fff8f1]">Connect With Us</h4>
 
-            {/* Social icons */}
-            <div className="flex space-x-4 mb-6" aria-label="Social media links">
+            <div className="mt-5 flex space-x-3" aria-label="Social media links">
               {socials.map(({ key, icon, label, href }) =>
                 href ? (
                   <a
@@ -88,7 +106,10 @@ export function Footer({ settings }: FooterProps) {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-church-red transition-colors"
+                    className={cn(
+                      "flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/6 transition-all",
+                      "hover:-translate-y-0.5 hover:border-[#e7c07d]/60 hover:bg-white/12",
+                    )}
                     aria-label={`Follow us on ${label}`}
                   >
                     <FontAwesomeIcon icon={icon} className="w-5 h-5" />
@@ -97,10 +118,9 @@ export function Footer({ settings }: FooterProps) {
               )}
             </div>
 
-            {/* Service times */}
-            <div>
-              <h5 className="font-medium mb-2">Service Times</h5>
-              <p className="text-gray-300 text-sm">
+            <div className="mt-8 rounded-[var(--radius)] border border-white/10 bg-white/5 p-5">
+              <h5 className="text-xs uppercase tracking-[0.24em] text-[#e7c07d]">Service Times</h5>
+              <p className="mt-3 text-sm leading-7 text-[#f1e8df]">
                 Morning Service: 9:00 AM (Sunday)
                 <br />
                 Youth Service: 2:00 PM  (Sunday)
@@ -111,25 +131,24 @@ export function Footer({ settings }: FooterProps) {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-sm">
+        <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-[#bcaea2]">
             © {new Date().getFullYear()} {churchName}. All rights reserved. Built with love for our community.
           </p>
           <nav aria-label="Footer legal links">
-            <ul className="flex gap-6 text-sm" role="list">
+            <ul className="flex flex-wrap gap-5 text-sm" role="list">
               <li>
-                <Link to="/new-here" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/new-here" className="text-[#d6ccc4] transition-colors hover:text-white">
                   New Here?
                 </Link>
               </li>
               <li>
-                <Link to="/prayer-request" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/prayer-request" className="text-[#d6ccc4] transition-colors hover:text-white">
                   Prayer Request
                 </Link>
               </li>
               <li>
-                <Link to="/give" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/give" className="text-[#d6ccc4] transition-colors hover:text-white">
                   Give Online
                 </Link>
               </li>
