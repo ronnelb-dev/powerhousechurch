@@ -66,6 +66,7 @@ export default [
           index("routes/portal/admin/_index.tsx"),
           route("cell-groups", "routes/portal/admin/cell-groups.tsx"),
           route("kids-ministry", "routes/portal/admin/kids-ministry.tsx"),
+          route("communications", "routes/portal/admin/communications.tsx"),
           route("reports", "routes/portal/admin/reports.tsx"),
           route("members", "routes/portal/admin/members.tsx"),
           route("ministries", "routes/portal/admin/ministries.tsx"),

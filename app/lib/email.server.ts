@@ -14,6 +14,15 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+function textToHtmlParagraphs(value: string) {
+  return escapeHtml(value)
+    .split(/\r?\n\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${paragraph.replaceAll("\n", "<br/>")}</p>`)
+    .join("");
+}
+
 export async function sendPrayerRequestConfirmation(
   to: string,
   name: string
@@ -370,6 +379,31 @@ export async function sendEventReminderEmail(args: {
       }
       ${eventUrl ? `<p><a href="${eventUrl}">View event details</a></p>` : ""}
       <p>We look forward to seeing you.</p>
+      <p>Grace and peace,<br/>Powerhouse Church</p>
+    `,
+  });
+}
+
+export async function sendTargetedEmail(args: {
+  to: string;
+  recipientName?: string | null;
+  subject: string;
+  body: string;
+  audienceLabel: string;
+}) {
+  const { to, recipientName, subject, body, audienceLabel } = args;
+  const greeting = recipientName?.trim() ? `Dear ${escapeHtml(recipientName.trim())},` : "Hello,";
+
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html: `
+      <p>${greeting}</p>
+      ${textToHtmlParagraphs(body)}
+      <p style="margin-top: 20px; color: #6b7280; font-size: 12px;">
+        You are receiving this update from Powerhouse Church for: ${escapeHtml(audienceLabel)}.
+      </p>
       <p>Grace and peace,<br/>Powerhouse Church</p>
     `,
   });
