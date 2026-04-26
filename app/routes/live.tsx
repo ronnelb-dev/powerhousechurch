@@ -25,7 +25,12 @@ import {
 import type { MetaFunction } from "react-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSettings } from "~/lib/settings.server";
-import { getLatestVideo, buildEmbedUrl, parseVideoId } from "~/lib/youtube.server";
+import {
+  getLiveStream,
+  getLatestVideo,
+  buildEmbedUrl,
+  parseVideoId,
+} from "~/lib/youtube.server";
 import { db } from "~/lib/db.server";
 
 export const meta: MetaFunction = () => [
