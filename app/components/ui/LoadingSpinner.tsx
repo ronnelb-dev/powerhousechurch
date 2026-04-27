@@ -24,7 +24,7 @@ export function LoadingSpinner({
       className={cn(
         "flex items-center justify-center",
         fullScreen &&
-          "fixed inset-0 z-[9999] bg-black bg-opacity-50 pointer-events-auto",
+          "fixed inset-0 z-[9999] bg-black/40 pointer-events-auto",
         className,
       )}
       role="status"
