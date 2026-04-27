@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -5,9 +6,12 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useFetchers,
+  useNavigation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { getSettings } from "./lib/settings.server";
 import "./app.css";
 
@@ -57,7 +61,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const navigation = useNavigation();
+  const fetchers = useFetchers();
+
+  const isNavigating = navigation.state !== "idle";
+  const isFetcherLoading = fetchers.some((fetcher) => fetcher.state !== "idle");
+  const isLoading = isNavigating || isFetcherLoading;
+
+  useEffect(() => {
+    document.body.classList.toggle("overflow-hidden", isLoading);
+
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [isLoading]);
+
+  return (
+    <>
+      <Outlet />
+      <LoadingSpinner
+        isLoading={isLoading}
+        label={isNavigating ? "Loading page" : "Processing request"}
+      />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
