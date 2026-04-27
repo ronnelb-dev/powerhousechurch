@@ -6,6 +6,7 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { db } from "~/lib/db.server";
@@ -137,14 +138,14 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Sending reset link..."
               className="w-full rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60"
             >
-              {isSubmitting ? "Sending Reset Link…" : "Send Reset Link"}
-            </button>
+              Send Reset Link
+            </PendingButton>
           </Form>
         </div>
 

@@ -1,4 +1,5 @@
 // app/routes/contact.tsx
+import { useRef } from "react";
 import {
   Form,
   data,
@@ -10,8 +11,10 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { getSettings } from "~/lib/settings.server";
 import { PageHero } from "~/components/ui/PageHero";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { DEFAULT_CONTACT_FORM_VALUES } from "~/lib/public-submissions";
 import {
   handleContactSubmission,
@@ -78,10 +81,10 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 }
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id: string }) {
   if (!errors?.length) return null;
   return (
-    <p role="alert" className="mt-1.5 text-xs text-red-600 font-sans">
+    <p id={id} role="alert" className="mt-1.5 text-xs text-red-600 font-sans">
       {errors[0]}
     </p>
   );
@@ -95,6 +98,7 @@ const inputClass =
 const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 
 export default function ContactPage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useLoaderData<typeof loader>();
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
@@ -111,6 +115,13 @@ export default function ContactPage() {
     actionData?.success === false && "values" in actionData
       ? { ...DEFAULT_CONTACT_FORM_VALUES, ...actionData.values }
       : DEFAULT_CONTACT_FORM_VALUES;
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError,
+    fieldOrder: ["name", "email", "subject", "message"],
+  });
 
   return (
     <>
@@ -245,15 +256,12 @@ export default function ContactPage() {
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                {globalError && (
-                  <div
-                    role="alert"
-                    className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-sans text-amber-800"
-                  >
-                    {globalError}
-                  </div>
-                )}
-                <Form method="post" noValidate aria-label="Contact form">
+                <Form ref={formRef} method="post" noValidate aria-label="Contact form">
+                  <ValidationSummary
+                    errors={errors}
+                    globalError={globalError}
+                    className="mb-5"
+                  />
                   {/* Honeypot */}
                   <div className="hidden" aria-hidden="true">
                     <input type="text" name="honeypot" tabIndex={-1} autoComplete="off" />
@@ -268,10 +276,11 @@ export default function ContactPage() {
                         id="name" type="text" name="name" required
                         defaultValue={values.name}
                         aria-required="true" aria-invalid={!!errors.name}
+                        aria-describedby={describedBy(errors.name && "contact-name-error")}
                         className={`${inputClass} ${errors.name ? "border-red-300" : ""}`}
                         placeholder="Your name"
                       />
-                      <FieldError errors={errors.name} />
+                      <FieldError id="contact-name-error" errors={errors.name} />
                     </div>
                     <div>
                       <label htmlFor="contact-email" className={labelClass}>
@@ -281,10 +290,11 @@ export default function ContactPage() {
                         id="contact-email" type="email" name="email" required
                         defaultValue={values.email}
                         aria-required="true" aria-invalid={!!errors.email}
+                        aria-describedby={describedBy(errors.email && "contact-email-error")}
                         className={`${inputClass} ${errors.email ? "border-red-300" : ""}`}
                         placeholder="your@email.com"
                       />
-                      <FieldError errors={errors.email} />
+                      <FieldError id="contact-email-error" errors={errors.email} />
                     </div>
                   </div>
 
@@ -296,10 +306,11 @@ export default function ContactPage() {
                       id="subject" type="text" name="subject" required
                       defaultValue={values.subject}
                       aria-required="true" aria-invalid={!!errors.subject}
+                      aria-describedby={describedBy(errors.subject && "contact-subject-error")}
                       className={`${inputClass} ${errors.subject ? "border-red-300" : ""}`}
                       placeholder="What's this about?"
                     />
-                    <FieldError errors={errors.subject} />
+                    <FieldError id="contact-subject-error" errors={errors.subject} />
                   </div>
 
                   <div className="mb-7">
@@ -310,24 +321,25 @@ export default function ContactPage() {
                       id="message" name="message" rows={6} required
                       defaultValue={values.message}
                       aria-required="true" aria-invalid={!!errors.message}
+                      aria-describedby={describedBy(errors.message && "contact-message-error")}
                       maxLength={3000}
                       className={`${inputClass} resize-y min-h-[140px] ${errors.message ? "border-red-300" : ""}`}
                       placeholder="How can we help?"
                     />
-                    <FieldError errors={errors.message} />
+                    <FieldError id="contact-message-error" errors={errors.message} />
                   </div>
 
-                  <button
+                  <PendingButton
                     type="submit"
-                    disabled={isSubmitting}
-                    aria-busy={isSubmitting}
+                    isPending={isSubmitting}
+                    pendingText="Sending..."
                     className="w-full py-4 bg-red-700 text-white font-sans font-bold
                                text-sm tracking-wide rounded-lg hover:bg-red-800
                                disabled:opacity-60 disabled:cursor-not-allowed
                                transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
                   >
-                    {isSubmitting ? "Sending…" : "Send Message"}
-                  </button>
+                    Send Message
+                  </PendingButton>
                 </Form>
               </div>
             )}

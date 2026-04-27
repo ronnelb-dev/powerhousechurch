@@ -9,6 +9,7 @@ import {
   redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { handleLoginSubmission } from "~/lib/auth-actions.server";
 import { lucia, getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
@@ -161,18 +162,18 @@ export default function LoginPage() {
               />
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Signing in..."
               className="w-full py-4 bg-red-700 text-white font-sans font-bold
                          text-sm tracking-wide rounded-lg hover:bg-red-800
                          disabled:opacity-60 disabled:cursor-not-allowed
                          transition-all focus:outline-none focus:ring-2
                          focus:ring-red-400"
             >
-              {isSubmitting ? "Signing in…" : "Sign In"}
-            </button>
+              Sign In
+            </PendingButton>
           </Form>
         </div>
 

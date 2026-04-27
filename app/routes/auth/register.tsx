@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Form,
   Link,
@@ -7,6 +8,8 @@ import {
   redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { handleRegisterSubmission } from "~/lib/auth-actions.server";
 import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { getSession } from "~/lib/auth.server";
@@ -74,16 +77,17 @@ const inputClass =
 
 const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id: string }) {
   if (!errors?.length) return null;
   return (
-    <p role="alert" className="mt-1.5 text-xs text-red-600 font-sans">
+    <p id={id} role="alert" className="mt-1.5 text-xs text-red-600 font-sans">
       {errors[0]}
     </p>
   );
 }
 
 export default function RegisterPage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -91,6 +95,23 @@ export default function RegisterPage() {
     ? (actionData.errors as Record<string, string[] | undefined>) : {};
   const globalError = actionData?.success === false && "globalError" in actionData
     ? actionData.globalError : null;
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError,
+    fieldOrder: [
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "age",
+      "gender",
+      "birthday",
+      "password",
+      "confirmPassword",
+    ],
+  });
 
   return (
     <div className="min-h-screen bg-primary-50 flex items-center justify-center px-6 py-12">
@@ -112,16 +133,12 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-          <Form method="post" noValidate aria-label="Registration form">
-            {globalError && (
-              <div
-                role="alert"
-                className="mb-6 px-4 py-3 bg-red-50 border border-red-200
-                           rounded-lg text-sm font-sans text-red-700"
-              >
-                {globalError}
-              </div>
-            )}
+          <Form ref={formRef} method="post" noValidate aria-label="Registration form">
+            <ValidationSummary
+              errors={errors}
+              globalError={globalError}
+              className="mb-6"
+            />
 
             <div className="grid grid-cols-2 gap-4 mb-5">
               <div>
@@ -132,10 +149,11 @@ export default function RegisterPage() {
                   id="firstName" type="text" name="firstName"
                   autoComplete="given-name" required aria-required="true"
                   aria-invalid={!!errors?.firstName}
+                  aria-describedby={describedBy(errors?.firstName && "register-firstName-error")}
                   className={`${inputClass} ${errors?.firstName ? "border-red-300" : ""}`}
                   placeholder="Maria"
                 />
-                <FieldError errors={errors?.firstName} />
+                <FieldError id="register-firstName-error" errors={errors?.firstName} />
               </div>
               <div>
                 <label htmlFor="lastName" className={labelClass}>
@@ -145,10 +163,11 @@ export default function RegisterPage() {
                   id="lastName" type="text" name="lastName"
                   autoComplete="family-name" required aria-required="true"
                   aria-invalid={!!errors?.lastName}
+                  aria-describedby={describedBy(errors?.lastName && "register-lastName-error")}
                   className={`${inputClass} ${errors?.lastName ? "border-red-300" : ""}`}
                   placeholder="Reyes"
                 />
-                <FieldError errors={errors?.lastName} />
+                <FieldError id="register-lastName-error" errors={errors?.lastName} />
               </div>
             </div>
 
@@ -160,13 +179,14 @@ export default function RegisterPage() {
                 id="email" type="email" name="email"
                 autoComplete="email" required aria-required="true"
                 aria-invalid={!!errors?.email}
+                aria-describedby={describedBy("email-hint", errors?.email && "register-email-error")}
                 className={`${inputClass} ${errors?.email ? "border-red-300" : ""}`}
                 placeholder="your@email.com"
               />
               <p className="mt-1.5 text-xs text-gray-400 font-sans">
                 We send a verification link here before portal access is enabled.
               </p>
-              <FieldError errors={errors?.email} />
+              <FieldError id="register-email-error" errors={errors?.email} />
             </div>
 
             <div className="mb-5">
@@ -176,10 +196,11 @@ export default function RegisterPage() {
               <input
                 id="phone" type="tel" name="phone"
                 autoComplete="tel" aria-invalid={!!errors?.phone}
+                aria-describedby={describedBy(errors?.phone && "register-phone-error")}
                 className={`${inputClass} ${errors?.phone ? "border-red-300" : ""}`}
                 placeholder="09XX XXX XXXX"
               />
-              <FieldError errors={errors?.phone} />
+              <FieldError id="register-phone-error" errors={errors?.phone} />
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-5">
@@ -190,10 +211,11 @@ export default function RegisterPage() {
                 <input
                   id="age" type="number" name="age" min={5} max={120}
                   required aria-required="true" aria-invalid={!!errors?.age}
+                  aria-describedby={describedBy(errors?.age && "register-age-error")}
                   className={`${inputClass} ${errors?.age ? "border-red-300" : ""}`}
                   placeholder="28"
                 />
-                <FieldError errors={errors?.age} />
+                <FieldError id="register-age-error" errors={errors?.age} />
               </div>
               <div>
                 <label htmlFor="gender" className={labelClass}>
@@ -202,13 +224,14 @@ export default function RegisterPage() {
                 <select
                   id="gender" name="gender" required aria-required="true"
                   aria-invalid={!!errors?.gender}
+                  aria-describedby={describedBy(errors?.gender && "register-gender-error")}
                   className={`${inputClass} cursor-pointer ${errors?.gender ? "border-red-300" : ""}`}
                 >
                   <option value="">—</option>
                   <option value="MALE">Male</option>
                   <option value="FEMALE">Female</option>
                 </select>
-                <FieldError errors={errors?.gender} />
+                <FieldError id="register-gender-error" errors={errors?.gender} />
               </div>
               <div>
                 <label htmlFor="birthday" className={labelClass}>
@@ -217,9 +240,10 @@ export default function RegisterPage() {
                 <input
                   id="birthday" type="date" name="birthday"
                   required aria-required="true" aria-invalid={!!errors?.birthday}
+                  aria-describedby={describedBy(errors?.birthday && "register-birthday-error")}
                   className={`${inputClass} ${errors?.birthday ? "border-red-300" : ""}`}
                 />
-                <FieldError errors={errors?.birthday} />
+                <FieldError id="register-birthday-error" errors={errors?.birthday} />
               </div>
             </div>
 
@@ -231,14 +255,14 @@ export default function RegisterPage() {
                 id="password" type="password" name="password"
                 autoComplete="new-password" required aria-required="true"
                 aria-invalid={!!errors?.password}
-                aria-describedby="password-hint"
+                aria-describedby={describedBy("password-hint", errors?.password && "register-password-error")}
                 className={`${inputClass} ${errors?.password ? "border-red-300" : ""}`}
                 placeholder="Min. 8 characters"
               />
               <p id="password-hint" className="mt-1.5 text-xs text-gray-400 font-sans">
                 At least 8 characters, one uppercase letter, one number.
               </p>
-              <FieldError errors={errors?.password} />
+              <FieldError id="register-password-error" errors={errors?.password} />
             </div>
 
             <div className="mb-7">
@@ -249,23 +273,24 @@ export default function RegisterPage() {
                 id="confirmPassword" type="password" name="confirmPassword"
                 autoComplete="new-password" required aria-required="true"
                 aria-invalid={!!errors?.confirmPassword}
+                aria-describedby={describedBy(errors?.confirmPassword && "register-confirmPassword-error")}
                 className={`${inputClass} ${errors?.confirmPassword ? "border-red-300" : ""}`}
                 placeholder="Repeat your password"
               />
-              <FieldError errors={errors?.confirmPassword} />
+              <FieldError id="register-confirmPassword-error" errors={errors?.confirmPassword} />
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Creating account..."
               className="w-full py-4 bg-red-700 text-white font-sans font-bold
                          text-sm tracking-wide rounded-lg hover:bg-red-800
                          disabled:opacity-60 disabled:cursor-not-allowed
                          transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
             >
-              {isSubmitting ? "Creating Account…" : "Create Account"}
-            </button>
+              Create Account
+            </PendingButton>
           </Form>
         </div>
 

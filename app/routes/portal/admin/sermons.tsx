@@ -9,12 +9,15 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Manage Sermons — Admin" }];
 
@@ -154,7 +157,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === "delete") {
     const id = formData.get("id") as string;
     await db.sermon.delete({ where: { id } });
-    return { success: true };
+    return { success: true, sermonId: id, message: "Sermon deleted." };
   }
 
   if (intent === "togglePublished") {
@@ -163,7 +166,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (current) {
       await db.sermon.update({ where: { id }, data: { isPublished: !current.isPublished } });
     }
-    return { success: true };
+    return { success: true, sermonId: id, message: current?.isPublished ? "Sermon moved to draft." : "Sermon published." };
   }
 
   return { error: "Unknown intent." };
@@ -188,15 +191,40 @@ function SermonForm({
   sermon?: AdminSermon | null;
   onClose: () => void;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const fetcher = useFetcher<SermonActionData>();
+  const { showToast } = useToast();
   const isSubmitting = fetcher.state !== "idle";
   const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
+      if (fetcher.data.message) {
+        showToast({ tone: "success", message: fetcher.data.message });
+      }
       onClose();
     }
-  }, [fetcher.state, fetcher.data, onClose]);
+  }, [fetcher.state, fetcher.data, onClose, showToast]);
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError: fetcher.data?.success === false ? fetcher.data.formError : null,
+    fieldOrder: [
+      "title",
+      "speaker",
+      "series",
+      "date",
+      "tags",
+      "videoUrl",
+      "audioUrl",
+      "thumbnail",
+      "notes",
+      "scriptureFocus",
+      "weeklyGuide",
+      "reflectionPrompts",
+    ],
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -209,91 +237,104 @@ function SermonForm({
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl
                                                leading-none focus:outline-none" aria-label="Close">×</button>
         </div>
-        <fetcher.Form method="post" className="p-6 space-y-4">
+        <fetcher.Form ref={formRef} method="post" className="p-6 space-y-4">
           <input type="hidden" name="intent" value={sermon ? "update" : "create"} />
           {sermon && <input type="hidden" name="id" value={sermon.id} />}
 
-          {fetcher.data?.success === false && fetcher.data.formError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {fetcher.data.formError}
-            </div>
-          )}
+          <ValidationSummary
+            errors={errors}
+            globalError={fetcher.data?.success === false ? fetcher.data.formError : null}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label htmlFor="s-title" className={labelClass}>Title *</label>
               <input id="s-title" type="text" name="title"
-                     defaultValue={sermon?.title} required className={inputClass} />
-              <FieldError errors={errors.title} />
+                     defaultValue={sermon?.title} required aria-invalid={errors.title?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.title?.length ? "s-title-error" : null)} className={inputClass} />
+              <FieldError errors={errors.title} id="s-title-error" />
             </div>
             <div>
               <label htmlFor="s-speaker" className={labelClass}>Speaker *</label>
               <input id="s-speaker" type="text" name="speaker"
-                     defaultValue={sermon?.speaker} required className={inputClass} />
-              <FieldError errors={errors.speaker} />
+                     defaultValue={sermon?.speaker} required aria-invalid={errors.speaker?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.speaker?.length ? "s-speaker-error" : null)} className={inputClass} />
+              <FieldError errors={errors.speaker} id="s-speaker-error" />
             </div>
             <div>
               <label htmlFor="s-series" className={labelClass}>Series</label>
               <input id="s-series" type="text" name="series"
-                     defaultValue={sermon?.series ?? ""} className={inputClass} />
-              <FieldError errors={errors.series} />
+                     defaultValue={sermon?.series ?? ""} aria-invalid={errors.series?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.series?.length ? "s-series-error" : null)} className={inputClass} />
+              <FieldError errors={errors.series} id="s-series-error" />
             </div>
             <div>
               <label htmlFor="s-date" className={labelClass}>Date *</label>
               <input id="s-date" type="date" name="date"
-                     defaultValue={sermon?.date?.slice(0, 10)} required className={inputClass} />
-              <FieldError errors={errors.date} />
+                     defaultValue={sermon?.date?.slice(0, 10)} required aria-invalid={errors.date?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.date?.length ? "s-date-error" : null)} className={inputClass} />
+              <FieldError errors={errors.date} id="s-date-error" />
             </div>
             <div>
               <label htmlFor="s-tags" className={labelClass}>Tags (comma-separated)</label>
               <input id="s-tags" type="text" name="tags"
                      defaultValue={sermon?.tags} placeholder="Faith,Holy Spirit,Revival"
+                     aria-invalid={errors.tags?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.tags?.length ? "s-tags-error" : null)}
                      className={inputClass} />
-              <FieldError errors={errors.tags} />
+              <FieldError errors={errors.tags} id="s-tags-error" />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-videoUrl" className={labelClass}>YouTube Video URL</label>
               <input id="s-videoUrl" type="url" name="videoUrl"
                      defaultValue={sermon?.videoUrl ?? ""}
-                     placeholder="https://www.youtube.com/watch?v=..." className={inputClass} />
-              <FieldError errors={errors.videoUrl} />
+                     placeholder="https://www.youtube.com/watch?v=..." aria-invalid={errors.videoUrl?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.videoUrl?.length ? "s-videoUrl-error" : null)} className={inputClass} />
+              <FieldError errors={errors.videoUrl} id="s-videoUrl-error" />
             </div>
             <div>
               <label htmlFor="s-audioUrl" className={labelClass}>Audio URL</label>
               <input id="s-audioUrl" type="url" name="audioUrl"
                      defaultValue={sermon?.audioUrl ?? ""}
-                     placeholder="https://..." className={inputClass} />
-              <FieldError errors={errors.audioUrl} />
+                     placeholder="https://..." aria-invalid={errors.audioUrl?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.audioUrl?.length ? "s-audioUrl-error" : null)} className={inputClass} />
+              <FieldError errors={errors.audioUrl} id="s-audioUrl-error" />
             </div>
             <div>
               <label htmlFor="s-thumbnail" className={labelClass}>Thumbnail URL</label>
               <input id="s-thumbnail" type="url" name="thumbnail"
                      defaultValue={sermon?.thumbnail ?? ""}
-                     placeholder="https://res.cloudinary.com/..." className={inputClass} />
-              <FieldError errors={errors.thumbnail} />
+                     placeholder="https://res.cloudinary.com/..." aria-invalid={errors.thumbnail?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.thumbnail?.length ? "s-thumbnail-error" : null)} className={inputClass} />
+              <FieldError errors={errors.thumbnail} id="s-thumbnail-error" />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-notes" className={labelClass}>Sermon Notes (Markdown)</label>
               <textarea id="s-notes" name="notes" rows={4}
+                        aria-invalid={errors.notes?.length ? true : undefined}
+                        aria-describedby={describedBy(errors.notes?.length ? "s-notes-error" : null)}
                         className={`${inputClass} resize-y`}
                         defaultValue={sermon?.notes ?? ""}
                         placeholder="## Key Points&#10;- Point 1&#10;- Point 2" />
-              <FieldError errors={errors.notes} />
+              <FieldError errors={errors.notes} id="s-notes-error" />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-scriptureFocus" className={labelClass}>Scripture Focus</label>
               <input id="s-scriptureFocus" type="text" name="scriptureFocus"
                      defaultValue={sermon?.scriptureFocus ?? ""}
-                     placeholder="James 1:22-25" className={inputClass} />
-              <FieldError errors={errors.scriptureFocus} />
+                     placeholder="James 1:22-25" aria-invalid={errors.scriptureFocus?.length ? true : undefined}
+                     aria-describedby={describedBy(errors.scriptureFocus?.length ? "s-scriptureFocus-error" : null)} className={inputClass} />
+              <FieldError errors={errors.scriptureFocus} id="s-scriptureFocus-error" />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-weeklyGuide" className={labelClass}>Weekly Sermon Guide</label>
               <textarea id="s-weeklyGuide" name="weeklyGuide" rows={5}
                         defaultValue={sermon?.weeklyGuide ?? ""}
+                        aria-invalid={errors.weeklyGuide?.length ? true : undefined}
+                        aria-describedby={describedBy(errors.weeklyGuide?.length ? "s-weeklyGuide-error" : null)}
                         className={`${inputClass} resize-y`}
                         placeholder="Summarize how the church can carry this message into the week." />
-              <FieldError errors={errors.weeklyGuide} />
+              <FieldError errors={errors.weeklyGuide} id="s-weeklyGuide-error" />
             </div>
             <div className="col-span-2">
               <label htmlFor="s-reflectionPrompts" className={labelClass}>
@@ -301,9 +342,11 @@ function SermonForm({
               </label>
               <textarea id="s-reflectionPrompts" name="reflectionPrompts" rows={4}
                         defaultValue={sermon?.reflectionPrompts ?? ""}
+                        aria-invalid={errors.reflectionPrompts?.length ? true : undefined}
+                        aria-describedby={describedBy(errors.reflectionPrompts?.length ? "s-reflectionPrompts-error" : null)}
                         className={`${inputClass} resize-y`}
                         placeholder={"One prompt per line\nWhere is God asking for obedience this week?\nWho can you encourage with this message?"} />
-              <FieldError errors={errors.reflectionPrompts} />
+              <FieldError errors={errors.reflectionPrompts} id="s-reflectionPrompts-error" />
             </div>
           </div>
 
@@ -315,11 +358,11 @@ function SermonForm({
           </label>
 
           <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={isSubmitting}
+            <PendingButton type="submit" isPending={isSubmitting} pendingText="Saving..."
                     className="flex-1 py-3 bg-red-700 text-white font-bold text-sm font-sans
                                rounded-lg hover:bg-red-800 disabled:opacity-60 transition-all">
-              {isSubmitting ? "Saving…" : sermon ? "Update Sermon" : "Add Sermon"}
-            </button>
+              {sermon ? "Update Sermon" : "Add Sermon"}
+            </PendingButton>
             <button type="button" onClick={onClose}
                     className="px-5 py-3 border border-gray-200 text-gray-600 font-bold
                                text-sm font-sans rounded-lg hover:border-gray-300 transition-all">
@@ -406,8 +449,22 @@ function SermonRow({
 }) {
   const deleteFetcher = useFetcher<SermonActionData>();
   const toggleFetcher = useFetcher<SermonActionData>();
+  const { showToast } = useToast();
   const isDeleting = deleteFetcher.state !== "idle";
   const isToggling = toggleFetcher.state !== "idle";
+
+  useEffect(() => {
+    const fetchers = [deleteFetcher, toggleFetcher];
+    for (const fetcher of fetchers) {
+      if (fetcher.state !== "idle" || !fetcher.data) continue;
+      const message = fetcher.data.message ?? fetcher.data.formError;
+      if (!message) continue;
+      showToast({
+        tone: fetcher.data.success ? "success" : "error",
+        message,
+      });
+    }
+  }, [deleteFetcher, toggleFetcher, showToast]);
 
   return (
     <tr className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -429,9 +486,10 @@ function SermonRow({
         <toggleFetcher.Form method="post">
           <input type="hidden" name="intent" value="togglePublished" />
           <input type="hidden" name="id" value={sermon.id} />
-          <button
+          <PendingButton
             type="submit"
-            disabled={isToggling}
+            isPending={isToggling}
+            pendingText="Saving..."
             className={[
               "text-xs font-sans font-bold px-2.5 py-1 rounded-full border transition-all disabled:opacity-60",
               sermon.isPublished
@@ -440,8 +498,8 @@ function SermonRow({
             ].join(" ")}
             aria-label={`Toggle published status for ${sermon.title}`}
           >
-            {isToggling ? "Saving..." : sermon.isPublished ? "Published" : "Draft"}
-          </button>
+            {sermon.isPublished ? "Published" : "Draft"}
+          </PendingButton>
         </toggleFetcher.Form>
       </td>
       <td className="py-3 px-4">
@@ -457,9 +515,10 @@ function SermonRow({
           <deleteFetcher.Form method="post">
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="id" value={sermon.id} />
-            <button
+            <PendingButton
               type="submit"
-              disabled={isDeleting}
+              isPending={isDeleting}
+              pendingText="Deleting..."
               onClick={(e) => {
                 if (!confirm(`Delete "${sermon.title}"? This cannot be undone.`)) {
                   e.preventDefault();
@@ -469,8 +528,8 @@ function SermonRow({
                          px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50
                          transition-all focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </button>
+              Delete
+            </PendingButton>
           </deleteFetcher.Form>
         </div>
       </td>
@@ -478,9 +537,9 @@ function SermonRow({
   );
 }
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id?: string }) {
   if (!errors?.length) return null;
-  return <p className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
+  return <p id={id} className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
 }
 
 export function ErrorBoundary() {

@@ -1,4 +1,5 @@
 // app/routes/prayer-request.tsx
+import { useRef } from "react";
 import {
   Form,
   useActionData,
@@ -8,9 +9,11 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { db } from "~/lib/db.server";
 import { sendPrayerRequestConfirmation, notifyAdminOfPrayerRequest } from "~/lib/email.server";
 import { PageHero } from "~/components/ui/PageHero";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { getSession } from "~/lib/auth.server";
 import { handlePrayerRequestSubmission } from "~/lib/public-submissions.server";
 import {
@@ -86,6 +89,7 @@ const inputClass =
 const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 
 export default function PrayerRequestPage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -123,6 +127,12 @@ export default function PrayerRequestPage() {
 
   const errors = actionData?.success === false ? actionData.errors : {};
 
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    fieldOrder: ["name", "email", "request"],
+  });
+
   return (
     <>
       <PageHero
@@ -133,7 +143,8 @@ export default function PrayerRequestPage() {
 
       <div className="max-w-xl mx-auto px-6 py-16">
         <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-          <Form method="post" noValidate aria-label="Prayer request form">
+          <Form ref={formRef} method="post" noValidate aria-label="Prayer request form">
+            <ValidationSummary errors={errors} className="mb-5" />
             {/* Honeypot — hidden from real users, bots fill it in */}
             <div className="hidden" aria-hidden="true">
               <label htmlFor="honeypot">Leave this blank</label>
@@ -220,17 +231,17 @@ export default function PrayerRequestPage() {
               </label>
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Submitting..."
               className="w-full py-4 bg-red-700 text-white font-sans font-bold
                          text-sm tracking-wide rounded-lg hover:bg-red-800
                          disabled:opacity-60 disabled:cursor-not-allowed
                          transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
             >
-              {isSubmitting ? "Submitting…" : "Submit Prayer Request"}
-            </button>
+              Submit Prayer Request
+            </PendingButton>
           </Form>
         </div>
 

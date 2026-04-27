@@ -2,6 +2,7 @@
 import {
   useLoaderData,
   Form,
+  useActionData,
   useNavigation,
   isRouteErrorResponse,
   useRouteError,
@@ -14,7 +15,10 @@ import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { DevotionPost } from "~/components/church/DevotionPost";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { SectionHeader } from "~/components/ui/SectionHeader";
+import { useToast } from "~/components/ui/ToastProvider";
+import { useEffect, useRef } from "react";
 
 export const meta: MetaFunction = () => [
   { title: "Daily Bread — Powerhouse Church Portal" },
@@ -153,7 +157,7 @@ export async function action({ request }: ActionFunctionArgs) {
         isApproved:  user.role === "ADMIN", // admins skip the approval queue
       },
     });
-    return { success: true };
+    return { success: "Reflection submitted for review." };
   }
 
   if (intent === "toggleLike") {
@@ -178,21 +182,21 @@ export async function action({ request }: ActionFunctionArgs) {
     await db.comment.create({
       data: { postId, authorId: user.id, content },
     });
-    return { success: true };
+    return { success: "Comment posted." };
   }
 
   if (intent === "approvePost") {
     if (user.role !== "ADMIN") throw new Response("Forbidden", { status: 403 });
     const postId = formData.get("postId") as string;
     await db.post.update({ where: { id: postId }, data: { isApproved: true } });
-    return { success: true };
+    return { success: "Post approved." };
   }
 
   if (intent === "rejectPost") {
     if (user.role !== "ADMIN") throw new Response("Forbidden", { status: 403 });
     const postId = formData.get("postId") as string;
     await db.post.delete({ where: { id: postId } });
-    return { success: true };
+    return { success: "Post removed." };
   }
 
   return { error: "Unknown action." };
@@ -206,7 +210,10 @@ const inputClass =
 export default function CommunityPage() {
   const { latestSermon, posts, pendingPosts, userRole, cellGroupId } =
     useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
   const isPosting  = navigation.state === "submitting" &&
     navigation.formData?.get("intent") === "createPost";
   const reflectionPrompts = latestSermon?.reflectionPrompts
@@ -215,6 +222,29 @@ export default function CommunityPage() {
         .map((prompt) => prompt.trim())
         .filter(Boolean)
     : [];
+
+  useEffect(() => {
+    if (!actionData || typeof actionData !== "object") {
+      return;
+    }
+
+    const message =
+      "error" in actionData && actionData.error
+        ? actionData.error
+        : "success" in actionData && typeof actionData.success === "string"
+        ? actionData.success
+        : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: "error" in actionData && actionData.error ? "error" : "success",
+      message,
+    });
+  }, [actionData, showToast]);
 
   return (
     <div className="p-6 md:p-8 max-w-2xl">
@@ -413,16 +443,16 @@ export default function CommunityPage() {
               </select>
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isPosting}
-              aria-busy={isPosting}
+              isPending={isPosting}
+              pendingText="Posting..."
               className="px-6 py-2.5 bg-red-700 text-white font-sans font-bold
                          text-sm rounded-lg hover:bg-red-800 disabled:opacity-60
                          transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
             >
-              {isPosting ? "Posting…" : "Post Reflection"}
-            </button>
+              Post Reflection
+            </PendingButton>
           </div>
         </Form>
 

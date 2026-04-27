@@ -2,6 +2,7 @@
 // Edit all church settings stored in the Settings table.
 // Changes take effect immediately — no restart required.
 
+import { useEffect, useRef } from "react";
 import {
   useLoaderData,
   Form,
@@ -11,6 +12,8 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
@@ -74,7 +77,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
   }
 
-  return { success: true };
+  return { success: true, message: "Settings saved successfully." };
 }
 
 function maskSensitiveValue(value: string) {
@@ -159,6 +162,25 @@ export default function AdminSettingsPage() {
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSaving     = navigation.state === "submitting";
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!actionData?.success || !actionData.message) {
+      return;
+    }
+
+    if (lastToastRef.current === actionData.message) {
+      return;
+    }
+
+    lastToastRef.current = actionData.message;
+    showToast({
+      tone: "success",
+      title: "Settings updated",
+      message: actionData.message,
+    });
+  }, [actionData, showToast]);
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-2xl">
@@ -168,18 +190,6 @@ export default function AdminSettingsPage() {
       <p className="text-base text-gray-400 font-sans mb-8">
         Changes take effect immediately across the entire website.
       </p>
-
-      {actionData?.success && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-6 px-5 py-3 bg-green-50 border border-green-200 rounded-xl
-                     text-base font-sans font-bold text-green-700"
-        >
-          ✓ Settings saved successfully.
-        </div>
-      )}
-
       <Form method="post" aria-label="Church settings form">
         <div className="space-y-8">
           {SETTING_GROUPS.map((group) => (
@@ -258,10 +268,10 @@ export default function AdminSettingsPage() {
         </div>
 
         <div className="mt-8">
-          <button
+          <PendingButton
             type="submit"
-            disabled={isSaving}
-            aria-busy={isSaving}
+            isPending={isSaving}
+            pendingText="Saving..."
             className="inline-flex items-center justify-center
                        min-h-[52px] px-8 py-3
                        bg-red-700 text-white font-sans font-bold text-base
@@ -269,8 +279,8 @@ export default function AdminSettingsPage() {
                        disabled:opacity-60 transition-all touch-manipulation
                        focus:outline-none focus:ring-2 focus:ring-red-400"
           >
-            {isSaving ? "Saving…" : "Save All Settings"}
-          </button>
+            Save All Settings
+          </PendingButton>
         </div>
       </Form>
     </div>

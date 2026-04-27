@@ -5,7 +5,9 @@
 // Optimistic like toggle via useFetcher.
 // Comment composer is inline — no modal needed.
 
+import { useEffect, useRef } from "react";
 import { useFetcher } from "react-router";
+import { useToast } from "~/components/ui/ToastProvider";
 
 export interface DevotionPostData {
   id:           string;
@@ -54,6 +56,8 @@ function DoveIcon({ className }: { className?: string }) {
 export function DevotionPost({ post }: DevotionPostProps) {
   const likeFetcher    = useFetcher();
   const commentFetcher = useFetcher();
+  const { showToast } = useToast();
+  const lastCommentToastRef = useRef<string | null>(null);
 
   // Optimistic like state
   const isLiked: boolean = likeFetcher.formData
@@ -71,6 +75,36 @@ export function DevotionPost({ post }: DevotionPostProps) {
     day:   "numeric",
     year:  "numeric",
   });
+
+  useEffect(() => {
+    if (
+      commentFetcher.state !== "idle" ||
+      !commentFetcher.data ||
+      typeof commentFetcher.data !== "object"
+    ) {
+      return;
+    }
+
+    const message =
+      "error" in commentFetcher.data && commentFetcher.data.error
+        ? commentFetcher.data.error
+        : "success" in commentFetcher.data && typeof commentFetcher.data.success === "string"
+        ? commentFetcher.data.success
+        : null;
+
+    if (!message || lastCommentToastRef.current === message) {
+      return;
+    }
+
+    lastCommentToastRef.current = message;
+    showToast({
+      tone:
+        "error" in commentFetcher.data && commentFetcher.data.error
+          ? "error"
+          : "success",
+      message,
+    });
+  }, [commentFetcher.data, commentFetcher.state, showToast]);
 
   return (
     <article
@@ -233,7 +267,7 @@ export function DevotionPost({ post }: DevotionPostProps) {
           disabled={commentFetcher.state === "submitting"}
           aria-label="Post comment"
         >
-          Post
+          {commentFetcher.state === "submitting" ? "Posting..." : "Post"}
         </button>
       </commentFetcher.Form>
     </article>

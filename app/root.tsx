@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -12,6 +12,7 @@ import {
 
 import type { Route } from "./+types/root";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { ToastProvider } from "./components/ui/ToastProvider";
 import { getSettings } from "./lib/settings.server";
 import "./app.css";
 
@@ -65,8 +66,31 @@ export default function App() {
   const fetchers = useFetchers();
 
   const isNavigating = navigation.state !== "idle";
-  const isFetcherLoading = fetchers.some((fetcher) => fetcher.state !== "idle");
-  const isLoading = isNavigating || isFetcherLoading;
+  const isFetcherLoading = fetchers.some((fetcher) => {
+    if (fetcher.state === "idle") {
+      return false;
+    }
+
+    const method = fetcher.formMethod?.toLowerCase();
+    return !method || method === "get";
+  });
+  const shouldShowOverlay = isNavigating || isFetcherLoading;
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!shouldShowOverlay) {
+      setIsLoading(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsLoading(true);
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [shouldShowOverlay]);
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isLoading);
@@ -77,13 +101,13 @@ export default function App() {
   }, [isLoading]);
 
   return (
-    <>
+    <ToastProvider>
       <Outlet />
       <LoadingSpinner
         isLoading={isLoading}
-        label={isNavigating ? "Loading page" : "Processing request"}
+        label={isNavigating ? "Loading page" : "Loading content"}
       />
-    </>
+    </ToastProvider>
   );
 }
 

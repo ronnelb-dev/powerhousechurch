@@ -14,6 +14,9 @@ import type { MetaFunction } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
+import { useEffect, useRef } from "react";
 
 export const meta: MetaFunction = () => [{ title: "Kids Ministry — Admin" }];
 
@@ -195,6 +198,7 @@ function ChildAttendanceRow({
   disabled: boolean;
 }) {
   const fetcher = useFetcher();
+  const { showToast } = useToast();
   const primaryGuardian = guardians.find((guardian) => guardian.isPrimaryContact) ?? guardians[0] ?? null;
   const approvedGuardians = guardians.filter((guardian) => guardian.canPickup);
   const initials = displayName
@@ -215,6 +219,28 @@ function ChildAttendanceRow({
       : attendance?.status === "ABSENT"
         ? "Marked absent"
         : "Ready for check-in";
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+      return;
+    }
+
+    const message =
+      "error" in fetcher.data && fetcher.data.error
+        ? fetcher.data.error
+        : "success" in fetcher.data && fetcher.data.success
+        ? fetcher.data.success
+        : null;
+
+    if (!message) {
+      return;
+    }
+
+    showToast({
+      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
+      message,
+    });
+  }, [fetcher.data, fetcher.state, showToast]);
 
   return (
     <li className="flex flex-col gap-4 px-4 py-4">
@@ -289,11 +315,13 @@ function ChildAttendanceRow({
             <input type="hidden" name="childId" value={childId} />
             <input type="hidden" name="date" value={date} />
             <input type="hidden" name="serviceType" value={serviceType} />
-            <button
+            <PendingButton
               type="submit"
               name="status"
               value="PRESENT"
               disabled={disabled}
+              isPending={fetcher.state !== "idle" && fetcher.formData?.get("status") === "PRESENT"}
+              pendingText="Saving..."
               className={`min-h-11 rounded-xl border px-4 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-40 ${
                 isPresent && !isCheckedOut
                   ? "border-green-600 bg-green-600 text-white"
@@ -301,12 +329,14 @@ function ChildAttendanceRow({
               }`}
             >
               {isCheckedOut ? "Re-open check-in" : isPresent ? "Checked in" : "Check in"}
-            </button>
-            <button
+            </PendingButton>
+            <PendingButton
               type="submit"
               name="status"
               value="ABSENT"
               disabled={disabled}
+              isPending={fetcher.state !== "idle" && fetcher.formData?.get("status") === "ABSENT"}
+              pendingText="Saving..."
               className={`min-h-11 rounded-xl border px-4 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 ${
                 attendance?.status === "ABSENT"
                   ? "border-red-600 bg-red-600 text-white"
@@ -314,7 +344,7 @@ function ChildAttendanceRow({
               }`}
             >
               Mark absent
-            </button>
+            </PendingButton>
           </fetcher.Form>
 
           {awaitingPickup && (
@@ -348,13 +378,15 @@ function ChildAttendanceRow({
                       className="mt-1 w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-300"
                     />
                   </label>
-                  <button
+                  <PendingButton
                     type="submit"
                     disabled={disabled}
+                    isPending={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "checkOutChild"}
+                    pendingText="Saving..."
                     className="rounded-lg bg-green-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-800 disabled:opacity-40"
                   >
                     Verify pickup and check out
-                  </button>
+                  </PendingButton>
                 </div>
               </fetcher.Form>
             ) : (
@@ -974,6 +1006,8 @@ export default function KidsMinistryPage() {
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
   const isSubmitting = navigation.state === "submitting";
   const feedback =
     actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
@@ -981,6 +1015,27 @@ export default function KidsMinistryPage() {
       : null;
   const today = new Date().toISOString().slice(0, 10);
   const guardianDefaults = editingChild?.guardians ?? [];
+
+  useEffect(() => {
+    const message =
+      feedback && typeof feedback === "object"
+        ? ("error" in feedback && feedback.error
+            ? feedback.error
+            : "success" in feedback && feedback.success
+            ? feedback.success
+            : null)
+        : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: feedback && "error" in feedback && feedback.error ? "error" : "success",
+      message,
+    });
+  }, [feedback, showToast]);
 
   return (
     <div>
@@ -1007,19 +1062,6 @@ export default function KidsMinistryPage() {
           ))}
         </div>
       </div>
-
-      {feedback && (
-        <div
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
-            "error" in feedback && feedback.error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
-          }`}
-        >
-          {"error" in feedback && feedback.error ? feedback.error : "success" in feedback ? feedback.success : ""}
-        </div>
-      )}
-
       <div className="mb-8 grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <div className="rounded-2xl border border-gray-100 bg-white p-6">
           <div className="mb-5 flex items-center justify-between">
@@ -1267,13 +1309,14 @@ export default function KidsMinistryPage() {
               Active child record
             </label>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Saving..."
               className="rounded-lg bg-red-700 px-5 py-3 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving..." : editingChild ? "Update Child Profile" : "Create Child Profile"}
-            </button>
+              {editingChild ? "Update Child Profile" : "Create Child Profile"}
+            </PendingButton>
           </Form>
         </div>
 

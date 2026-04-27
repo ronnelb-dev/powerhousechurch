@@ -7,10 +7,13 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import {
   buildEventCalendarUrl,
@@ -245,7 +248,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === "delete") {
     const id = String(formData.get("id") ?? "");
     await prisma.event.delete({ where: { id } });
-    return { success: true };
+    return { success: true, eventId: id, message: "Event deleted." };
   }
 
   if (intent === "togglePublished") {
@@ -260,7 +263,7 @@ export async function action({ request }: ActionFunctionArgs) {
         data: { isPublished: !event.isPublished },
       });
     }
-    return { success: true };
+    return { success: true, eventId: id, message: event?.isPublished ? "Event moved to draft." : "Event published." };
   }
 
   if (intent === "sendReminder") {
@@ -554,15 +557,36 @@ function EventFormModal({
   event?: AdminEvent | null;
   onClose: () => void;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const fetcher = useFetcher<EventActionData>();
+  const { showToast } = useToast();
   const isSubmitting = fetcher.state !== "idle";
   const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
+      if (fetcher.data.message) {
+        showToast({ tone: "success", message: fetcher.data.message });
+      }
       onClose();
     }
-  }, [fetcher.state, fetcher.data, onClose]);
+  }, [fetcher.state, fetcher.data, onClose, showToast]);
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError: fetcher.data?.success === false ? fetcher.data.formError : null,
+    fieldOrder: [
+      "title",
+      "description",
+      "location",
+      "startDate",
+      "endDate",
+      "imageUrl",
+      "capacity",
+      "registrationDeadline",
+    ],
+  });
 
   return (
     <div
@@ -584,15 +608,14 @@ function EventFormModal({
             ×
           </button>
         </div>
-        <fetcher.Form method="post" className="space-y-4 p-6">
+        <fetcher.Form ref={formRef} method="post" className="space-y-4 p-6">
           <input type="hidden" name="intent" value={event ? "update" : "create"} />
           {event && <input type="hidden" name="id" value={event.id} />}
 
-          {fetcher.data?.success === false && fetcher.data.formError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {fetcher.data.formError}
-            </div>
-          )}
+          <ValidationSummary
+            errors={errors}
+            globalError={fetcher.data?.success === false ? fetcher.data.formError : null}
+          />
 
           <div>
             <label htmlFor="e-title" className={labelClass}>
@@ -604,9 +627,11 @@ function EventFormModal({
               name="title"
               defaultValue={event?.title}
               required
+              aria-invalid={Boolean(errors.title?.length)}
+              aria-describedby={describedBy(errors.title && "e-title-error")}
               className={inputClass}
             />
-            <FieldError errors={errors.title} />
+            <FieldError id="e-title-error" errors={errors.title} />
           </div>
           <div>
             <label htmlFor="e-description" className={labelClass}>
@@ -618,9 +643,11 @@ function EventFormModal({
               rows={3}
               required
               defaultValue={event?.description}
+              aria-invalid={Boolean(errors.description?.length)}
+              aria-describedby={describedBy(errors.description && "e-description-error")}
               className={`${inputClass} resize-y`}
             />
-            <FieldError errors={errors.description} />
+            <FieldError id="e-description-error" errors={errors.description} />
           </div>
           <div>
             <label htmlFor="e-location" className={labelClass}>
@@ -632,9 +659,11 @@ function EventFormModal({
               name="location"
               defaultValue={event?.location}
               required
+              aria-invalid={Boolean(errors.location?.length)}
+              aria-describedby={describedBy(errors.location && "e-location-error")}
               className={inputClass}
             />
-            <FieldError errors={errors.location} />
+            <FieldError id="e-location-error" errors={errors.location} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -647,9 +676,11 @@ function EventFormModal({
                 name="startDate"
                 defaultValue={event?.startDate?.slice(0, 16)}
                 required
+                aria-invalid={Boolean(errors.startDate?.length)}
+                aria-describedby={describedBy(errors.startDate && "e-startDate-error")}
                 className={inputClass}
               />
-              <FieldError errors={errors.startDate} />
+              <FieldError id="e-startDate-error" errors={errors.startDate} />
             </div>
             <div>
               <label htmlFor="e-endDate" className={labelClass}>
@@ -660,9 +691,11 @@ function EventFormModal({
                 type="datetime-local"
                 name="endDate"
                 defaultValue={event?.endDate?.slice(0, 16) ?? ""}
+                aria-invalid={Boolean(errors.endDate?.length)}
+                aria-describedby={describedBy(errors.endDate && "e-endDate-error")}
                 className={inputClass}
               />
-              <FieldError errors={errors.endDate} />
+              <FieldError id="e-endDate-error" errors={errors.endDate} />
             </div>
           </div>
           <div>
@@ -675,9 +708,11 @@ function EventFormModal({
               name="imageUrl"
               defaultValue={event?.imageUrl ?? ""}
               placeholder="https://res.cloudinary.com/..."
+              aria-invalid={Boolean(errors.imageUrl?.length)}
+              aria-describedby={describedBy(errors.imageUrl && "e-imageUrl-error")}
               className={inputClass}
             />
-            <FieldError errors={errors.imageUrl} />
+            <FieldError id="e-imageUrl-error" errors={errors.imageUrl} />
           </div>
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <label className="flex cursor-pointer items-center gap-2">
@@ -704,9 +739,11 @@ function EventFormModal({
                   name="capacity"
                   defaultValue={event?.capacity ?? ""}
                   placeholder="Leave blank for unlimited"
+                  aria-invalid={Boolean(errors.capacity?.length)}
+                  aria-describedby={describedBy(errors.capacity && "e-capacity-error")}
                   className={inputClass}
                 />
-                <FieldError errors={errors.capacity} />
+                <FieldError id="e-capacity-error" errors={errors.capacity} />
               </div>
               <div>
                 <label htmlFor="e-registrationDeadline" className={labelClass}>
@@ -717,9 +754,11 @@ function EventFormModal({
                   type="datetime-local"
                   name="registrationDeadline"
                   defaultValue={event?.registrationDeadline?.slice(0, 16) ?? ""}
+                  aria-invalid={Boolean(errors.registrationDeadline?.length)}
+                  aria-describedby={describedBy(errors.registrationDeadline && "e-registrationDeadline-error")}
                   className={inputClass}
                 />
-                <FieldError errors={errors.registrationDeadline} />
+                <FieldError id="e-registrationDeadline-error" errors={errors.registrationDeadline} />
               </div>
             </div>
             <p className="mt-3 text-xs text-gray-500">
@@ -739,13 +778,14 @@ function EventFormModal({
             </span>
           </label>
           <div className="flex gap-3 pt-2">
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Saving..."
               className="flex-1 rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60"
             >
-              {isSubmitting ? "Saving..." : event ? "Update Event" : "Add Event"}
-            </button>
+              {event ? "Update Event" : "Add Event"}
+            </PendingButton>
             <button
               type="button"
               onClick={onClose}
@@ -846,15 +886,28 @@ function AdminEventCard({
   const deleteFetcher = useFetcher<EventActionData>();
   const toggleFetcher = useFetcher<EventActionData>();
   const reminderFetcher = useFetcher<EventActionData>();
+  const { showToast } = useToast();
   const isPast = new Date(event.startDate) < new Date();
   const seatsLeft =
     typeof event.capacity === "number"
       ? Math.max(event.capacity - event.counts.confirmed, 0)
       : null;
-  const reminderResult = reminderFetcher.data;
   const isDeleting = deleteFetcher.state !== "idle";
   const isToggling = toggleFetcher.state !== "idle";
   const isSendingReminder = reminderFetcher.state !== "idle";
+
+  useEffect(() => {
+    const fetchers = [deleteFetcher, toggleFetcher, reminderFetcher];
+    for (const fetcher of fetchers) {
+      if (fetcher.state !== "idle" || !fetcher.data) continue;
+      const message = fetcher.data.message ?? fetcher.data.formError;
+      if (!message) continue;
+      showToast({
+        tone: fetcher.data.success ? "success" : "error",
+        message,
+      });
+    }
+  }, [deleteFetcher, toggleFetcher, reminderFetcher, showToast]);
 
   return (
     <div
@@ -869,9 +922,10 @@ function AdminEventCard({
             <toggleFetcher.Form method="post">
               <input type="hidden" name="intent" value="togglePublished" />
               <input type="hidden" name="id" value={event.id} />
-              <button
+              <PendingButton
                 type="submit"
-                disabled={isToggling}
+                isPending={isToggling}
+                pendingText="Saving..."
                 className={[
                   "rounded-full border px-2 py-0.5 text-xs font-bold disabled:opacity-60",
                   event.isPublished
@@ -879,8 +933,8 @@ function AdminEventCard({
                     : "border-gray-200 bg-gray-50 text-gray-500",
                 ].join(" ")}
               >
-                {isToggling ? "Saving..." : event.isPublished ? "Live" : "Draft"}
-              </button>
+                {event.isPublished ? "Live" : "Draft"}
+              </PendingButton>
             </toggleFetcher.Form>
             {event.requiresRegistration && (
               <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
@@ -913,13 +967,14 @@ function AdminEventCard({
             <reminderFetcher.Form method="post">
               <input type="hidden" name="intent" value="sendReminder" />
               <input type="hidden" name="id" value={event.id} />
-              <button
+              <PendingButton
                 type="submit"
-                disabled={isSendingReminder}
+                isPending={isSendingReminder}
+                pendingText="Sending..."
                 className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
               >
-                {isSendingReminder ? "Sending..." : "Send reminder"}
-              </button>
+                Send reminder
+              </PendingButton>
             </reminderFetcher.Form>
           )}
           <Form method="post" reloadDocument>
@@ -941,9 +996,10 @@ function AdminEventCard({
           <deleteFetcher.Form method="post">
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="id" value={event.id} />
-            <button
+            <PendingButton
               type="submit"
-              disabled={isDeleting}
+              isPending={isDeleting}
+              pendingText="Deleting..."
               onClick={(e) => {
                 if (!confirm(`Delete "${event.title}"?`)) {
                   e.preventDefault();
@@ -951,8 +1007,8 @@ function AdminEventCard({
               }}
               className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </button>
+              Delete
+            </PendingButton>
           </deleteFetcher.Form>
         </div>
       </div>
@@ -967,17 +1023,6 @@ function AdminEventCard({
           tone="gray"
         />
       </div>
-
-      {reminderResult && reminderResult.eventId === event.id &&
-        (reminderResult.success ? (
-          <p className="mt-3 text-xs font-semibold text-emerald-700">
-            {reminderResult.message}
-          </p>
-        ) : reminderResult.formError ? (
-          <p className="mt-3 text-xs font-semibold text-red-600">
-            {reminderResult.formError}
-          </p>
-        ) : null)}
 
       {event.requiresRegistration ? (
         <details className="group mt-5 rounded-xl border border-gray-100 bg-gray-50">
@@ -1027,6 +1072,7 @@ function RegistrationRow({
   registration: AdminRegistration;
 }) {
   const actionFetcher = useFetcher<EventActionData>();
+  const { showToast } = useToast();
   const isSubmitting = actionFetcher.state !== "idle";
   const checkedInAt = registration.checkedInAt
     ? new Date(registration.checkedInAt).toLocaleString("en-PH", {
@@ -1036,6 +1082,22 @@ function RegistrationRow({
         minute: "2-digit",
       })
     : null;
+
+  useEffect(() => {
+    if (actionFetcher.state !== "idle" || !actionFetcher.data) {
+      return;
+    }
+
+    const message = actionFetcher.data.message ?? actionFetcher.data.formError;
+    if (!message) {
+      return;
+    }
+
+    showToast({
+      tone: actionFetcher.data.success ? "success" : "error",
+      message,
+    });
+  }, [actionFetcher.data, actionFetcher.state, showToast]);
 
   return (
     <div className="px-4 py-4">
@@ -1075,13 +1137,14 @@ function RegistrationRow({
               <input type="hidden" name="intent" value="promoteWaitlist" />
               <input type="hidden" name="eventId" value={eventId} />
               <input type="hidden" name="registrationId" value={registration.id} />
-              <button
+              <PendingButton
                 type="submit"
-                disabled={isSubmitting}
+                isPending={isSubmitting}
+                pendingText="Updating..."
                 className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-800 transition-all hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60"
               >
-                {isSubmitting ? "Updating..." : "Promote"}
-              </button>
+                Promote
+              </PendingButton>
             </actionFetcher.Form>
           ) : (
             <actionFetcher.Form method="post">
@@ -1092,9 +1155,10 @@ function RegistrationRow({
               />
               <input type="hidden" name="eventId" value={eventId} />
               <input type="hidden" name="registrationId" value={registration.id} />
-              <button
+              <PendingButton
                 type="submit"
-                disabled={isSubmitting}
+                isPending={isSubmitting}
+                pendingText="Saving..."
                 className={[
                   "rounded-lg px-3 py-1.5 text-xs font-bold transition-all focus:outline-none focus:ring-2 disabled:opacity-60",
                   registration.checkedInAt
@@ -1102,30 +1166,12 @@ function RegistrationRow({
                     : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 focus:ring-emerald-300",
                 ].join(" ")}
               >
-                {isSubmitting
-                  ? "Saving..."
-                  : registration.checkedInAt
-                  ? "Undo check-in"
-                  : "Check in"}
-              </button>
+                {registration.checkedInAt ? "Undo check-in" : "Check in"}
+              </PendingButton>
             </actionFetcher.Form>
           )}
         </div>
       </div>
-
-      {actionFetcher.data &&
-      (actionFetcher.data.registrationId === registration.id ||
-        actionFetcher.data.eventId === eventId) ? (
-        actionFetcher.data.success ? (
-          <p className="mt-3 text-xs font-semibold text-emerald-700">
-            {actionFetcher.data.message}
-          </p>
-        ) : actionFetcher.data.formError ? (
-          <p className="mt-3 text-xs font-semibold text-red-600">
-            {actionFetcher.data.formError}
-          </p>
-        ) : null
-      ) : null}
     </div>
   );
 }
@@ -1165,9 +1211,9 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id: string }) {
   if (!errors?.length) return null;
-  return <p className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
+  return <p id={id} className="mt-1 text-xs font-medium text-red-600">{errors[0]}</p>;
 }
 
 export function ErrorBoundary() {

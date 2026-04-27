@@ -12,6 +12,7 @@ import type { MetaFunction } from "react-router";
 import { EventCard } from "~/components/church/EventCard";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { Card, CardContent } from "~/components/ui/card";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import {
@@ -374,15 +375,14 @@ export default function EventsPage() {
                           />
                           <FieldError errors={errors.notes} />
                         </div>
-                        <button
+                        <PendingButton
                           type="submit"
-                          disabled={activeEventId === event.id}
+                          isPending={activeEventId === event.id}
+                          pendingText="Submitting..."
                           className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-60"
                         >
-                          {activeEventId === event.id
-                            ? "Submitting..."
-                            : "Reserve my spot"}
-                        </button>
+                          Reserve my spot
+                        </PendingButton>
                       </Form>
                     )}
                   </div>

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   Form,
   Link,
@@ -14,6 +15,7 @@ import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Visit Plans — Admin" }];
 
@@ -485,6 +487,8 @@ export default function AdminVisitPlansPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
 
   const openCount =
     Object.entries(stats)
@@ -496,6 +500,29 @@ export default function AdminVisitPlansPage() {
     (plan) => plan.wantsPastorFollowUp,
   ).length;
   const familyCount = visitPlans.filter((plan) => plan.bringingKids).length;
+
+  useEffect(() => {
+    if (!actionData || typeof actionData !== "object") {
+      return;
+    }
+
+    const message =
+      "error" in actionData && actionData.error
+        ? actionData.error
+        : "success" in actionData && actionData.success
+        ? actionData.success
+        : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: "error" in actionData && actionData.error ? "error" : "success",
+      message,
+    });
+  }, [actionData, showToast]);
 
   return (
     <div>
@@ -596,23 +623,6 @@ export default function AdminVisitPlansPage() {
           </div>
         </Form>
       </div>
-
-      {actionData && typeof actionData === "object" && ("success" in actionData || "error" in actionData) ? (
-        <div
-          role="status"
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm font-sans ${
-            "error" in actionData && actionData.error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
-          }`}
-        >
-          {"error" in actionData && actionData.error
-            ? actionData.error
-            : "success" in actionData
-            ? actionData.success
-            : null}
-        </div>
-      ) : null}
 
       {isSubmitting ? (
         <p className="mb-4 text-sm font-sans text-gray-400">Saving changes…</p>

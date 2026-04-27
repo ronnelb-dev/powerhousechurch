@@ -5,6 +5,7 @@
 // Buttons ≥44px tall AND ≥72px wide for comfortable mobile tapping.
 
 import { useFetcher } from "react-router";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 interface AttendanceMarkRowProps {
   userId: string;
@@ -26,6 +27,7 @@ export function AttendanceMarkRow({
   disabled,
 }: AttendanceMarkRowProps) {
   const fetcher = useFetcher();
+  const isPending = fetcher.state !== "idle";
 
   // Optimistic status — show the value the user just submitted immediately
   const optimisticStatus: "PRESENT" | "ABSENT" | null = fetcher.formData
@@ -71,11 +73,13 @@ export function AttendanceMarkRow({
         <input type="hidden" name="date" value={date} />
         <input type="hidden" name="type" value={type} />
 
-        <button
+        <PendingButton
           type="submit"
           name="status"
           value="PRESENT"
           disabled={disabled}
+          isPending={isPending && optimisticStatus === "PRESENT"}
+          pendingText="Saving"
           aria-pressed={optimisticStatus === "PRESENT"}
           aria-label={`Mark ${firstName} ${lastName} as present`}
           className={[
@@ -90,13 +94,15 @@ export function AttendanceMarkRow({
           ].join(" ")}
         >
           Present
-        </button>
+        </PendingButton>
 
-        <button
+        <PendingButton
           type="submit"
           name="status"
           value="ABSENT"
           disabled={disabled}
+          isPending={isPending && optimisticStatus === "ABSENT"}
+          pendingText="Saving"
           aria-pressed={optimisticStatus === "ABSENT"}
           aria-label={`Mark ${firstName} ${lastName} as absent`}
           className={[
@@ -111,7 +117,7 @@ export function AttendanceMarkRow({
           ].join(" ")}
         >
           Absent
-        </button>
+        </PendingButton>
       </fetcher.Form>
     </li>
   );

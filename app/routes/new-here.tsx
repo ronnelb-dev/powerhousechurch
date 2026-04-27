@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Form,
   Link,
@@ -8,7 +9,9 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PageHero } from "~/components/ui/PageHero";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -178,10 +181,10 @@ const VISIT_BENEFITS = [
   "Optional usher or pastoral follow-up only happens if you ask for it.",
 ];
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id: string }) {
   if (!errors?.length) return null;
   return (
-    <p role="alert" className="mt-2 text-sm text-red-200">
+    <p id={id} role="alert" className="mt-2 text-sm text-red-200">
       {errors[0]}
     </p>
   );
@@ -192,6 +195,7 @@ const fieldClass =
   "placeholder:text-white/55 focus:outline-none focus:ring-2 focus:ring-[#f3cf8e] focus:border-transparent";
 
 export default function NewHerePage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const { address, phone, email, serviceOptions } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as ActionData | undefined;
   const navigation = useNavigation();
@@ -209,6 +213,24 @@ export default function NewHerePage() {
     failureData && "globalError" in failureData
       ? failureData.globalError ?? null
       : null;
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError,
+    fieldOrder: [
+      "name",
+      "email",
+      "phone",
+      "city",
+      "preferredService",
+      "visitDate",
+      "adultCount",
+      "kidsCount",
+      "kidsDetails",
+      "notes",
+    ],
+  });
 
   return (
     <>
@@ -359,16 +381,12 @@ export default function NewHerePage() {
                     </p>
                   </div>
 
-                  {globalError ? (
-                    <div
-                      role="alert"
-                      className="mb-6 rounded-2xl border border-[#f3cf8e]/30 bg-[#f3cf8e]/14 px-4 py-3 text-sm text-[#fff4d8]"
-                    >
-                      {globalError}
-                    </div>
-                  ) : null}
-
-                  <Form method="post" noValidate className="space-y-6" aria-label="Plan your visit form">
+                  <Form ref={formRef} method="post" noValidate className="space-y-6" aria-label="Plan your visit form">
+                    <ValidationSummary
+                      errors={errors}
+                      globalError={globalError}
+                      className="border-[#f3cf8e]/30 bg-[#f3cf8e]/14 text-[#fff4d8]"
+                    />
                     <div className="hidden" aria-hidden="true">
                       <label htmlFor="honeypot">Leave this blank</label>
                       <input id="honeypot" name="honeypot" type="text" tabIndex={-1} autoComplete="off" />
@@ -386,10 +404,11 @@ export default function NewHerePage() {
                           required
                           defaultValue={values.name}
                           aria-invalid={!!errors.name}
+                          aria-describedby={describedBy(errors.name && "visit-name-error")}
                           className={cn(fieldClass, errors.name ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                           placeholder="Your full name"
                         />
-                        <FieldError errors={errors.name} />
+                        <FieldError id="visit-name-error" errors={errors.name} />
                       </div>
                       <div>
                         <label htmlFor="email" className="mb-2 block text-sm font-semibold text-white">
@@ -402,10 +421,11 @@ export default function NewHerePage() {
                           required
                           defaultValue={values.email}
                           aria-invalid={!!errors.email}
+                          aria-describedby={describedBy(errors.email && "visit-email-error")}
                           className={cn(fieldClass, errors.email ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                           placeholder="you@example.com"
                         />
-                        <FieldError errors={errors.email} />
+                        <FieldError id="visit-email-error" errors={errors.email} />
                       </div>
                       <div>
                         <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-white">
@@ -417,10 +437,11 @@ export default function NewHerePage() {
                           type="tel"
                           defaultValue={values.phone}
                           aria-invalid={!!errors.phone}
+                          aria-describedby={describedBy(errors.phone && "visit-phone-error")}
                           className={cn(fieldClass, errors.phone ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                           placeholder="09xx xxx xxxx"
                         />
-                        <FieldError errors={errors.phone} />
+                        <FieldError id="visit-phone-error" errors={errors.phone} />
                       </div>
                       <div>
                         <label htmlFor="city" className="mb-2 block text-sm font-semibold text-white">
@@ -432,10 +453,11 @@ export default function NewHerePage() {
                           type="text"
                           defaultValue={values.city}
                           aria-invalid={!!errors.city}
+                          aria-describedby={describedBy(errors.city && "visit-city-error")}
                           className={cn(fieldClass, errors.city ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                           placeholder="Where you're coming from"
                         />
-                        <FieldError errors={errors.city} />
+                        <FieldError id="visit-city-error" errors={errors.city} />
                       </div>
                     </div>
 
@@ -450,6 +472,7 @@ export default function NewHerePage() {
                           required
                           defaultValue={values.preferredService}
                           aria-invalid={!!errors.preferredService}
+                          aria-describedby={describedBy(errors.preferredService && "visit-preferredService-error")}
                           className={cn(fieldClass, "appearance-none", errors.preferredService ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                         >
                           <option value="" className="text-gray-900">
@@ -461,7 +484,7 @@ export default function NewHerePage() {
                             </option>
                           ))}
                         </select>
-                        <FieldError errors={errors.preferredService} />
+                        <FieldError id="visit-preferredService-error" errors={errors.preferredService} />
                       </div>
                       <div>
                         <label htmlFor="visitDate" className="mb-2 block text-sm font-semibold text-white">
@@ -473,9 +496,10 @@ export default function NewHerePage() {
                           type="date"
                           defaultValue={values.visitDate}
                           aria-invalid={!!errors.visitDate}
+                          aria-describedby={describedBy(errors.visitDate && "visit-visitDate-error")}
                           className={cn(fieldClass, errors.visitDate ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                         />
-                        <FieldError errors={errors.visitDate} />
+                        <FieldError id="visit-visitDate-error" errors={errors.visitDate} />
                       </div>
                     </div>
 
@@ -492,9 +516,10 @@ export default function NewHerePage() {
                           max={12}
                           defaultValue={values.adultCount}
                           aria-invalid={!!errors.adultCount}
+                          aria-describedby={describedBy(errors.adultCount && "visit-adultCount-error")}
                           className={cn(fieldClass, errors.adultCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                         />
-                        <FieldError errors={errors.adultCount} />
+                        <FieldError id="visit-adultCount-error" errors={errors.adultCount} />
                       </div>
                       <fieldset className="rounded-[1.6rem] border border-white/10 bg-white/6 px-5 py-4">
                         <legend className="px-2 text-sm font-semibold text-white">
@@ -551,10 +576,11 @@ export default function NewHerePage() {
                             max={12}
                             defaultValue={values.kidsCount}
                             aria-invalid={!!errors.kidsCount}
+                            aria-describedby={describedBy(errors.kidsCount && "visit-kidsCount-error")}
                             className={cn(fieldClass, errors.kidsCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                             placeholder="0"
                           />
-                          <FieldError errors={errors.kidsCount} />
+                          <FieldError id="visit-kidsCount-error" errors={errors.kidsCount} />
                         </div>
                         <div>
                           <label htmlFor="kidsDetails" className="mb-2 block text-sm font-semibold text-white">
@@ -566,10 +592,11 @@ export default function NewHerePage() {
                             rows={3}
                             defaultValue={values.kidsDetails}
                             aria-invalid={!!errors.kidsDetails}
+                            aria-describedby={describedBy(errors.kidsDetails && "visit-kidsDetails-error")}
                             className={cn(fieldClass, "min-h-[110px] resize-y", errors.kidsDetails ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                             placeholder="Ages, allergies, or anything helpful for check-in"
                           />
-                          <FieldError errors={errors.kidsDetails} />
+                          <FieldError id="visit-kidsDetails-error" errors={errors.kidsDetails} />
                         </div>
                       </div>
                     </div>
@@ -623,20 +650,21 @@ export default function NewHerePage() {
                         rows={4}
                         defaultValue={values.notes}
                         aria-invalid={!!errors.notes}
+                        aria-describedby={describedBy(errors.notes && "visit-notes-error")}
                         className={cn(fieldClass, "min-h-[120px] resize-y", errors.notes ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
                         placeholder="Prayer needs, accessibility notes, or questions before you arrive"
                       />
-                      <FieldError errors={errors.notes} />
+                      <FieldError id="visit-notes-error" errors={errors.notes} />
                     </div>
 
-                    <button
+                    <PendingButton
                       type="submit"
-                      disabled={isSubmitting}
-                      aria-busy={isSubmitting}
+                      isPending={isSubmitting}
+                      pendingText="Saving your visit..."
                       className="w-full rounded-full bg-[#f3cf8e] px-6 py-4 text-sm font-semibold uppercase tracking-[0.1em] text-[#4a201d] transition hover:bg-[#f7daa3] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {isSubmitting ? "Saving your visit…" : "Save my visit plan"}
-                    </button>
+                      Save my visit plan
+                    </PendingButton>
                   </Form>
                 </>
               )}

@@ -13,6 +13,9 @@ import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { ensureSampleMinistries } from "~/lib/ministries.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { describedBy } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Manage Ministries — Admin" }];
 
@@ -186,9 +189,9 @@ export async function action({ request }: ActionFunctionArgs) {
   return { ok: false, formError: "Unknown action." };
 }
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ message, id }: { message?: string; id?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs font-sans text-red-600">{message}</p>;
+  return <p id={id} className="mt-1 text-xs font-sans text-red-600">{message}</p>;
 }
 
 function MinistryRow({
@@ -198,6 +201,7 @@ function MinistryRow({
 }) {
   const updateFetcher = useFetcher<MinistryActionData>();
   const deleteFetcher = useFetcher<MinistryActionData>();
+  const { showToast } = useToast();
 
   const updateErrors =
     updateFetcher.data &&
@@ -209,6 +213,15 @@ function MinistryRow({
 
   const isSaving = updateFetcher.state !== "idle";
   const isDeleting = deleteFetcher.state !== "idle";
+
+  useEffect(() => {
+    if (updateFetcher.state === "idle" && updateFetcher.data?.ok && updateFetcher.data.ministryId === ministry.id) {
+      showToast({ tone: "success", message: "Ministry updated." });
+    }
+    if (deleteFetcher.state === "idle" && deleteFetcher.data?.ok && deleteFetcher.data.ministryId === ministry.id) {
+      showToast({ tone: "success", message: "Ministry deleted." });
+    }
+  }, [deleteFetcher.data, deleteFetcher.state, ministry.id, showToast, updateFetcher.data, updateFetcher.state]);
 
   return (
     <tr className="border-b border-gray-100 align-top">
@@ -249,58 +262,73 @@ function MinistryRow({
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <input
+                id={`ministry-name-${ministry.id}`}
                 type="text"
                 name="name"
                 defaultValue={ministry.name}
                 placeholder="Ministry name"
+                aria-invalid={updateErrors?.name?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.name?.[0] ? `ministry-name-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.name?.[0]} />
+              <FieldError message={updateErrors?.name?.[0]} id={`ministry-name-${ministry.id}-error`} />
             </div>
 
             <div>
               <input
+                id={`ministry-leader-${ministry.id}`}
                 type="text"
                 name="leader"
                 defaultValue={ministry.leader}
                 placeholder="Leader name"
+                aria-invalid={updateErrors?.leader?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.leader?.[0] ? `ministry-leader-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.leader?.[0]} />
+              <FieldError message={updateErrors?.leader?.[0]} id={`ministry-leader-${ministry.id}-error`} />
             </div>
 
             <div className="md:col-span-2">
               <textarea
+                id={`ministry-description-${ministry.id}`}
                 name="description"
                 rows={4}
                 defaultValue={ministry.description}
                 placeholder="Describe this ministry"
+                aria-invalid={updateErrors?.description?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.description?.[0] ? `ministry-description-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.description?.[0]} />
+              <FieldError message={updateErrors?.description?.[0]} id={`ministry-description-${ministry.id}-error`} />
             </div>
 
             <div>
               <input
+                id={`ministry-imageUrl-${ministry.id}`}
                 type="url"
                 name="imageUrl"
                 defaultValue={ministry.imageUrl ?? ""}
                 placeholder="https://example.com/image.jpg"
+                aria-invalid={updateErrors?.imageUrl?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.imageUrl?.[0] ? `ministry-imageUrl-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.imageUrl?.[0]} />
+              <FieldError message={updateErrors?.imageUrl?.[0]} id={`ministry-imageUrl-${ministry.id}-error`} />
             </div>
 
             <div>
               <input
+                id={`ministry-sortOrder-${ministry.id}`}
                 type="number"
                 min="0"
                 step="1"
                 name="sortOrder"
                 defaultValue={ministry.sortOrder}
+                aria-invalid={updateErrors?.sortOrder?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.sortOrder?.[0] ? `ministry-sortOrder-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.sortOrder?.[0]} />
+              <FieldError message={updateErrors?.sortOrder?.[0]} id={`ministry-sortOrder-${ministry.id}-error`} />
             </div>
           </div>
 
@@ -315,18 +343,16 @@ function MinistryRow({
           </label>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSaving}
+              isPending={isSaving}
+              pendingText="Saving..."
               className="rounded-lg bg-red-700 px-4 py-2 text-xs font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:opacity-60"
             >
-              {isSaving ? "Saving..." : "Save changes"}
-            </button>
+              Save changes
+            </PendingButton>
             {updateFetcher.data && !updateFetcher.data.ok && updateFetcher.data.formError ? (
               <p className="text-xs font-sans text-red-600">{updateFetcher.data.formError}</p>
-            ) : null}
-            {updateFetcher.data?.ok && updateFetcher.data.ministryId === ministry.id ? (
-              <p className="text-xs font-sans text-green-600">Ministry updated.</p>
             ) : null}
           </div>
         </updateFetcher.Form>
@@ -339,9 +365,10 @@ function MinistryRow({
           <deleteFetcher.Form method="post">
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="ministryId" value={ministry.id} />
-            <button
+            <PendingButton
               type="submit"
-              disabled={isDeleting}
+              isPending={isDeleting}
+              pendingText="Deleting..."
               onClick={(event) => {
                 if (!confirm(`Delete "${ministry.name}"?`)) {
                   event.preventDefault();
@@ -349,8 +376,8 @@ function MinistryRow({
               }}
               className="rounded-lg border border-red-200 px-4 py-2 text-xs font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </button>
+              Delete
+            </PendingButton>
           </deleteFetcher.Form>
           {deleteFetcher.data && !deleteFetcher.data.ok && deleteFetcher.data.formError ? (
             <p className="text-xs font-sans text-red-600">{deleteFetcher.data.formError}</p>
@@ -365,6 +392,7 @@ export default function AdminMinistriesPage() {
   const { ministries } = useLoaderData<typeof loader>();
   const createFetcher = useFetcher<MinistryActionData>();
   const createFormRef = useRef<HTMLFormElement>(null);
+  const { showToast } = useToast();
 
   const createErrors =
     createFetcher.data && !createFetcher.data.ok && createFetcher.data.intent === "create"
@@ -374,8 +402,9 @@ export default function AdminMinistriesPage() {
   useEffect(() => {
     if (createFetcher.state === "idle" && createFetcher.data?.ok && createFetcher.data.intent === "create") {
       createFormRef.current?.reset();
+      showToast({ tone: "success", message: "Ministry created." });
     }
-  }, [createFetcher.state, createFetcher.data]);
+  }, [createFetcher.state, createFetcher.data, showToast]);
 
   return (
     <div className="space-y-8">
@@ -408,12 +437,15 @@ export default function AdminMinistriesPage() {
                 Ministry Name
               </label>
               <input
+                id="create-ministry-name"
                 type="text"
                 name="name"
                 placeholder="Example: Couples Ministry"
+                aria-invalid={createErrors?.name?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.name?.[0] ? "create-ministry-name-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.name?.[0]} />
+              <FieldError message={createErrors?.name?.[0]} id="create-ministry-name-error" />
             </div>
 
             <div>
@@ -421,12 +453,15 @@ export default function AdminMinistriesPage() {
                 Ministry Leader
               </label>
               <input
+                id="create-ministry-leader"
                 type="text"
                 name="leader"
                 placeholder="Leader name"
+                aria-invalid={createErrors?.leader?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.leader?.[0] ? "create-ministry-leader-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.leader?.[0]} />
+              <FieldError message={createErrors?.leader?.[0]} id="create-ministry-leader-error" />
             </div>
 
             <div className="md:col-span-2">
@@ -434,12 +469,15 @@ export default function AdminMinistriesPage() {
                 Description
               </label>
               <textarea
+                id="create-ministry-description"
                 name="description"
                 rows={4}
                 placeholder="What does this ministry do?"
+                aria-invalid={createErrors?.description?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.description?.[0] ? "create-ministry-description-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.description?.[0]} />
+              <FieldError message={createErrors?.description?.[0]} id="create-ministry-description-error" />
             </div>
 
             <div>
@@ -447,12 +485,15 @@ export default function AdminMinistriesPage() {
                 Image URL
               </label>
               <input
+                id="create-ministry-imageUrl"
                 type="url"
                 name="imageUrl"
                 placeholder="https://example.com/image.jpg"
+                aria-invalid={createErrors?.imageUrl?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.imageUrl?.[0] ? "create-ministry-imageUrl-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.imageUrl?.[0]} />
+              <FieldError message={createErrors?.imageUrl?.[0]} id="create-ministry-imageUrl-error" />
             </div>
 
             <div>
@@ -460,14 +501,17 @@ export default function AdminMinistriesPage() {
                 Sort Order
               </label>
               <input
+                id="create-ministry-sortOrder"
                 type="number"
                 min="0"
                 step="1"
                 name="sortOrder"
                 defaultValue={ministries.length + 1}
+                aria-invalid={createErrors?.sortOrder?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.sortOrder?.[0] ? "create-ministry-sortOrder-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.sortOrder?.[0]} />
+              <FieldError message={createErrors?.sortOrder?.[0]} id="create-ministry-sortOrder-error" />
             </div>
           </div>
 
@@ -482,16 +526,14 @@ export default function AdminMinistriesPage() {
           </label>
 
           <div className="flex items-center gap-3">
-            <button
+            <PendingButton
               type="submit"
-              disabled={createFetcher.state !== "idle"}
+              isPending={createFetcher.state !== "idle"}
+              pendingText="Creating..."
               className="rounded-lg bg-red-700 px-5 py-3 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:opacity-60"
             >
-              {createFetcher.state !== "idle" ? "Creating..." : "Add Ministry"}
-            </button>
-            {createFetcher.data?.ok ? (
-              <p className="text-sm font-sans text-green-600">Ministry created.</p>
-            ) : null}
+              Add Ministry
+            </PendingButton>
             {createFetcher.data && !createFetcher.data.ok && createFetcher.data.formError ? (
               <p className="text-sm font-sans text-red-600">{createFetcher.data.formError}</p>
             ) : null}

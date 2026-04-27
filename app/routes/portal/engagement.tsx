@@ -14,6 +14,8 @@ import { z } from "zod";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { describedBy, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { SectionHeader } from "~/components/ui/SectionHeader";
 
 export const meta: MetaFunction = () => [
@@ -380,11 +382,13 @@ function SectionMessage({
 
 function FieldError({
   errors,
+  id,
 }: {
   errors?: string[];
+  id?: string;
 }) {
   if (!errors?.length) return null;
-  return <p className="mt-1.5 text-xs font-sans text-red-600">{errors[0]}</p>;
+  return <p id={id} className="mt-1.5 text-xs font-sans text-red-600">{errors[0]}</p>;
 }
 
 const inputClass =
@@ -482,17 +486,21 @@ export default function EngagementPage() {
 
           <Form method="post" className="rounded-2xl border border-red-100 bg-red-50/60 p-5">
             <input type="hidden" name="intent" value="submitPrayerRequest" />
+            <ValidationSummary errors={prayerErrors} />
             <label className="block text-xs font-bold uppercase tracking-[0.14em] text-red-700">
               New request
             </label>
             <textarea
+              id="engagement-prayer-request"
               name="request"
               rows={4}
               maxLength={2000}
               placeholder="Share what you would like the pastoral team to pray for."
+              aria-invalid={prayerErrors.request?.length ? true : undefined}
+              aria-describedby={describedBy(prayerErrors.request?.length ? "engagement-prayer-request-error" : null)}
               className={`${inputClass} mt-2`}
             />
-            <FieldError errors={prayerErrors.request} />
+            <FieldError errors={prayerErrors.request} id="engagement-prayer-request-error" />
 
             <label className="mt-4 inline-flex items-start gap-3 text-sm text-gray-600">
               <input
@@ -504,13 +512,14 @@ export default function EngagementPage() {
               <span>Keep this request private to the pastoral team.</span>
             </label>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={navigation.state === "submitting"}
+              isPending={navigation.state === "submitting"}
+              pendingText="Submitting..."
               className="mt-4 rounded-xl bg-red-700 px-5 py-3 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-60"
             >
               Submit request
-            </button>
+            </PendingButton>
           </Form>
 
           <div className="mt-5 space-y-3">
@@ -652,23 +661,28 @@ export default function EngagementPage() {
                 <input type="hidden" name="intent" value="saveSermonNote" />
                 <input type="hidden" name="sermonId" value={sermon.id} />
                 <textarea
+                  id={`sermon-note-${sermon.id}`}
                   name="note"
                   rows={4}
                   defaultValue={sermon.bookmark?.note ?? ""}
                   placeholder="Write your takeaway, prayer, or action step from this message."
+                  aria-invalid={sermonErrors.note?.length ? true : undefined}
+                  aria-describedby={describedBy(sermonErrors.note?.length ? `sermon-note-${sermon.id}-error` : null)}
                   className={inputClass}
                 />
-                <FieldError errors={sermonErrors.note} />
+                <FieldError errors={sermonErrors.note} id={`sermon-note-${sermon.id}-error`} />
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <Link to={`/sermons/${sermon.id}`} className="text-sm font-bold text-red-700 hover:text-red-900">
                     Open sermon →
                   </Link>
-                  <button
+                  <PendingButton
                     type="submit"
+                    isPending={navigation.state === "submitting"}
+                    pendingText="Saving..."
                     className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800"
                   >
                     Save note
-                  </button>
+                  </PendingButton>
                 </div>
               </Form>
             </div>
@@ -691,13 +705,14 @@ export default function EngagementPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <Form method="post" className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
             <input type="hidden" name="intent" value="submitServingInterest" />
+            <ValidationSummary errors={servingErrors} />
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                   Ministry
                 </label>
-                <select name="ministryId" className={inputClass}>
+                <select id="serving-ministry" name="ministryId" className={inputClass}>
                   <option value="">I am still exploring</option>
                   {ministries.map((ministry) => (
                     <option key={ministry.id} value={ministry.id}>
@@ -712,12 +727,15 @@ export default function EngagementPage() {
                   Area of interest
                 </label>
                 <input
+                  id="serving-areaOfInterest"
                   type="text"
                   name="areaOfInterest"
                   placeholder="Prayer, worship, kids, ushering, media..."
+                  aria-invalid={servingErrors.areaOfInterest?.length ? true : undefined}
+                  aria-describedby={describedBy(servingErrors.areaOfInterest?.length ? "serving-areaOfInterest-error" : null)}
                   className={inputClass}
                 />
-                <FieldError errors={servingErrors.areaOfInterest} />
+                <FieldError errors={servingErrors.areaOfInterest} id="serving-areaOfInterest-error" />
               </div>
             </div>
 
@@ -726,12 +744,15 @@ export default function EngagementPage() {
                 Availability
               </label>
               <input
+                id="serving-availability"
                 type="text"
                 name="availability"
                 placeholder="Sunday mornings, weekday evenings, twice a month..."
+                aria-invalid={servingErrors.availability?.length ? true : undefined}
+                aria-describedby={describedBy(servingErrors.availability?.length ? "serving-availability-error" : null)}
                 className={inputClass}
               />
-              <FieldError errors={servingErrors.availability} />
+              <FieldError errors={servingErrors.availability} id="serving-availability-error" />
             </div>
 
             <div className="mt-4">
@@ -739,12 +760,15 @@ export default function EngagementPage() {
                 Experience or strengths
               </label>
               <textarea
+                id="serving-experience"
                 name="experience"
                 rows={3}
                 placeholder="Share any past experience, training, or gifts you would like us to know about."
+                aria-invalid={servingErrors.experience?.length ? true : undefined}
+                aria-describedby={describedBy(servingErrors.experience?.length ? "serving-experience-error" : null)}
                 className={inputClass}
               />
-              <FieldError errors={servingErrors.experience} />
+              <FieldError errors={servingErrors.experience} id="serving-experience-error" />
             </div>
 
             <div className="mt-4">
@@ -752,20 +776,25 @@ export default function EngagementPage() {
                 Why you want to serve
               </label>
               <textarea
+                id="serving-message"
                 name="message"
                 rows={4}
                 placeholder="Tell us what is stirring in your heart and how we can help you take a next step."
+                aria-invalid={servingErrors.message?.length ? true : undefined}
+                aria-describedby={describedBy(servingErrors.message?.length ? "serving-message-error" : null)}
                 className={inputClass}
               />
-              <FieldError errors={servingErrors.message} />
+              <FieldError errors={servingErrors.message} id="serving-message-error" />
             </div>
 
-            <button
+            <PendingButton
               type="submit"
+              isPending={navigation.state === "submitting"}
+              pendingText="Sending..."
               className="mt-4 rounded-xl bg-red-700 px-5 py-3 text-sm font-bold text-white hover:bg-red-800"
             >
               Send serving interest
-            </button>
+            </PendingButton>
           </Form>
 
           <div className="space-y-3">

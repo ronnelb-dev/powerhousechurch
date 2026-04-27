@@ -10,10 +10,12 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 import Stripe from "stripe";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PageHero } from "~/components/ui/PageHero";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 export const meta: MetaFunction = () => [
   { title: "Give Online — Powerhouse Church" },
@@ -138,6 +140,7 @@ const inputClass =
 const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 
 export default function GivePage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const actionData  = useActionData<typeof action>();
   const navigation  = useNavigation();
   const [searchParams] = useSearchParams();
@@ -200,6 +203,13 @@ export default function GivePage() {
   const globalError = actionData?.success === false && "globalError" in actionData
     ? actionData.globalError : null;
 
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError,
+    fieldOrder: ["category", "amount", "name", "email"],
+  });
+
   // Compute the hidden amount field value (in centavos)
   const amountInCentavos =
     selectedPreset !== null
@@ -218,15 +228,11 @@ export default function GivePage() {
 
       <div className="max-w-2xl mx-auto px-6 py-16">
         {/* Global error */}
-        {globalError && (
-          <div
-            role="alert"
-            className="mb-6 px-5 py-4 bg-amber-50 border border-amber-200
-                       rounded-xl text-sm font-sans text-amber-800"
-          >
-            {globalError}
-          </div>
-        )}
+        <ValidationSummary
+          errors={errors}
+          globalError={globalError}
+          className="mb-6 border-amber-200 bg-amber-50 text-amber-800"
+        />
         {isCancelled && !globalError && (
           <div
             role="status"
@@ -236,7 +242,7 @@ export default function GivePage() {
           </div>
         )}
 
-        <Form method="post" noValidate aria-label="Online giving form">
+        <Form ref={formRef} method="post" noValidate aria-label="Online giving form">
           {/* Hidden amount field — carries centavo value */}
           <input type="hidden" name="amount" value={amountInCentavos || ""} />
 
@@ -265,6 +271,7 @@ export default function GivePage() {
                       value={cat.value}
                       checked={selectedCategory === cat.value}
                       onChange={() => setSelectedCategory(cat.value)}
+                      aria-describedby={describedBy(errors?.category && "giving-category-error")}
                       className="mt-1 text-red-600 focus:ring-red-400"
                     />
                     <div>
@@ -280,7 +287,7 @@ export default function GivePage() {
               </div>
             </fieldset>
             {errors?.category && (
-              <p role="alert" className="mt-2 text-xs text-red-600 font-sans">
+              <p id="giving-category-error" role="alert" className="mt-2 text-xs text-red-600 font-sans">
                 {errors.category[0]}
               </p>
             )}
@@ -334,12 +341,14 @@ export default function GivePage() {
                   setSelectedPreset(null);
                 }}
                 aria-label="Enter a custom giving amount in Philippine pesos"
+                aria-invalid={Boolean(errors?.amount?.length)}
+                aria-describedby={describedBy(errors?.amount && "giving-amount-error")}
                 className={`${inputClass} pl-8`}
               />
             </div>
 
             {errors?.amount && (
-              <p role="alert" className="mt-2 text-xs text-red-600 font-sans">
+              <p id="giving-amount-error" role="alert" className="mt-2 text-xs text-red-600 font-sans">
                 {errors.amount[0]}
               </p>
             )}
@@ -363,27 +372,30 @@ export default function GivePage() {
               name="email"
               placeholder="Email for receipt"
               className={inputClass}
+              aria-describedby="giving-email-hint"
               aria-label="Email address for receipt (optional)"
             />
+            <p id="giving-email-hint" className="text-xs text-gray-400 font-sans">
+              Optional, but helpful if you want a receipt sent to your inbox.
+            </p>
           </div>
 
           {/* Submit */}
-          <button
+          <PendingButton
             type="submit"
-            disabled={isSubmitting || amountInCentavos < 100}
-            aria-busy={isSubmitting}
+            disabled={amountInCentavos < 100}
+            isPending={isSubmitting}
+            pendingText="Processing..."
             aria-disabled={amountInCentavos < 100}
             className="w-full py-4 bg-red-700 text-white font-sans font-bold
                        text-sm tracking-wide rounded-xl hover:bg-red-800
                        disabled:opacity-50 disabled:cursor-not-allowed
                        transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
           >
-            {isSubmitting
-              ? "Processing…"
-              : amountInCentavos >= 100
+            {amountInCentavos >= 100
               ? `Give ${(amountInCentavos / 100).toLocaleString("en-PH", { style: "currency", currency: "PHP" })}`
               : "Select an Amount"}
-          </button>
+          </PendingButton>
 
           <p className="mt-4 text-center text-xs text-gray-400 font-sans">
             Secured by Stripe. Your card details are never stored on our servers.

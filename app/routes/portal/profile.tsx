@@ -9,12 +9,15 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
+import { useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { hash, verify } from "@node-rs/argon2";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 export const meta: MetaFunction = () => [
   { title: "My Profile — Powerhouse Church Portal" },
@@ -155,15 +158,17 @@ const inputClass =
 
 const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors, id }: { errors?: string[]; id?: string }) {
   if (!errors?.length) return null;
-  return <p role="alert" className="mt-1.5 text-xs text-red-600 font-sans">{errors[0]}</p>;
+  return <p id={id} role="alert" className="mt-1.5 text-xs text-red-600 font-sans">{errors[0]}</p>;
 }
 
 export default function ProfilePage() {
   const { user }     = useLoaderData<typeof loader>();
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
+  const profileFormRef = useRef<HTMLFormElement>(null);
+  const passwordFormRef = useRef<HTMLFormElement>(null);
   const isSubmitting = navigation.state === "submitting";
 
   const profileErrors = (actionData?.success === false && "errors" in actionData && actionData.intent === "updateProfile")
@@ -183,6 +188,19 @@ export default function ProfilePage() {
   const roleLabel =
     user.role === "ADMIN" ? "Administrator" :
     user.role === "CELL_LEADER" ? "Cell Leader" : "Member";
+
+  useFocusFirstInvalidField({
+    formRef: profileFormRef,
+    errors: profileErrors,
+    fieldOrder: ["firstName", "lastName", "email", "phone", "age", "birthday"],
+  });
+
+  useFocusFirstInvalidField({
+    formRef: passwordFormRef,
+    errors: passwordErrors,
+    globalError: globalPasswordError,
+    fieldOrder: ["currentPassword", "newPassword", "confirmPassword"],
+  });
 
   return (
     <div className="p-6 md:p-8 max-w-2xl">
@@ -224,8 +242,9 @@ export default function ProfilePage() {
         <h2 className="font-serif text-lg font-bold text-gray-800 mb-6">
           Personal Information
         </h2>
-        <Form method="post" noValidate>
+        <Form ref={profileFormRef} method="post" noValidate>
           <input type="hidden" name="intent" value="updateProfile" />
+          <ValidationSummary errors={profileErrors} />
 
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div>
@@ -233,18 +252,22 @@ export default function ProfilePage() {
               <input
                 id="firstName" type="text" name="firstName"
                 defaultValue={user.firstName} required
+                aria-invalid={profileErrors?.firstName?.length ? true : undefined}
+                aria-describedby={describedBy(profileErrors?.firstName?.length ? "firstName-error" : null)}
                 className={`${inputClass} ${profileErrors?.firstName ? "border-red-300" : ""}`}
               />
-              <FieldError errors={profileErrors?.firstName} />
+              <FieldError errors={profileErrors?.firstName} id="firstName-error" />
             </div>
             <div>
               <label htmlFor="lastName" className={labelClass}>Last Name</label>
               <input
                 id="lastName" type="text" name="lastName"
                 defaultValue={user.lastName} required
+                aria-invalid={profileErrors?.lastName?.length ? true : undefined}
+                aria-describedby={describedBy(profileErrors?.lastName?.length ? "lastName-error" : null)}
                 className={`${inputClass} ${profileErrors?.lastName ? "border-red-300" : ""}`}
               />
-              <FieldError errors={profileErrors?.lastName} />
+              <FieldError errors={profileErrors?.lastName} id="lastName-error" />
             </div>
           </div>
 
@@ -253,9 +276,11 @@ export default function ProfilePage() {
             <input
               id="profile-email" type="email" name="email"
               defaultValue={user.email ?? ""}
+              aria-invalid={profileErrors?.email?.length ? true : undefined}
+              aria-describedby={describedBy(profileErrors?.email?.length ? "profile-email-error" : null)}
               className={inputClass}
             />
-            <FieldError errors={profileErrors?.email} />
+            <FieldError errors={profileErrors?.email} id="profile-email-error" />
           </div>
 
           <div className="mb-5">
@@ -263,9 +288,11 @@ export default function ProfilePage() {
             <input
               id="profile-phone" type="tel" name="phone"
               defaultValue={user.phone ?? ""}
+              aria-invalid={profileErrors?.phone?.length ? true : undefined}
+              aria-describedby={describedBy(profileErrors?.phone?.length ? "profile-phone-error" : null)}
               className={inputClass}
             />
-            <FieldError errors={profileErrors?.phone} />
+            <FieldError errors={profileErrors?.phone} id="profile-phone-error" />
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-7">
@@ -274,30 +301,35 @@ export default function ProfilePage() {
               <input
                 id="profile-age" type="number" name="age"
                 defaultValue={user.age} min={5} max={120}
+                aria-invalid={profileErrors?.age?.length ? true : undefined}
+                aria-describedby={describedBy(profileErrors?.age?.length ? "profile-age-error" : null)}
                 className={inputClass}
               />
-              <FieldError errors={profileErrors?.age} />
+              <FieldError errors={profileErrors?.age} id="profile-age-error" />
             </div>
             <div>
               <label htmlFor="profile-birthday" className={labelClass}>Birthday</label>
               <input
                 id="profile-birthday" type="date" name="birthday"
                 defaultValue={user.birthday}
+                aria-invalid={profileErrors?.birthday?.length ? true : undefined}
+                aria-describedby={describedBy(profileErrors?.birthday?.length ? "profile-birthday-error" : null)}
                 className={inputClass}
               />
-              <FieldError errors={profileErrors?.birthday} />
+              <FieldError errors={profileErrors?.birthday} id="profile-birthday-error" />
             </div>
           </div>
 
-          <button
+          <PendingButton
             type="submit"
-            disabled={isSubmitting}
+            isPending={isSubmitting}
+            pendingText="Saving..."
             className="px-6 py-3 bg-red-700 text-white font-sans font-bold text-sm
                        rounded-lg hover:bg-red-800 disabled:opacity-60 transition-all
                        focus:outline-none focus:ring-2 focus:ring-red-400"
           >
-            {isSubmitting ? "Saving…" : "Save Changes"}
-          </button>
+            Save Changes
+          </PendingButton>
         </Form>
       </div>
 
@@ -306,8 +338,9 @@ export default function ProfilePage() {
         <h2 className="font-serif text-lg font-bold text-gray-800 mb-6">
           Change Password
         </h2>
-        <Form method="post" noValidate>
+        <Form ref={passwordFormRef} method="post" noValidate>
           <input type="hidden" name="intent" value="changePassword" />
+          <ValidationSummary errors={passwordErrors} globalError={globalPasswordError} />
 
           {globalPasswordError && (
             <div role="alert" className="mb-5 px-4 py-3 bg-red-50 border border-red-200
@@ -321,9 +354,11 @@ export default function ProfilePage() {
             <input
               id="currentPassword" type="password" name="currentPassword"
               autoComplete="current-password" required
+              aria-invalid={passwordErrors?.currentPassword?.length ? true : undefined}
+              aria-describedby={describedBy(passwordErrors?.currentPassword?.length ? "currentPassword-error" : null)}
               className={`${inputClass} ${passwordErrors?.currentPassword ? "border-red-300" : ""}`}
             />
-            <FieldError errors={passwordErrors?.currentPassword} />
+            <FieldError errors={passwordErrors?.currentPassword} id="currentPassword-error" />
           </div>
 
           <div className="mb-5">
@@ -331,9 +366,11 @@ export default function ProfilePage() {
             <input
               id="newPassword" type="password" name="newPassword"
               autoComplete="new-password" required
+              aria-invalid={passwordErrors?.newPassword?.length ? true : undefined}
+              aria-describedby={describedBy(passwordErrors?.newPassword?.length ? "newPassword-error" : null)}
               className={`${inputClass} ${passwordErrors?.newPassword ? "border-red-300" : ""}`}
             />
-            <FieldError errors={passwordErrors?.newPassword} />
+            <FieldError errors={passwordErrors?.newPassword} id="newPassword-error" />
           </div>
 
           <div className="mb-7">
@@ -341,20 +378,23 @@ export default function ProfilePage() {
             <input
               id="confirmPassword" type="password" name="confirmPassword"
               autoComplete="new-password" required
+              aria-invalid={passwordErrors?.confirmPassword?.length ? true : undefined}
+              aria-describedby={describedBy(passwordErrors?.confirmPassword?.length ? "confirmPassword-error" : null)}
               className={`${inputClass} ${passwordErrors?.confirmPassword ? "border-red-300" : ""}`}
             />
-            <FieldError errors={passwordErrors?.confirmPassword} />
+            <FieldError errors={passwordErrors?.confirmPassword} id="confirmPassword-error" />
           </div>
 
-          <button
+          <PendingButton
             type="submit"
-            disabled={isSubmitting}
+            isPending={isSubmitting}
+            pendingText="Updating..."
             className="px-6 py-3 bg-gray-800 text-white font-sans font-bold text-sm
                        rounded-lg hover:bg-gray-900 disabled:opacity-60 transition-all
                        focus:outline-none focus:ring-2 focus:ring-gray-400"
           >
-            {isSubmitting ? "Updating…" : "Update Password"}
-          </button>
+            Update Password
+          </PendingButton>
         </Form>
       </div>
     </div>

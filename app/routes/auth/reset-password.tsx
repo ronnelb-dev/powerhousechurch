@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Form,
   Link,
@@ -10,6 +11,8 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
+import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 import { getSession } from "~/lib/auth.server";
 import {
@@ -136,12 +139,20 @@ function FieldError({ errors }: { errors?: string[] }) {
 }
 
 export default function ResetPasswordPage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const errors =
     actionData?.success === false ? actionData.errors as Record<string, string[] | undefined> | undefined : undefined;
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError: actionData?.success === false ? actionData.globalError : null,
+    fieldOrder: ["password", "confirmPassword"],
+  });
 
   return (
     <div className="min-h-screen bg-primary-50 flex items-center justify-center px-6 py-12">
@@ -189,13 +200,12 @@ export default function ResetPasswordPage() {
             </div>
           ) : (
             <>
-              {actionData?.success === false && (
-                <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {actionData.globalError}
-                </div>
-              )}
-
-              <Form method="post" className="space-y-5">
+              <Form ref={formRef} method="post" className="space-y-5">
+                <ValidationSummary
+                  errors={errors}
+                  globalError={actionData?.success === false ? actionData.globalError : null}
+                  className="mb-5"
+                />
                 <input type="hidden" name="token" value={loaderData.token} />
 
                 <div>
@@ -210,16 +220,20 @@ export default function ResetPasswordPage() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
+                    aria-invalid={Boolean(errors?.password?.length)}
+                    aria-describedby={describedBy("reset-password-hint", errors?.password && "reset-password-error")}
                     className={`w-full rounded-lg border bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-300 ${
                       errors?.password ? "border-red-300" : "border-gray-200"
                     }`}
                     placeholder="Min. 8 characters"
                     required
                   />
-                  <p className="mt-1.5 text-xs text-gray-400">
+                  <p id="reset-password-hint" className="mt-1.5 text-xs text-gray-400">
                     At least 8 characters, one uppercase letter, one number.
                   </p>
-                  <FieldError errors={errors?.password} />
+                  <div id="reset-password-error">
+                    <FieldError errors={errors?.password} />
+                  </div>
                 </div>
 
                 <div>
@@ -234,23 +248,27 @@ export default function ResetPasswordPage() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
+                    aria-invalid={Boolean(errors?.confirmPassword?.length)}
+                    aria-describedby={describedBy(errors?.confirmPassword && "reset-confirmPassword-error")}
                     className={`w-full rounded-lg border bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-300 ${
                       errors?.confirmPassword ? "border-red-300" : "border-gray-200"
                     }`}
                     placeholder="Repeat your new password"
                     required
                   />
-                  <FieldError errors={errors?.confirmPassword} />
+                  <div id="reset-confirmPassword-error">
+                    <FieldError errors={errors?.confirmPassword} />
+                  </div>
                 </div>
 
-                <button
+                <PendingButton
                   type="submit"
-                  disabled={isSubmitting}
-                  aria-busy={isSubmitting}
+                  isPending={isSubmitting}
+                  pendingText="Resetting password..."
                   className="w-full rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60"
                 >
-                  {isSubmitting ? "Resetting Password…" : "Reset Password"}
-                </button>
+                  Reset Password
+                </PendingButton>
               </Form>
             </>
           )}

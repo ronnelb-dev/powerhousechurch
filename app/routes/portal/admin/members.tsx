@@ -1,7 +1,7 @@
 // app/routes/portal/admin/members.tsx
 // Admin member management with bulk reassignment, attendance marking, and CSV export.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useLoaderData,
   useFetcher,
@@ -16,6 +16,8 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import type { Prisma } from "@prisma/client";
+import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
@@ -318,6 +320,31 @@ function MemberRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   const fetcher = useFetcher();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+      return;
+    }
+
+    const message =
+      "error" in fetcher.data && fetcher.data.error
+        ? fetcher.data.error
+        : "success" in fetcher.data && fetcher.data.success
+        ? fetcher.data.success
+        : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
+      message,
+    });
+  }, [fetcher.data, fetcher.state, showToast]);
 
   return (
     <tr
@@ -361,8 +388,9 @@ function MemberRow({
             name="role"
             defaultValue={member.role}
             onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+            disabled={fetcher.state !== "idle"}
             className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs
-                       text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                       text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
             aria-label={`Change role for ${member.firstName} ${member.lastName}`}
           >
             {ROLE_OPTIONS.map((option) => (
@@ -381,8 +409,9 @@ function MemberRow({
             name="cellGroupId"
             defaultValue={member.cellGroup?.id ?? ""}
             onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+            disabled={fetcher.state !== "idle"}
             className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs
-                       text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                       text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
             aria-label={`Assign cell group for ${member.firstName} ${member.lastName}`}
           >
             <option value="">Unassigned</option>
@@ -405,8 +434,10 @@ function MemberRow({
         <fetcher.Form method="post">
           <input type="hidden" name="intent" value="toggleActive" />
           <input type="hidden" name="userId" value={member.id} />
-          <button
+          <PendingButton
             type="submit"
+            isPending={fetcher.state !== "idle"}
+            pendingText={member.isActive ? "Updating..." : "Restoring..."}
             className={[
               "rounded-lg border px-3 py-1.5 text-xs font-sans font-bold transition-all",
               "focus:outline-none focus:ring-2",
@@ -416,7 +447,7 @@ function MemberRow({
             ].join(" ")}
           >
             {member.isActive ? "Deactivate" : "Reactivate"}
-          </button>
+          </PendingButton>
         </fetcher.Form>
       </td>
     </tr>
@@ -433,6 +464,8 @@ export default function AdminMembersPage() {
     actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
       ? actionData
       : null;
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
 
   const isSubmitting = navigation.state === "submitting";
   const allOnPageSelected =
@@ -454,6 +487,19 @@ export default function AdminMembersPage() {
   function toggleAllOnPage(checked: boolean) {
     setSelectedIds(checked ? members.map((member) => member.id) : []);
   }
+
+  useEffect(() => {
+    const message = feedback?.error ?? feedback?.success ?? null;
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: feedback?.error ? "error" : "success",
+      message,
+    });
+  }, [feedback, showToast]);
 
   return (
     <div>
@@ -530,19 +576,6 @@ export default function AdminMembersPage() {
         </div>
       </Form>
 
-      {feedback && (feedback.error || feedback.success) && (
-        <div
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm font-sans ${
-            feedback.error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
-          }`}
-          role="status"
-        >
-          {feedback.error ?? feedback.success}
-        </div>
-      )}
-
       <Form method="post" className="mb-6 rounded-xl border border-gray-100 bg-white p-5">
         {selectedIds.map((memberId) => (
           <input key={memberId} type="hidden" name="selectedUserIds" value={memberId} />
@@ -595,16 +628,18 @@ export default function AdminMembersPage() {
                 <option value="CELL_GROUP">Cell Group</option>
               </select>
             </div>
-            <button
+            <PendingButton
               type="submit"
               name="intent"
               value="bulkMarkPresent"
-              disabled={selectedCount === 0 || isSubmitting}
+              disabled={selectedCount === 0}
+              isPending={isSubmitting}
+              pendingText="Saving..."
               className="w-full rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white
                          transition-colors hover:bg-red-800 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving…" : "Mark Selected Present"}
-            </button>
+              Mark Selected Present
+            </PendingButton>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
@@ -625,16 +660,18 @@ export default function AdminMembersPage() {
                 </option>
               ))}
             </select>
-            <button
+            <PendingButton
               type="submit"
               name="intent"
               value="bulkAssignCellGroup"
-              disabled={selectedCount === 0 || isSubmitting}
+              disabled={selectedCount === 0}
+              isPending={isSubmitting}
+              pendingText="Updating..."
               className="w-full rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm
                          font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
             >
-              {isSubmitting ? "Updating…" : "Reassign Selected"}
-            </button>
+              Reassign Selected
+            </PendingButton>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">

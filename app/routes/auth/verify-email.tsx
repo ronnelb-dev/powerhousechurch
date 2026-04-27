@@ -9,6 +9,7 @@ import {
   redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { PendingButton } from "~/components/ui/PendingButton";
 
 import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { getSession, lucia } from "~/lib/auth.server";
@@ -199,14 +200,14 @@ export default function VerifyEmailPage() {
               />
             </div>
 
-            <button
+            <PendingButton
               type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              isPending={isSubmitting}
+              pendingText="Sending link..."
               className="w-full rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60"
             >
-              {isSubmitting ? "Sending Link…" : "Resend Verification Email"}
-            </button>
+              Resend Verification Email
+            </PendingButton>
           </Form>
 
           <div className="pt-2 text-center text-sm text-gray-400">
