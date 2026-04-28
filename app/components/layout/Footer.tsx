@@ -71,7 +71,7 @@ export function Footer({ settings }: FooterProps) {
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
           <div className="max-w-xl">
             <p className="text-xs uppercase tracking-[0.3em] text-[#e7c07d]">Gather. Grow. Go.</p>
-            <h3 className="mt-4 font-serif text-4xl font-semibold text-[#fff8f1]">
+            <h3 className="mt-4 font-serif text-3xl font-semibold text-[#fff8f1] sm:text-4xl">
               {churchName}
             </h3>
             <p className="mt-4 max-w-lg leading-relaxed text-[#d6ccc4]">
@@ -82,27 +82,33 @@ export function Footer({ settings }: FooterProps) {
             <div className="mt-8 grid gap-3">
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faMapMarkerAlt} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">{churchAddress}</span>
+                <span className="break-words text-sm leading-6 text-[#f1e8df]">{churchAddress}</span>
               </div>
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faPhone} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">{churchPhone}</span>
+                <span className="break-words text-sm leading-6 text-[#f1e8df]">{churchPhone}</span>
               </div>
               <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <FontAwesomeIcon icon={faEnvelope} className="mt-1 h-4 w-4 text-[#e7c07d]" />
-                <span className="text-sm text-[#f1e8df]">{churchEmail}</span>
+                <span className="break-words text-sm leading-6 text-[#f1e8df]">{churchEmail}</span>
               </div>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/new-here" className={buttonVariants({ variant: "secondary" })}>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                to="/new-here"
+                className={buttonVariants({
+                  variant: "secondary",
+                  className: "w-full justify-center sm:w-auto",
+                })}
+              >
                 Plan a Visit
               </Link>
               <Link
                 to="/give"
                 className={buttonVariants({
                   variant: "outline",
-                  className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                  className: "w-full justify-center border-white/20 bg-white/10 text-white hover:bg-white/15 sm:w-auto",
                 })}
               >
                 Give Online

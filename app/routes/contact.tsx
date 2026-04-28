@@ -117,6 +117,17 @@ export default function ContactPage() {
     actionData?.success === false && "values" in actionData
       ? { ...DEFAULT_CONTACT_FORM_VALUES, ...actionData.values }
       : DEFAULT_CONTACT_FORM_VALUES;
+  const serviceGroups = [
+    {
+      label: "Sunday",
+      lines: [
+        `${settings["service.sunday1"] ?? "7:00 AM"} & ${settings["service.sunday2"] ?? "9:00 AM"}`,
+      ],
+    },
+    ...(midweekServices.length
+      ? [{ label: "Midweek Service", lines: midweekServices }]
+      : []),
+  ];
 
   useFocusFirstInvalidField({
     formRef,
@@ -132,62 +143,50 @@ export default function ContactPage() {
         subtitle="We'd love to hear from you. Our team aims to respond within one business day."
       />
 
-      <div className="max-w-5xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+      <div className="shell section-gap">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-5 lg:items-start">
 
           {/* Info column */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-5 lg:col-span-2">
             {/* Address */}
-            <div>
-              <p className="text-xs font-sans font-bold tracking-widest uppercase
-                            text-red-600 mb-3">
+            <div className="rounded-[1.6rem] border border-white/60 bg-white/72 p-5 shadow-sm">
+              <p className="mb-3 text-xs font-sans font-bold tracking-widest uppercase text-red-600">
                 Find Us
               </p>
-              <address className="not-italic text-sm font-sans text-gray-600 leading-relaxed">
+              <address className="not-italic break-words text-base font-sans leading-7 text-gray-600">
                 {settings["church.address"] ?? "PowerHouse Church, 2nd Flr. Sundrel Business Center Bldg. #25, FB Bailon St, Corner National Road, Cabuyao City, Laguna"}
               </address>
             </div>
 
             {/* Service Times */}
-            <div>
-              <p className="text-xs font-sans font-bold tracking-widest uppercase
-                            text-red-600 mb-3">
+            <div className="rounded-[1.6rem] border border-white/60 bg-white/72 p-5 shadow-sm">
+              <p className="mb-3 text-xs font-sans font-bold tracking-widest uppercase text-red-600">
                 Service Times
               </p>
-              <table className="text-sm font-sans w-full">
-                <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-2 text-gray-500">Sunday</td>
-                    <td className="py-2 font-bold text-gray-800 text-left sm:text-right">
-                      {(settings["service.sunday1"] ?? "7:00 AM")} &amp; {(settings["service.sunday2"] ?? "9:00 AM")}
-                    </td>
-                  </tr>
-                  {midweekServices.map((service, index) => (
-                    <tr
-                      key={service}
-                      className={index < midweekServices.length - 1 ? "border-b border-gray-100" : undefined}
-                    >
-                      {index === 0 ? (
-                        <td
-                          rowSpan={midweekServices.length}
-                          className="py-2 pr-4 align-top text-gray-500"
-                        >
-                          Midweek Service
-                        </td>
-                      ) : null}
-                      <td className="py-2 font-bold text-gray-800 text-left sm:text-right">
-                        {service}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="space-y-4">
+                {serviceGroups.map((group, index) => (
+                  <div
+                    key={group.label}
+                    className={index === 0 ? "" : "border-t border-gray-100 pt-4"}
+                  >
+                    <p className="text-xs font-sans font-bold uppercase tracking-[0.16em] text-gray-500">
+                      {group.label}
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {group.lines.map((line) => (
+                        <p key={line} className="text-sm font-bold leading-6 text-gray-800">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Contact details */}
-            <div>
-              <p className="text-xs font-sans font-bold tracking-widest uppercase
-                            text-red-600 mb-3">
+            <div className="rounded-[1.6rem] border border-white/60 bg-white/72 p-5 shadow-sm">
+              <p className="mb-3 text-xs font-sans font-bold tracking-widest uppercase text-red-600">
                 Contact
               </p>
               <div className="space-y-2 text-sm font-sans text-gray-600">
@@ -195,7 +194,7 @@ export default function ContactPage() {
                   <p>
                     <a
                       href={`tel:${settings["church.phone"]}`}
-                      className="hover:text-red-700 transition-colors"
+                      className="break-words hover:text-red-700 transition-colors"
                     >
                       {settings["church.phone"]}
                     </a>
@@ -205,7 +204,7 @@ export default function ContactPage() {
                   <p>
                     <a
                       href={`mailto:${settings["church.email"]}`}
-                      className="hover:text-red-700 transition-colors"
+                      className="break-words hover:text-red-700 transition-colors"
                     >
                       {settings["church.email"]}
                     </a>
@@ -215,12 +214,11 @@ export default function ContactPage() {
             </div>
 
             {/* Social */}
-            <div>
-              <p className="text-xs font-sans font-bold tracking-widest uppercase
-                            text-red-600 mb-3">
+            <div className="rounded-[1.6rem] border border-white/60 bg-white/72 p-5 shadow-sm">
+              <p className="mb-3 text-xs font-sans font-bold tracking-widest uppercase text-red-600">
                 Follow Along
               </p>
-              <div className="flex gap-3" aria-label="Social media links">
+              <div className="flex flex-wrap gap-3" aria-label="Social media links">
                 {[
                   { key: "social.facebook",  label: "Facebook"  },
                   { key: "social.youtube",   label: "YouTube"   },
@@ -250,7 +248,7 @@ export default function ContactPage() {
           <div className="lg:col-span-3">
             {actionData?.success ? (
               <div
-                className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center"
+                className="rounded-2xl border border-green-200 bg-green-50 p-6 text-center sm:p-8"
                 aria-live="polite"
               >
                 <div className="w-12 h-12 rounded-full bg-green-100 border border-green-200
@@ -269,7 +267,7 @@ export default function ContactPage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
                 <Form ref={formRef} method="post" noValidate aria-label="Contact form">
                   <ValidationSummary
                     errors={errors}
@@ -361,11 +359,11 @@ export default function ContactPage() {
         </div>
 
         {/* Map embed */}
-        <div className="mt-16 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+        <div className="mt-14 overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
           <iframe
             src="https://www.google.com/maps?q=PowerHouse%20Church%2C%202nd%20Flr.%20Sundrel%20Business%20Center%20Bldg.%20%2325%2C%20FB%20Bailon%20St%2C%20Corner%20National%20Road%2C%20Cabuyao%20City%2C%20Laguna&z=17&output=embed"
             width="100%"
-            height="360"
+            height="320"
             style={{ border: 0 }}
             allowFullScreen
             loading="lazy"

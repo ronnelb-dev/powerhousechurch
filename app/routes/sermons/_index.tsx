@@ -174,7 +174,7 @@ export default function SermonsPage() {
 
       <div className="shell section-gap !pt-12">
         <Card className="mb-10 bg-white/75">
-          <CardContent className="p-5">
+          <CardContent className="p-4 sm:p-5">
             <Form
               method="get"
               className="flex flex-col gap-3"
@@ -303,7 +303,7 @@ export default function SermonsPage() {
 
         {totalPages > 1 && (
           <nav
-            className="mt-12 flex items-center justify-center gap-3"
+            className="mt-12 flex flex-wrap items-center justify-center gap-3"
             aria-label="Sermon pagination"
           >
             {page > 1 && (

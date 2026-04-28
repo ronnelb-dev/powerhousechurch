@@ -31,13 +31,13 @@ export function ServiceTimesBar({ times }: ServiceTimesBarProps) {
         {times.map((item, i) => (
           <div
             key={i}
-            className="flex flex-col items-center px-4 py-6 text-center sm:py-7"
+            className="flex flex-col items-center px-5 py-5 text-center sm:py-7"
           >
             <Badge variant="outline" className="border-white/60 bg-white/65">
               {item.label}
             </Badge>
             {item.time ? (
-              <p className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
+              <p className="mt-4 font-serif text-2xl font-semibold text-[var(--foreground)] sm:text-4xl">
                 {item.time}
               </p>
             ) : null}

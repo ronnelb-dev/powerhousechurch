@@ -86,7 +86,7 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="relative overflow-hidden pb-24 pt-32 sm:pb-28 sm:pt-36" aria-labelledby="hero-heading">
+      <section className="relative overflow-hidden pb-20 pt-28 sm:pb-28 sm:pt-32 lg:pt-36" aria-labelledby="hero-heading">
         <div className="absolute inset-0 bg-[linear-gradient(145deg,#241816_0%,#572527_42%,#8a3a36_100%)]" aria-hidden="true" />
         <div className="hero-glow absolute inset-0 opacity-90" aria-hidden="true" />
         <div className="warm-grid absolute inset-0 opacity-10" aria-hidden="true" />
@@ -97,19 +97,19 @@ export default function HomePage() {
           <Badge className="border-white/10 bg-white/10 text-white">
             {settings["church.name"] ?? "Powerhouse Church Christian Fellowship Intl."}
           </Badge>
-          <div className="mt-8 grid items-end gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="mt-6 grid items-end gap-8 sm:mt-8 sm:gap-10 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="max-w-3xl">
-              <h1 id="hero-heading" className="text-balance font-serif text-6xl font-semibold leading-none text-white sm:text-7xl lg:text-[5.4rem]">
+              <h1 id="hero-heading" className="text-balance font-serif text-[clamp(3.4rem,15vw,6rem)] font-semibold leading-[0.92] text-white sm:text-[clamp(4.6rem,11vw,7rem)] lg:text-[5.4rem]">
                 A church home with warmth, conviction, and room to grow.
           </h1>
-              <p className="mt-6 max-w-2xl text-balance text-lg leading-8 text-[#f1ddd4] sm:text-xl">
+              <p className="mt-5 max-w-2xl text-balance text-base leading-7 text-[#f1ddd4] sm:mt-6 sm:text-xl sm:leading-8">
                 Join a Spirit-filled community rooted in Scripture, alive in worship, and committed to walking with people through every season of life.
               </p>
-              <p className="mt-5 font-serif text-2xl italic text-[#f1d2a4]">
+              <p className="mt-4 max-w-2xl font-serif text-xl leading-8 italic text-[#f1d2a4] sm:mt-5 sm:text-2xl">
             "You are no longer strangers and foreigners, but fellow citizens with
             the saints…" — Ephesians 2:19
           </p>
-              <div className="mt-10 flex flex-wrap gap-4">
+              <div className="mt-8 flex flex-wrap gap-3 sm:mt-10 sm:gap-4">
             <Link
               to="/new-here"
                   className={buttonVariants({ size: "lg", variant: "secondary" })}
@@ -130,12 +130,12 @@ export default function HomePage() {
             </div>
 
             <Card className="border-white/10 bg-white/8 text-white shadow-[0_30px_80px_-40px_rgba(10,5,5,0.75)]">
-              <CardContent className="p-6">
+              <CardContent className="p-5 sm:p-6">
                 <p className="text-xs uppercase tracking-[0.28em] text-[#f1d2a4]">Sunday Experience</p>
-                <h2 className="mt-4 font-serif text-4xl font-semibold text-white">
+                <h2 className="mt-4 font-serif text-3xl font-semibold text-white sm:text-4xl">
                   Come expectant. Leave strengthened.
                 </h2>
-                <div className="mt-8 grid gap-4">
+                <div className="mt-6 grid gap-4 sm:mt-8">
                   {[
                     "Passionate worship and practical preaching",
                     "Prayer support and meaningful community",
@@ -147,7 +147,7 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-5">
+                <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:mt-8 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-[#f1d2a4]">This week</p>
                     <p className="mt-1 text-lg font-semibold text-white">
@@ -164,7 +164,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="shell relative z-10 -mt-10">
+      <div className="shell relative z-10 -mt-8 sm:-mt-10">
         <ServiceTimesBar times={serviceTimes} />
       </div>
 
@@ -215,14 +215,14 @@ export default function HomePage() {
 
       <section className="shell pb-10" aria-labelledby="mission-heading">
         <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">
-          <CardContent className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[0.9fr_1.1fr] lg:p-12">
+          <CardContent className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d6a24c]">
             Our Mission
           </p>
           <h2
             id="mission-heading"
-                className="mt-4 font-serif text-4xl font-semibold leading-none text-white sm:text-5xl"
+                className="mt-4 font-serif text-[clamp(2.4rem,8vw,3.7rem)] font-semibold leading-[0.95] text-white"
           >
                 Making disciples, building community, and declaring His excellence.
           </h2>
@@ -283,12 +283,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="shell pb-24">
+      <section className="shell pb-20 sm:pb-24">
         <Card className="overflow-hidden bg-[rgba(255,250,245,0.92)]">
-          <CardContent className="grid gap-8 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
+          <CardContent className="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">First Time Here?</p>
-              <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)] sm:text-5xl">
+              <h2 className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-5xl">
             New to Powerhouse?
           </h2>
               <p className="mt-4 max-w-2xl text-base leading-7">

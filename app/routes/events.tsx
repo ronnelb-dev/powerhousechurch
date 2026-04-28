@@ -379,7 +379,7 @@ export default function EventsPage() {
                           type="submit"
                           isPending={activeEventId === event.id}
                           pendingText="Submitting..."
-                          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-60"
+                          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
                         >
                           Reserve my spot
                         </PendingButton>
@@ -407,7 +407,7 @@ export default function EventsPage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
                       Recently Past
                     </p>
-                    <h2 className="font-serif text-4xl font-semibold text-[var(--foreground)]">
+                    <h2 className="font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
                       Past Events
                     </h2>
                   </div>
@@ -442,12 +442,12 @@ export default function EventsPage() {
 
         <div className="mt-20">
           <Card className="bg-[linear-gradient(135deg,rgba(255,250,245,0.92),rgba(239,226,210,0.78))]">
-            <CardContent className="grid gap-6 p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <CardContent className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
                   Need Prayer?
                 </p>
-                <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)]">
+                <h2 className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
                   Let us stand with you before the next gathering.
                 </h2>
               </div>
@@ -500,13 +500,13 @@ function CalendarLinks({
         href={googleCalendarUrl}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex min-h-11 items-center rounded-xl border border-[rgba(146,48,52,0.18)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)] transition-colors hover:border-[var(--primary)]"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[rgba(146,48,52,0.18)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)] transition-colors hover:border-[var(--primary)] sm:w-auto"
       >
         Add to Google Calendar
       </a>
       <a
         href={getEventCalendarPath(eventId)}
-        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.7)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] sm:w-auto"
       >
         Download .ics
       </a>

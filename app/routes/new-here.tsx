@@ -265,7 +265,14 @@ export default function NewHerePage() {
           </div>
         </div>
         <div className="mt-8 flex flex-wrap justify-center gap-4 lg:justify-start">
-          <a href="#visit-form" className={buttonVariants({ size: "lg", variant: "secondary" })}>
+          <a
+            href="#visit-form"
+            className={buttonVariants({
+              size: "lg",
+              variant: "secondary",
+              className: "w-full justify-center sm:w-auto",
+            })}
+          >
             Start My Visit Plan
           </a>
           <Link
@@ -273,7 +280,7 @@ export default function NewHerePage() {
             className={buttonVariants({
               size: "lg",
               variant: "outline",
-              className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+              className: "w-full justify-center border-white/20 bg-white/10 text-white hover:bg-white/15 sm:w-auto",
             })}
           >
             Ask a Question
@@ -284,11 +291,11 @@ export default function NewHerePage() {
       <section className="shell section-gap">
         <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
           <Card className="overflow-hidden bg-[linear-gradient(155deg,#fdf7f1_0%,#fff3e3_100%)]">
-            <CardContent className="p-8">
+            <CardContent className="p-6 sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
                 What Happens Next
               </p>
-              <h2 className="mt-4 font-serif text-4xl font-semibold text-[var(--foreground)]">
+              <h2 className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
                 We prepare a smoother first Sunday.
               </h2>
               <p className="mt-4 text-base leading-7 text-[var(--muted-foreground)]">
@@ -319,7 +326,7 @@ export default function NewHerePage() {
             id="visit-form"
             className="overflow-hidden border-transparent bg-[linear-gradient(145deg,#2a1714_0%,#5b2627_56%,#7e342f_100%)] text-white shadow-[0_34px_80px_-38px_rgba(56,21,19,0.9)]"
           >
-            <CardContent className="p-8">
+            <CardContent className="p-6 sm:p-8">
               {actionData?.success ? (
                 <div className="text-center" aria-live="polite">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#f3cf8e]/35 bg-[#f3cf8e]/18">
@@ -327,7 +334,7 @@ export default function NewHerePage() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <h2 className="mt-6 font-serif text-4xl font-semibold text-white">
+                  <h2 className="mt-6 font-serif text-3xl font-semibold text-white sm:text-4xl">
                     You’re on our radar
                   </h2>
                   <p className="mt-4 text-base leading-7 text-[#f7e6df]">
@@ -373,7 +380,7 @@ export default function NewHerePage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#f3cf8e]">
                       First-Time Guest Form
                     </p>
-                    <h2 className="mt-4 font-serif text-4xl font-semibold text-white">
+                    <h2 className="mt-4 font-serif text-3xl font-semibold text-white sm:text-4xl">
                       Tell us about your visit
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-[#f7e6df]">

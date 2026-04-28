@@ -86,8 +86,11 @@ export function EventCard({
             {title}
           </h3>
 
-          <p className="mt-2 truncate text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
-            {time} · {location}
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+            {time}
+          </p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--muted-foreground)]">
+            {location}
           </p>
         </div>
         </div>

@@ -43,7 +43,7 @@ export function Navbar() {
       <nav className="shell" aria-label="Main navigation">
         <div
           className={cn(
-            "mt-3 flex items-center justify-between rounded-full px-4 py-3 transition-all duration-300 lg:px-6",
+            "mt-3 flex items-center justify-between gap-3 rounded-[2rem] px-3 py-2.5 transition-all duration-300 sm:px-4 sm:py-3 lg:px-6",
             isScrolled
               ? "bg-white/55"
               : "bg-[rgba(255,250,245,0.52)] shadow-[0_16px_45px_-34px_rgba(42,18,12,0.65)] backdrop-blur-md",
@@ -51,21 +51,21 @@ export function Navbar() {
         >
           <Link
             to="/"
-            className="flex items-center gap-3"
+            className="flex min-w-0 items-center gap-3"
             aria-label="Powerhouse Church — Home"
           >
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-sm">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-sm sm:h-11 sm:w-11">
               <img
                 src="/logo_red.webp"
                 alt="Powerhouse Church logo"
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="hidden sm:block">
-              <p className="font-serif text-2xl font-semibold leading-tight text-[var(--foreground)]">
+            <div className="min-w-0">
+              <p className="truncate font-serif text-[1.15rem] font-semibold leading-tight text-[var(--foreground)] sm:text-2xl">
                 Powerhouse Church
               </p>
-              <p className="hidden font-sans text-[0.65rem] uppercase tracking-[0.34em] text-[var(--muted-foreground)] lg:block">
+              <p className="hidden font-sans text-[0.6rem] uppercase tracking-[0.28em] text-[var(--muted-foreground)] md:block lg:text-[0.65rem]">
                 Christian Fellowship Intl.
               </p>
             </div>
@@ -109,7 +109,7 @@ export function Navbar() {
           <Button
             variant="outline"
             size="icon"
-            className="lg:hidden rounded-full bg-white/80"
+            className="lg:hidden shrink-0 rounded-full bg-white/80"
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
@@ -133,9 +133,9 @@ export function Navbar() {
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent id="mobile-menu" className="lg:hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-serif text-2xl font-semibold text-[var(--foreground)]">
+              <p className="font-serif text-xl font-semibold text-[var(--foreground)] sm:text-2xl">
                 Powerhouse Church
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">
@@ -156,7 +156,7 @@ export function Navbar() {
             </Button>
           </div>
 
-          <div className="mt-8 rounded-[var(--radius)] border border-white/50 bg-white/60 p-3 shadow-[var(--shadow-soft)]">
+          <div className="mt-6 rounded-[var(--radius)] border border-white/50 bg-white/60 p-3 shadow-[var(--shadow-soft)]">
             <ul className="space-y-1" role="list">
               {NAV_LINKS.map(({ to, label }) => (
                 <li key={to}>
@@ -177,7 +177,7 @@ export function Navbar() {
             </ul>
           </div>
 
-          <div className="mt-6 space-y-3">
+          <div className="mt-5 space-y-3">
             <Link to="/new-here" className="block">
               <span className={buttonVariants({ variant: "secondary", className: "flex w-full" })}>
                 Plan a Visit

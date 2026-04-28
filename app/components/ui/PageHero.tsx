@@ -27,7 +27,7 @@ export function PageHero({
 }: PageHeroProps) {
   return (
     <section
-      className="relative overflow-hidden pt-28 sm:pt-32"
+      className="relative overflow-hidden pt-24 sm:pt-28"
       style={
         bgImage
           ? {
@@ -53,11 +53,11 @@ export function PageHero({
         aria-hidden="true"
       />
       <div
-        className="absolute -right-12 top-16 h-56 w-56 rounded-full border border-white/15 bg-white/8 blur-3xl"
+        className="absolute -right-10 top-14 h-48 w-48 rounded-full border border-white/15 bg-white/8 blur-3xl sm:h-56 sm:w-56"
         aria-hidden="true"
       />
       <div
-        className="absolute -left-16 bottom-10 h-48 w-48 rounded-full border border-[#d6a24c]/20 bg-[#d6a24c]/10 blur-3xl"
+        className="absolute -left-14 bottom-8 h-40 w-40 rounded-full border border-[#d6a24c]/20 bg-[#d6a24c]/10 blur-3xl sm:h-48 sm:w-48"
         aria-hidden="true"
       />
       <div
@@ -65,29 +65,29 @@ export function PageHero({
         aria-hidden="true"
       />
 
-      <div className="shell relative pb-16 sm:pb-20 lg:pb-24">
+      <div className="shell relative pb-14 sm:pb-20 lg:pb-24">
         <div className={cn("mx-auto max-w-4xl text-center", children ? "max-w-5xl" : undefined)}>
           <Badge className="border-white/10 bg-white/10 text-white">Powerhouse Church</Badge>
           <h1
             id="page-hero-title"
-            className="text-balance mt-6 font-serif text-5xl font-semibold leading-none text-white sm:text-6xl lg:text-7xl"
+            className="text-balance mt-5 font-serif text-[clamp(3rem,11vw,5rem)] font-semibold leading-[0.92] text-white sm:mt-6 sm:text-[clamp(4rem,8vw,5.75rem)] lg:text-7xl"
           >
           {title}
           </h1>
 
           {subtitle && (
-            <p className="mx-auto mt-5 max-w-2xl text-balance text-lg leading-8 text-[#f5dbd2] sm:text-xl">
+            <p className="mx-auto mt-4 max-w-[38rem] text-balance text-base leading-7 text-[#f5dbd2] sm:mt-5 sm:text-lg sm:leading-8">
             {subtitle}
             </p>
           )}
 
           {scripture && (
-            <p className="mx-auto mt-6 max-w-xl font-serif text-xl italic text-[#f1d2a4] sm:text-2xl">
+            <p className="mx-auto mt-5 max-w-2xl font-serif text-lg leading-8 italic text-[#f1d2a4] sm:mt-6 sm:text-2xl">
               "{scripture}"
             </p>
           )}
 
-          {children && <div className="mt-10">{children}</div>}
+          {children && <div className="mt-8 sm:mt-10">{children}</div>}
         </div>
       </div>
     </section>

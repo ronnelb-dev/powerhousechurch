@@ -20,25 +20,25 @@ export function SectionHeader({
   return (
     <div className={cn(centered && "text-center")}>
       {eyebrow && (
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--primary)] sm:tracking-[0.28em]">
           {eyebrow}
         </p>
       )}
 
-      <h2 className="text-balance mb-4 font-serif text-4xl font-semibold leading-none sm:text-5xl">
+      <h2 className="text-balance mb-3 font-serif text-[clamp(2.35rem,8vw,3.75rem)] font-semibold leading-[0.95]">
         {title}
       </h2>
 
       <div
         className={cn(
-          "mb-5 h-px w-24 bg-gradient-to-r from-[var(--accent)] via-[var(--primary)] to-transparent",
+          "mb-4 h-px w-24 bg-gradient-to-r from-[var(--accent)] via-[var(--primary)] to-transparent",
           centered && "mx-auto",
         )}
         aria-hidden="true"
       />
 
       {subtitle && (
-        <p className={cn("max-w-2xl text-base leading-7 sm:text-lg", centered && "mx-auto")}>
+        <p className={cn("max-w-2xl text-sm leading-7 sm:text-lg", centered && "mx-auto")}>
           {subtitle}
         </p>
       )}

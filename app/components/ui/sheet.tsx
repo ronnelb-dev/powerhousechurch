@@ -55,7 +55,7 @@ export function SheetContent({
     <div
       id={id}
       className={cn(
-        "absolute right-0 top-0 h-full w-full max-w-sm border-l border-white/10 bg-[var(--card)]/95 p-6 shadow-2xl backdrop-blur-xl",
+        "absolute right-0 top-0 h-full w-full max-w-[min(24rem,100vw)] overflow-y-auto border-l border-white/10 bg-[var(--card)]/95 p-6 shadow-2xl backdrop-blur-xl sm:p-7",
         className,
       )}
       role="dialog"
