@@ -11,12 +11,12 @@ import { Card, CardContent } from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 
 interface EventCardProps {
-  id:        string;
   title:     string;
   location:  string;
   startDate: string; // ISO string
   endDate?:  string | null;
   imageUrl?: string | null;
+  detailsHref?: string | null;
 }
 
 function getCountdown(startDate: Date): string {
@@ -34,12 +34,12 @@ function getCountdown(startDate: Date): string {
 }
 
 export function EventCard({
-  id,
   title,
   location,
   startDate,
   endDate: _endDate,
   imageUrl: _imageUrl,
+  detailsHref,
 }: EventCardProps) {
   const start    = new Date(startDate);
   const month    = start.toLocaleDateString("en-PH", { month: "short" }).toUpperCase();
@@ -54,7 +54,7 @@ export function EventCard({
 
   return (
     <Card className={cn("h-full overflow-hidden transition-transform duration-200 hover:-translate-y-1", isPast && "opacity-70")}>
-      <CardContent className="p-5">
+      <CardContent className="p-5 mt-5">
         <div className="flex gap-4">
         <div
           className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-[1.25rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_18px_35px_-24px_rgba(146,48,52,0.85)]"
@@ -95,16 +95,19 @@ export function EventCard({
         </div>
         </div>
 
-        <div className="mt-5 border-t border-[var(--border)] pt-4">
-        <Link
-          to={`/events#${id}`}
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)] transition-colors hover:text-[color-mix(in_oklab,var(--primary)_82%,black)]"
-          aria-label={`View details for ${title}`}
-        >
-          View details
-          <span aria-hidden="true">→</span>
-        </Link>
-        </div>
+        {detailsHref ? (
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <Link
+              reloadDocument
+              to={detailsHref}
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)] transition-colors hover:text-[color-mix(in_oklab,var(--primary)_82%,black)]"
+              aria-label={`View details for ${title}`}
+            >
+              View details
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

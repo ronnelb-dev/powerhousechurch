@@ -215,14 +215,17 @@ export default function EventsPage() {
               >
                 <div className="min-w-0">
                   <EventCard
-                    id={event.id}
                     title={event.title}
                     location={event.location}
                     startDate={event.startDate}
                     endDate={event.endDate}
                     imageUrl={event.imageUrl}
+                    detailsHref={`#${event.id}-details`}
                   />
-                  <div className="mt-3 px-1">
+                  <div
+                    id={`${event.id}-details`}
+                    className="mt-3 scroll-mt-28 px-1"
+                  >
                     <p className="text-sm leading-6">{event.description}</p>
                   </div>
                   <CalendarLinks
@@ -426,7 +429,6 @@ export default function EventsPage() {
                     className="opacity-75 transition-opacity hover:opacity-100"
                   >
                     <EventCard
-                      id={event.id}
                       title={event.title}
                       location={event.location}
                       startDate={event.startDate}

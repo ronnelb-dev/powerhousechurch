@@ -262,12 +262,12 @@ export default function HomePage() {
             {upcomingEvents.map((event) => (
               <EventCard
                 key={event.id}
-                id={event.id}
                 title={event.title}
                 location={event.location}
                 startDate={event.startDate}
                 endDate={event.endDate}
                 imageUrl={event.imageUrl}
+                detailsHref={`/events#${event.id}-details`}
               />
             ))}
           </div>
