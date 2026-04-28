@@ -15,7 +15,14 @@ async function main() {
     { key: "church.phone",          value: "+63 917 000 0000" },
     { key: "service.sunday1",       value: "7:00 AM" },
     { key: "service.sunday2",       value: "9:00 AM" },
-    { key: "service.cellGroupDays", value: "Friday–Saturday" },
+    {
+      key: "service.cellGroupDays",
+      value: [
+        "Wednesday 6:30 PM at PCF Church",
+        "Wednesday 7:00 PM at Bamboo Orchard, Banay-Banay",
+        "Thursday 7:00 PM at Garden Villas Sta. Rosa",
+      ].join("\n"),
+    },
     { key: "social.facebook",       value: "https://facebook.com/powerhousechurch" },
     { key: "social.youtube",        value: "https://youtube.com/@powerhousechurch" },
     { key: "social.instagram",      value: "https://instagram.com/powerhousechurch" },

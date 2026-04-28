@@ -9,8 +9,9 @@ import { Card } from "~/components/ui/card";
 
 interface ServiceTime {
   label:  string;
-  time:   string;
-  detail: string;
+  time?:  string;
+  detail?: string;
+  lines?: string[];
 }
 
 interface ServiceTimesBarProps {
@@ -35,10 +36,21 @@ export function ServiceTimesBar({ times }: ServiceTimesBarProps) {
             <Badge variant="outline" className="border-white/60 bg-white/65">
               {item.label}
             </Badge>
-            <p className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
-              {item.time}
-            </p>
-            <p className="mt-1 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">{item.detail}</p>
+            {item.time ? (
+              <p className="mt-4 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
+                {item.time}
+              </p>
+            ) : null}
+            {item.lines?.length ? (
+              <div className="mt-4 space-y-2 text-sm leading-6 text-[var(--foreground)]">
+                {item.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            ) : null}
+            {item.detail ? (
+              <p className="mt-1 text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)]">{item.detail}</p>
+            ) : null}
           </div>
         ))}
       </div>

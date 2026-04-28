@@ -18,12 +18,20 @@ import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
+import { getMidweekServiceValue } from "~/lib/service-times";
 
 export const meta: MetaFunction = () => [{ title: "Church Settings — Admin" }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
-  return { settings: await getSettings() };
+  const rawSettings = await getSettings();
+  const settings: Record<string, string> = {
+    ...rawSettings,
+    "service.cellGroupDays": getMidweekServiceValue(rawSettings),
+  };
+  return {
+    settings,
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -110,7 +118,15 @@ const SETTING_GROUPS = [
     fields: [
       { key: "service.sunday1",       label: "First Sunday Service",  type: "text" },
       { key: "service.sunday2",       label: "Second Sunday Service", type: "text" },
-      { key: "service.cellGroupDays", label: "Cell Group Days",       type: "text" },
+      {
+        key: "service.cellGroupDays",
+        label: "Midweek Services",
+        type: "textarea",
+        rows: 4,
+        placeholder:
+          "Wednesday 6:30 PM at PCF Church\nWednesday 7:00 PM at Bamboo Orchard, Banay-Banay\nThursday 7:00 PM at Garden Villas Sta. Rosa",
+        hint: "Enter one midweek service per line.",
+      },
     ],
   },
   {
@@ -214,21 +230,37 @@ export default function AdminSettingsPage() {
                     >
                       {field.label}
                     </label>
-                    <input
-                      id={`setting-${field.key}`}
-                      type={field.type}
-                      name={field.key}
-                      defaultValue={settings[field.key] ?? ""}
-                      placeholder={
-                        field.key === "youtube.apiKey" && settings[field.key]
-                          ? "••••••••••••••••••••• (set — paste to replace)"
-                          : "placeholder" in field
+                    {field.type === "textarea" ? (
+                      <textarea
+                        id={`setting-${field.key}`}
+                        name={field.key}
+                        rows={"rows" in field ? field.rows : 4}
+                        defaultValue={settings[field.key] ?? ""}
+                        placeholder={
+                          "placeholder" in field
                             ? field.placeholder
                             : undefined
-                      }
-                      className={inputClass}
-                      autoComplete="off"
-                    />
+                        }
+                        className={`${inputClass} min-h-[120px] resize-y`}
+                        autoComplete="off"
+                      />
+                    ) : (
+                      <input
+                        id={`setting-${field.key}`}
+                        type={field.type}
+                        name={field.key}
+                        defaultValue={settings[field.key] ?? ""}
+                        placeholder={
+                          field.key === "youtube.apiKey" && settings[field.key]
+                            ? "••••••••••••••••••••• (set — paste to replace)"
+                            : "placeholder" in field
+                              ? field.placeholder
+                              : undefined
+                        }
+                        className={inputClass}
+                        autoComplete="off"
+                      />
+                    )}
                     {"hint" in field && field.hint && (
                       <p className={hintClass}>{field.hint}</p>
                     )}

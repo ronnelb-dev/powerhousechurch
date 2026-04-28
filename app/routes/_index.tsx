@@ -11,6 +11,7 @@ import { ServiceTimesBar } from "~/components/ui/ServiceTimesBar";
 import { Badge } from "~/components/ui/badge";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
+import { getMidweekServices } from "~/lib/service-times";
 
 export const meta: MetaFunction = () => [
   { title: "Powerhouse Church Christian Fellowship Intl. — Where Faith Meets Community" },
@@ -64,6 +65,7 @@ export async function loader() {
 
 export default function HomePage() {
   const { latestCellCelebrationMessage, latestSermon, upcomingEvents, settings } = useLoaderData<typeof loader>();
+  const midweekServices = getMidweekServices(settings);
 
   const serviceTimes = [
     {
@@ -77,9 +79,8 @@ export default function HomePage() {
       detail: "Second Service",
     },
     {
-      label: "Cell Groups",
-      time: settings["service.cellGroupDays"] ?? "Fri–Sat",
-      detail: "Various Locations",
+      label: "Midweek Service",
+      lines: midweekServices,
     },
   ];
 

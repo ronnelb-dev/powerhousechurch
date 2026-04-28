@@ -13,6 +13,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 import { buttonVariants } from "~/components/ui/Button";
+import { getMidweekServices } from "~/lib/service-times";
 import { cn } from "~/lib/utils";
 
 interface FooterProps {
@@ -25,12 +26,11 @@ export function Footer({ settings }: FooterProps) {
     settings["church.address"] ?? "PowerHouse Church, 2nd Flr. Sundrel Business Center Bldg. #25, FB Bailon St, Corner National Road, Cabuyao City, Laguna";
   const churchPhone = settings["church.phone"] ?? "(555) 123-4567";
   const churchEmail = settings["church.email"] ?? "info@powerhousechurch.org";
-  const serviceTimes = [
+  const sundayServices = [
     settings["service.sunday1"] && `Sunday Service: ${settings["service.sunday1"]}`,
     settings["service.sunday2"] && `Second Service: ${settings["service.sunday2"]}`,
-    settings["service.cellGroupDays"] &&
-      `Cell Groups: ${settings["service.cellGroupDays"]}`,
   ].filter(Boolean) as string[];
+  const midweekServices = getMidweekServices(settings);
 
   const socials = [
     {
@@ -155,11 +155,19 @@ export function Footer({ settings }: FooterProps) {
             <div className="mt-8 rounded-[var(--radius)] border border-white/10 bg-white/5 p-5">
               <h5 className="text-xs uppercase tracking-[0.24em] text-[#e7c07d]">Service Times</h5>
               <div className="mt-3 space-y-2 text-sm leading-7 text-[#f1e8df]">
-                {(serviceTimes.length > 0
-                  ? serviceTimes
-                  : ["Sunday Service: 9:00 AM", "Cell Groups: Fri-Sat"]).map((item) => (
+                {(sundayServices.length > 0
+                  ? sundayServices
+                  : ["Sunday Service: 9:00 AM"]).map((item) => (
                   <p key={item}>{item}</p>
                 ))}
+                <div className="pt-2">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#e7c07d]">Midweek Service</p>
+                  <div className="mt-2 space-y-1.5">
+                    {midweekServices.map((item) => (
+                      <p key={item}>{item}</p>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

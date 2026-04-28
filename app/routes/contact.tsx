@@ -13,6 +13,7 @@ import {
 import type { MetaFunction } from "react-router";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { getSettings } from "~/lib/settings.server";
+import { getMidweekServices } from "~/lib/service-times";
 import { PageHero } from "~/components/ui/PageHero";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { DEFAULT_CONTACT_FORM_VALUES } from "~/lib/public-submissions";
@@ -100,6 +101,7 @@ const labelClass = "block text-sm font-sans font-bold text-gray-700 mb-1.5";
 export default function ContactPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useLoaderData<typeof loader>();
+  const midweekServices = getMidweekServices(settings);
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -156,16 +158,28 @@ export default function ContactPage() {
                 <tbody>
                   <tr className="border-b border-gray-100">
                     <td className="py-2 text-gray-500">Sunday</td>
-                    <td className="py-2 font-bold text-gray-800 text-right">
-                      {settings["service.sunday1"]} &amp; {settings["service.sunday2"]}
+                    <td className="py-2 font-bold text-gray-800 text-left sm:text-right">
+                      {(settings["service.sunday1"] ?? "7:00 AM")} &amp; {(settings["service.sunday2"] ?? "9:00 AM")}
                     </td>
                   </tr>
-                  <tr>
-                    <td className="py-2 text-gray-500">Cell Groups</td>
-                    <td className="py-2 font-bold text-gray-800 text-right">
-                      {settings["service.cellGroupDays"]}
-                    </td>
-                  </tr>
+                  {midweekServices.map((service, index) => (
+                    <tr
+                      key={service}
+                      className={index < midweekServices.length - 1 ? "border-b border-gray-100" : undefined}
+                    >
+                      {index === 0 ? (
+                        <td
+                          rowSpan={midweekServices.length}
+                          className="py-2 pr-4 align-top text-gray-500"
+                        >
+                          Midweek Service
+                        </td>
+                      ) : null}
+                      <td className="py-2 font-bold text-gray-800 text-left sm:text-right">
+                        {service}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
