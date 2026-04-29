@@ -213,35 +213,6 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Social */}
-            <div className="rounded-[1.6rem] border border-white/60 bg-white/72 p-5 shadow-sm">
-              <p className="mb-3 text-xs font-sans font-bold tracking-widest uppercase text-red-600">
-                Follow Along
-              </p>
-              <div className="flex flex-wrap gap-3" aria-label="Social media links">
-                {[
-                  { key: "social.facebook",  label: "Facebook"  },
-                  { key: "social.youtube",   label: "YouTube"   },
-                  { key: "social.instagram", label: "Instagram" },
-                ].map(({ key, label }) =>
-                  settings[key] ? (
-                    <a
-                      key={key}
-                      href={settings[key]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs
-                                 font-sans font-bold text-gray-500 hover:border-red-300
-                                 hover:text-red-700 transition-all focus:outline-none
-                                 focus:ring-2 focus:ring-red-300"
-                      aria-label={`Visit our ${label} page`}
-                    >
-                      {label}
-                    </a>
-                  ) : null
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Form column */}
