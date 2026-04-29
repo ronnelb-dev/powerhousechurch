@@ -80,15 +80,15 @@ export function SermonCard({
           {series && <Badge>{series}</Badge>}
         </div>
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-300 group-hover:bg-black/15"
+          className="absolute inset-0 flex items-center justify-center bg-black/10 transition-all duration-300 group-hover:bg-black/15"
           aria-hidden="true"
         >
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-full border border-white/0 bg-white/10 backdrop-blur-sm transition-all duration-300 group-hover:border-white/70 group-hover:bg-white/20"
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-white/70 bg-white/20 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/25"
           >
             <svg
               width="20" height="20" viewBox="0 0 20 20" fill="white"
-              className="translate-x-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+              className="translate-x-0.5 opacity-100"
             >
               <polygon points="5,3 17,10 5,17"/>
             </svg>

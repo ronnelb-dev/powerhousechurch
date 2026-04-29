@@ -37,7 +37,7 @@ export default function PortalLayout() {
         userName={`${user.firstName} ${user.lastName}`}
       />
       <div className="flex-1 overflow-y-auto">
-        <main id="main-content" className="min-h-full">
+        <main id="main-content" className="min-h-full pt-18 md:pt-0">
           <Outlet context={user} />
         </main>
       </div>
