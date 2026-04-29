@@ -454,6 +454,170 @@ function MemberRow({
   );
 }
 
+function MemberMobileCard({
+  member,
+  cellGroups,
+  checked,
+  onCheckedChange,
+}: {
+  member: ReturnType<typeof useLoaderData<typeof loader>>["members"][0];
+  cellGroups: { id: string; name: string }[];
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  const fetcher = useFetcher();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+      return;
+    }
+
+    const message =
+      "error" in fetcher.data && fetcher.data.error
+        ? fetcher.data.error
+        : "success" in fetcher.data && fetcher.data.success
+        ? fetcher.data.success
+        : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
+      message,
+    });
+  }, [fetcher.data, fetcher.state, showToast]);
+
+  return (
+    <article
+      className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm ${
+        !member.isActive ? "opacity-60" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onCheckedChange(event.currentTarget.checked)}
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-300"
+          aria-label={`Select ${member.firstName} ${member.lastName}`}
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-3">
+            <div
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full
+                         border border-red-100 bg-red-50 font-sans text-xs font-bold text-red-700"
+            >
+              {member.firstName[0]}
+              {member.lastName[0]}
+            </div>
+            <div className="min-w-0">
+              <p className="break-words text-sm font-sans font-bold text-gray-800">
+                {member.firstName} {member.lastName}
+              </p>
+              <p className="mt-1 break-all text-xs font-sans text-gray-400">
+                {member.email ?? member.phone ?? "—"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-sans font-bold uppercase tracking-[0.12em] ${
+                    member.isActive
+                      ? "bg-green-50 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {member.isActive ? "Active" : "Inactive"}
+                </span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-600">
+                  Joined{" "}
+                  {new Date(member.createdAt).toLocaleDateString("en-PH", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            <fetcher.Form method="post" className="space-y-1">
+              <input type="hidden" name="intent" value="updateRole" />
+              <input type="hidden" name="userId" value={member.id} />
+              <label className="block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+                Role
+              </label>
+              <select
+                name="role"
+                defaultValue={member.role}
+                onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+                disabled={fetcher.state !== "idle"}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm
+                           text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+                aria-label={`Change role for ${member.firstName} ${member.lastName}`}
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </fetcher.Form>
+
+            <fetcher.Form method="post" className="space-y-1">
+              <input type="hidden" name="intent" value="assignCellGroup" />
+              <input type="hidden" name="userId" value={member.id} />
+              <label className="block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+                Cell Group
+              </label>
+              <select
+                name="cellGroupId"
+                defaultValue={member.cellGroup?.id ?? ""}
+                onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+                disabled={fetcher.state !== "idle"}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm
+                           text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+                aria-label={`Assign cell group for ${member.firstName} ${member.lastName}`}
+              >
+                <option value="">Unassigned</option>
+                {cellGroups.map((cellGroup) => (
+                  <option key={cellGroup.id} value={cellGroup.id}>
+                    {cellGroup.name}
+                  </option>
+                ))}
+              </select>
+            </fetcher.Form>
+
+            <fetcher.Form method="post">
+              <input type="hidden" name="intent" value="toggleActive" />
+              <input type="hidden" name="userId" value={member.id} />
+              <PendingButton
+                type="submit"
+                isPending={fetcher.state !== "idle"}
+                pendingText={member.isActive ? "Updating..." : "Restoring..."}
+                className={[
+                  "w-full rounded-lg border px-3 py-2.5 text-sm font-sans font-bold transition-all",
+                  "focus:outline-none focus:ring-2",
+                  member.isActive
+                    ? "border-red-200 text-red-600 hover:bg-red-50 focus:ring-red-300"
+                    : "border-green-200 text-green-600 hover:bg-green-50 focus:ring-green-300",
+                ].join(" ")}
+              >
+                {member.isActive ? "Deactivate Member" : "Reactivate Member"}
+              </PendingButton>
+            </fetcher.Form>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function AdminMembersPage() {
   const { members, total, page, totalPages, cellGroups, filters } =
     useLoaderData<typeof loader>();
@@ -503,7 +667,7 @@ export default function AdminMembersPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">Members</h1>
           <p className="text-sm text-gray-400 font-sans">{total} matching members</p>
@@ -518,7 +682,7 @@ export default function AdminMembersPage() {
         </Link>
       </div>
 
-      <Form method="get" className="mb-6 rounded-xl border border-gray-100 bg-white p-4">
+      <Form method="get" className="mb-6 rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]">
           <input
             type="search"
@@ -555,7 +719,7 @@ export default function AdminMembersPage() {
             <option value="inactive">Inactive only</option>
             <option value="all">Active and inactive</option>
           </select>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="submit"
               className="rounded-lg bg-red-700 px-5 py-2.5 text-sm font-bold text-white
@@ -576,7 +740,7 @@ export default function AdminMembersPage() {
         </div>
       </Form>
 
-      <Form method="post" className="mb-6 rounded-xl border border-gray-100 bg-white p-5">
+      <Form method="post" className="mb-6 rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
         {selectedIds.map((memberId) => (
           <input key={memberId} type="hidden" name="selectedUserIds" value={memberId} />
         ))}
@@ -584,7 +748,7 @@ export default function AdminMembersPage() {
         <input type="hidden" name="filterCellGroupId" value={filters.cellGroupId} />
         <input type="hidden" name="activeStatus" value={filters.activeStatus} />
 
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-serif text-lg font-bold text-gray-800">Bulk Actions</h2>
             <p className="text-sm text-gray-400 font-sans">
@@ -625,7 +789,7 @@ export default function AdminMembersPage() {
                            font-sans text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
               >
                 <option value="SUNDAY_SERVICE">Sunday Service</option>
-                <option value="CELL_GROUP">Cell Group</option>
+                <option value="CELL_GROUP">Midweek Service</option>
               </select>
             </div>
             <PendingButton
@@ -696,8 +860,34 @@ export default function AdminMembersPage() {
       </Form>
 
       {members.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-gray-100 bg-white">
-          <div className="overflow-x-auto">
+        <>
+          <section className="mb-4 rounded-xl border border-gray-100 bg-white p-4 lg:hidden">
+            <label className="flex items-center gap-3 text-sm font-sans font-bold text-gray-700">
+              <input
+                type="checkbox"
+                checked={allOnPageSelected}
+                onChange={(event) => toggleAllOnPage(event.currentTarget.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-300"
+                aria-label="Select all members on this page"
+              />
+              Select all members on this page
+            </label>
+          </section>
+
+          <div className="space-y-4 lg:hidden">
+            {members.map((member) => (
+              <MemberMobileCard
+                key={member.id}
+                member={member}
+                cellGroups={cellGroups}
+                checked={selectedIds.includes(member.id)}
+                onCheckedChange={(checked) => toggleMember(member.id, checked)}
+              />
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white lg:block">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm" aria-label="Member list">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
@@ -749,8 +939,9 @@ export default function AdminMembersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         <EmptyState
           icon="members"

@@ -279,12 +279,14 @@ function FieldError({
   return <p className="mt-1 text-xs font-sans text-red-600">{message}</p>;
 }
 
-function CellGroupRow({
+function CellGroupEditor({
   cellGroup,
   leaders,
+  layout = "desktop",
 }: {
   cellGroup: CellGroupData;
   leaders: LeadersData;
+  layout?: "desktop" | "mobile";
 }) {
   const updateFetcher = useFetcher<CellGroupActionData>();
   const deleteFetcher = useFetcher<CellGroupActionData>();
@@ -299,7 +301,141 @@ function CellGroupRow({
 
   const isSaving = updateFetcher.state !== "idle";
   const isDeleting = deleteFetcher.state !== "idle";
+  const isMobile = layout === "mobile";
 
+  return (
+    <div className="space-y-3">
+      <updateFetcher.Form method="post" className="space-y-3">
+        <input type="hidden" name="intent" value="update" />
+        <input type="hidden" name="cellGroupId" value={cellGroup.id} />
+
+        <div>
+          <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+            Group Name
+          </label>
+          <input
+            type="text"
+            name="name"
+            defaultValue={cellGroup.name}
+            placeholder="Cell group name"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+          />
+          <FieldError message={updateErrors?.name?.[0]} />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+            Leader
+          </label>
+          <select
+            name="leaderId"
+            defaultValue={cellGroup.leaderId}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+          >
+            {leaders.map((leader) => (
+              <option key={leader.id} value={leader.id}>
+                {leader.firstName} {leader.lastName} ({leader.role})
+              </option>
+            ))}
+          </select>
+          <FieldError message={updateErrors?.leaderId?.[0]} />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+              Meeting Day
+            </label>
+            <input
+              type="text"
+              name="meetingDay"
+              defaultValue={cellGroup.meetingDay ?? ""}
+              placeholder="Meeting day"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <FieldError message={updateErrors?.meetingDay?.[0]} />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+              Meeting Time
+            </label>
+            <input
+              type="text"
+              name="meetingTime"
+              defaultValue={cellGroup.meetingTime ?? ""}
+              placeholder="Meeting time"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <FieldError message={updateErrors?.meetingTime?.[0]} />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+              Area / Barangay
+            </label>
+            <input
+              type="text"
+              name="barangay"
+              defaultValue={cellGroup.barangay ?? ""}
+              placeholder="Area / barangay"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <FieldError message={updateErrors?.barangay?.[0]} />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs font-sans font-bold text-gray-700">
+          <input
+            type="checkbox"
+            name="isActive"
+            defaultChecked={cellGroup.isActive}
+            className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-300"
+          />
+          Active and visible in the public directory
+        </label>
+
+        <div className={`flex gap-2 ${isMobile ? "flex-col" : "flex-row items-center"}`}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="rounded-lg bg-red-700 px-4 py-2.5 text-xs font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save changes"}
+          </button>
+
+          <deleteFetcher.Form method="post">
+            <input type="hidden" name="intent" value="delete" />
+            <input type="hidden" name="cellGroupId" value={cellGroup.id} />
+            <button
+              type="submit"
+              disabled={isDeleting}
+              className="rounded-lg border border-red-200 px-4 py-2.5 text-xs font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </deleteFetcher.Form>
+        </div>
+
+        {updateFetcher.data && !updateFetcher.data.ok && updateFetcher.data.formError ? (
+          <p className="text-xs font-sans text-red-600">{updateFetcher.data.formError}</p>
+        ) : null}
+        {updateFetcher.data?.ok && updateFetcher.data.cellGroupId === cellGroup.id ? (
+          <p className="text-xs font-sans text-green-600">Cell group updated.</p>
+        ) : null}
+        {deleteFetcher.data && !deleteFetcher.data.ok && deleteFetcher.data.formError ? (
+          <p className="text-xs font-sans text-red-600">{deleteFetcher.data.formError}</p>
+        ) : null}
+      </updateFetcher.Form>
+    </div>
+  );
+}
+
+function CellGroupRow({
+  cellGroup,
+  leaders,
+}: {
+  cellGroup: CellGroupData;
+  leaders: LeadersData;
+}) {
   return (
     <tr className="border-b border-gray-100 align-top">
       <td className="px-4 py-4">
@@ -314,128 +450,13 @@ function CellGroupRow({
             })}
           </p>
           <p className="mt-2 text-xs font-sans text-gray-500">
-            {cellGroup._count.members} members, {cellGroup._count.attendance} attendance
-            {" "}records, {cellGroup._count.posts} posts
+            {cellGroup._count.members} members, {cellGroup._count.attendance} attendance{" "}
+            records, {cellGroup._count.posts} posts
           </p>
         </div>
       </td>
       <td className="px-4 py-4">
-        <div className="space-y-3">
-          <updateFetcher.Form method="post" className="space-y-3">
-            <div>
-              <input
-                type="hidden"
-                name="intent"
-                value="update"
-              />
-              <input
-                type="hidden"
-                name="cellGroupId"
-                value={cellGroup.id}
-              />
-            </div>
-
-            <div>
-              <input
-                type="text"
-                name="name"
-                defaultValue={cellGroup.name}
-                placeholder="Cell group name"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-              />
-              <FieldError message={updateErrors?.name?.[0]} />
-            </div>
-
-            <div>
-              <select
-                name="leaderId"
-                defaultValue={cellGroup.leaderId}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-              >
-                {leaders.map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.firstName} {leader.lastName} ({leader.role})
-                  </option>
-                ))}
-              </select>
-              <FieldError message={updateErrors?.leaderId?.[0]} />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <input
-                  type="text"
-                  name="meetingDay"
-                  defaultValue={cellGroup.meetingDay ?? ""}
-                  placeholder="Meeting day"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
-                <FieldError message={updateErrors?.meetingDay?.[0]} />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  name="meetingTime"
-                  defaultValue={cellGroup.meetingTime ?? ""}
-                  placeholder="Meeting time"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
-                <FieldError message={updateErrors?.meetingTime?.[0]} />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  name="barangay"
-                  defaultValue={cellGroup.barangay ?? ""}
-                  placeholder="Area / barangay"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
-                <FieldError message={updateErrors?.barangay?.[0]} />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-xs font-sans font-bold text-gray-700">
-              <input
-                type="checkbox"
-                name="isActive"
-                defaultChecked={cellGroup.isActive}
-                className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-300"
-              />
-              Active and visible in the public directory
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg bg-red-700 px-4 py-2 text-xs font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:opacity-60"
-            >
-              {isSaving ? "Saving..." : "Save changes"}
-            </button>
-
-            {updateFetcher.data && !updateFetcher.data.ok && updateFetcher.data.formError ? (
-              <p className="text-xs font-sans text-red-600">{updateFetcher.data.formError}</p>
-            ) : null}
-            {updateFetcher.data?.ok && updateFetcher.data.cellGroupId === cellGroup.id ? (
-              <p className="text-xs font-sans text-green-600">Cell group updated.</p>
-            ) : null}
-          </updateFetcher.Form>
-
-          <deleteFetcher.Form method="post">
-            <input type="hidden" name="intent" value="delete" />
-            <input type="hidden" name="cellGroupId" value={cellGroup.id} />
-            <button
-              type="submit"
-              disabled={isDeleting}
-              className="rounded-lg border border-red-200 px-4 py-2 text-xs font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </button>
-          </deleteFetcher.Form>
-
-          {deleteFetcher.data && !deleteFetcher.data.ok && deleteFetcher.data.formError ? (
-            <p className="text-xs font-sans text-red-600">{deleteFetcher.data.formError}</p>
-          ) : null}
-        </div>
+        <CellGroupEditor cellGroup={cellGroup} leaders={leaders} />
       </td>
       <td className="px-4 py-4">
         <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
@@ -449,6 +470,68 @@ function CellGroupRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function CellGroupMobileCard({
+  cellGroup,
+  leaders,
+}: {
+  cellGroup: CellGroupData;
+  leaders: LeadersData;
+}) {
+  return (
+    <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-sans font-bold text-gray-900">{cellGroup.name}</h3>
+          <p className="mt-1 text-xs font-sans text-gray-500">
+            Created{" "}
+            {new Date(cellGroup.createdAt).toLocaleDateString("en-PH", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-[0.12em] ${
+            cellGroup.isActive
+              ? "bg-green-50 text-green-700"
+              : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {cellGroup.isActive ? "Active" : "Inactive"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-sans sm:grid-cols-4">
+        <div className="rounded-xl bg-gray-50 px-3 py-2">
+          <p className="text-gray-400">Members</p>
+          <p className="mt-1 font-bold text-gray-800">{cellGroup._count.members}</p>
+        </div>
+        <div className="rounded-xl bg-gray-50 px-3 py-2">
+          <p className="text-gray-400">Attendance</p>
+          <p className="mt-1 font-bold text-gray-800">{cellGroup._count.attendance}</p>
+        </div>
+        <div className="rounded-xl bg-gray-50 px-3 py-2">
+          <p className="text-gray-400">Posts</p>
+          <p className="mt-1 font-bold text-gray-800">{cellGroup._count.posts}</p>
+        </div>
+        <div className="rounded-xl bg-gray-50 px-3 py-2">
+          <p className="text-gray-400">Leader</p>
+          <p className="mt-1 font-bold text-gray-800">{cellGroup.leaderName}</p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs font-sans leading-5 text-gray-500">
+        Deleting a cell group removes its member, post, and attendance links so the rest of the data stays intact.
+      </p>
+
+      <div className="mt-4 border-t border-gray-100 pt-4">
+        <CellGroupEditor cellGroup={cellGroup} leaders={leaders} layout="mobile" />
+      </div>
+    </article>
   );
 }
 
@@ -468,20 +551,20 @@ export default function AdminCellGroupsPage() {
   }, [createFetcher.state, createFetcher.data]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-bold text-gray-900">Cell Groups</h1>
           <p className="mt-1 text-sm font-sans text-gray-500">
             Add, update, and remove groups from one place.
           </p>
         </div>
-        <div className="rounded-full bg-red-50 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.14em] text-red-700">
+        <div className="w-fit rounded-full bg-red-50 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.14em] text-red-700">
           {cellGroups.length} total groups
         </div>
       </div>
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-5">
           <h2 className="font-serif text-xl font-bold text-gray-900">Add Cell Group</h2>
           <p className="mt-1 text-sm font-sans text-gray-500">
@@ -584,7 +667,7 @@ export default function AdminCellGroupsPage() {
               Publish this group in the public cell group directory
             </label>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="submit"
                 disabled={createFetcher.state !== "idle"}
@@ -604,8 +687,19 @@ export default function AdminCellGroupsPage() {
       </section>
 
       {cellGroups.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-          <div className="overflow-x-auto">
+        <>
+          <section className="space-y-4 lg:hidden">
+            {cellGroups.map((cellGroup) => (
+              <CellGroupMobileCard
+                key={cellGroup.id}
+                cellGroup={cellGroup}
+                leaders={leaders}
+              />
+            ))}
+          </section>
+
+          <section className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:block">
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-sm" aria-label="Cell group management">
               <thead className="bg-gray-50">
                 <tr className="border-b border-gray-100">
@@ -630,8 +724,9 @@ export default function AdminCellGroupsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
+            </div>
+          </section>
+        </>
       ) : (
         <EmptyState
           icon="members"

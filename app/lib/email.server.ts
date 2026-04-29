@@ -207,7 +207,7 @@ export async function sendWelcomeEmail(to: string, firstName: string) {
     metadata: { type: "welcome_email" },
     html: `
       <p>Dear ${escapeHtml(firstName)},</p>
-      <p>Your member account has been created. You can now log in to the Members Portal to connect with your cell group, track attendance, and participate in Daily Bread devotions.</p>
+      <p>Your member account has been created. You can now log in to the Members Portal to connect with your cell group, track attendance, and participate in Community devotions.</p>
       <p>Welcome home.</p>
       <p>— The Powerhouse Church Team</p>
     `,

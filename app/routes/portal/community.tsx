@@ -17,11 +17,12 @@ import { DevotionPost } from "~/components/church/DevotionPost";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { SectionHeader } from "~/components/ui/SectionHeader";
+import { Sheet } from "~/components/ui/sheet";
 import { useToast } from "~/components/ui/ToastProvider";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const meta: MetaFunction = () => [
-  { title: "Daily Bread — Powerhouse Church Portal" },
+  { title: "Community — Powerhouse Church Portal" },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -214,6 +215,7 @@ export default function CommunityPage() {
   const navigation = useNavigation();
   const { showToast } = useToast();
   const lastToastRef = useRef<string | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
   const isPosting  = navigation.state === "submitting" &&
     navigation.formData?.get("intent") === "createPost";
   const reflectionPrompts = latestSermon?.reflectionPrompts
@@ -226,6 +228,14 @@ export default function CommunityPage() {
   useEffect(() => {
     if (!actionData || typeof actionData !== "object") {
       return;
+    }
+
+    if (("error" in actionData && actionData.error) || isPosting) {
+      setShowComposer(true);
+    }
+
+    if ("success" in actionData && actionData.success === "Reflection submitted for review.") {
+      setShowComposer(false);
     }
 
     const message =
@@ -250,7 +260,7 @@ export default function CommunityPage() {
     <div className="p-6 md:p-8 max-w-2xl">
       <SectionHeader
         eyebrow="Members Portal"
-        title="Daily Bread"
+        title="Community"
         subtitle="Share what God is speaking to you through His Word."
       />
 
@@ -376,92 +386,130 @@ export default function CommunityPage() {
         </div>
       )}
 
-      {/* Post composer */}
-      <div className="mt-8 bg-white border border-gray-100 rounded-xl p-6 mb-8">
-        <p className="text-xs font-sans font-bold tracking-widest uppercase
-                      text-gray-400 mb-4">
-          Share a Reflection
-        </p>
-        <Form method="post" noValidate>
-          <input type="hidden" name="intent" value="createPost" />
-
-          {/* Bible verse */}
-          <div className="mb-3">
-            <label htmlFor="bibleVerse" className="sr-only">Scripture reference</label>
-            <input
-              id="bibleVerse"
-              type="text"
-              name="bibleVerse"
-              placeholder="Scripture reference (e.g. John 15:5)"
-              maxLength={100}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Bible text */}
-          <div className="mb-3">
-            <label htmlFor="bibleText" className="sr-only">Verse text (optional)</label>
-            <input
-              id="bibleText"
-              type="text"
-              name="bibleText"
-              placeholder="Paste the verse text here (optional)"
-              maxLength={500}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Reflection */}
-          <div className="mb-4">
-            <label htmlFor="content" className="sr-only">Your reflection</label>
-            <textarea
-              id="content"
-              name="content"
-              rows={4}
-              maxLength={2000}
-              placeholder="Write your devotional reflection…"
-              required
-              aria-required="true"
-              className={`${inputClass} resize-y min-h-[100px]`}
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
+      <Sheet open={showComposer} onOpenChange={setShowComposer}>
+        <div className="absolute inset-x-4 top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[1.75rem] border border-white/70 bg-white p-5 shadow-2xl sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label htmlFor="scope" className="sr-only">Audience</label>
-              <select
-                id="scope"
-                name="scope"
-                className="text-sm font-sans px-3 py-2 border border-gray-200
-                           rounded-lg bg-white text-gray-600 focus:outline-none
-                           focus:ring-2 focus:ring-red-300 cursor-pointer"
+              <p className="text-xs font-sans font-bold tracking-widest uppercase text-gray-400">
+                Share a Reflection
+              </p>
+              <h2
+                id="community-reflection-form"
+                className="mt-2 font-serif text-2xl font-bold text-gray-900"
               >
-                <option value="PUBLIC">Whole Church</option>
-                {cellGroupId && (
-                  <option value="CELL_GROUP">My Cell Group Only</option>
-                )}
-              </select>
+                What is God showing you today?
+              </h2>
+              <p className="mt-2 text-sm font-sans leading-6 text-gray-500">
+                Share a verse, a short reflection, or something your group can pray through this week.
+              </p>
             </div>
 
-            <PendingButton
-              type="submit"
-              isPending={isPosting}
-              pendingText="Posting..."
-              className="px-6 py-2.5 bg-red-700 text-white font-sans font-bold
-                         text-sm rounded-lg hover:bg-red-800 disabled:opacity-60
-                         transition-all focus:outline-none focus:ring-2 focus:ring-red-400"
+            <button
+              type="button"
+              onClick={() => setShowComposer(false)}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+              aria-label="Close reflection form"
             >
-              Post Reflection
-            </PendingButton>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-        </Form>
 
-        {userRole !== "ADMIN" && (
-          <p className="mt-3 text-xs text-gray-400 font-sans">
-            Reflections are reviewed by an admin before appearing in the feed.
-          </p>
-        )}
-      </div>
+          <Form method="post" noValidate className="mt-5">
+            <input type="hidden" name="intent" value="createPost" />
+
+            <div className="mb-3">
+              <label htmlFor="bibleVerse" className="sr-only">Scripture reference</label>
+              <input
+                id="bibleVerse"
+                type="text"
+                name="bibleVerse"
+                placeholder="Scripture reference (e.g. John 15:5)"
+                maxLength={100}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="bibleText" className="sr-only">Verse text (optional)</label>
+              <input
+                id="bibleText"
+                type="text"
+                name="bibleText"
+                placeholder="Paste the verse text here (optional)"
+                maxLength={500}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="content" className="sr-only">Your reflection</label>
+              <textarea
+                id="content"
+                name="content"
+                rows={5}
+                maxLength={2000}
+                placeholder="Write your devotional reflection…"
+                required
+                aria-required="true"
+                className={`${inputClass} min-h-[140px] resize-y`}
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <label htmlFor="scope" className="sr-only">Audience</label>
+                <select
+                  id="scope"
+                  name="scope"
+                  className="w-full cursor-pointer rounded-lg border border-gray-200
+                             bg-white px-3 py-2 text-sm font-sans text-gray-600
+                             focus:outline-none focus:ring-2 focus:ring-red-300 sm:w-auto"
+                >
+                  <option value="PUBLIC">Whole Church</option>
+                  {cellGroupId && (
+                    <option value="CELL_GROUP">My Cell Group Only</option>
+                  )}
+                </select>
+              </div>
+
+              <PendingButton
+                type="submit"
+                isPending={isPosting}
+                pendingText="Posting..."
+                className="rounded-lg bg-red-700 px-6 py-2.5 text-sm font-sans font-bold
+                           text-white transition-all hover:bg-red-800 disabled:opacity-60
+                           focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                Post Reflection
+              </PendingButton>
+            </div>
+          </Form>
+
+          {userRole !== "ADMIN" && (
+            <p className="mt-4 text-xs text-gray-400 font-sans">
+              Reflections are reviewed by an admin before appearing in the feed.
+            </p>
+          )}
+        </div>
+      </Sheet>
+
+      <button
+        type="button"
+        onClick={() => setShowComposer(true)}
+        className="fixed bottom-6 right-4 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-red-700 px-4 py-3 text-sm font-sans font-bold text-white shadow-[0_18px_35px_-18px_rgba(146,18,28,0.8)] transition-all hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-400 md:bottom-8 md:right-8"
+        aria-expanded={showComposer}
+        aria-controls="community-reflection-form"
+        aria-label="Share a reflection"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </svg>
+        <span>Share</span>
+      </button>
 
       {/* Feed */}
       {posts.length > 0 ? (
@@ -490,7 +538,7 @@ export function ErrorBoundary() {
     <div className="p-8">
       <EmptyState
         icon="devotion"
-        title="Daily Bread unavailable"
+        title="Community unavailable"
         message={
           isRouteErrorResponse(error) ? error.data : "Please refresh the page."
         }

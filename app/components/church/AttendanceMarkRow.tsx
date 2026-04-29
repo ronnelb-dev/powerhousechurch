@@ -15,6 +15,8 @@ interface AttendanceMarkRowProps {
   date: string;
   type: "SUNDAY_SERVICE" | "CELL_GROUP";
   disabled?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (userId: string) => void;
 }
 
 export function AttendanceMarkRow({
@@ -25,6 +27,8 @@ export function AttendanceMarkRow({
   date,
   type,
   disabled,
+  selected = false,
+  onToggleSelect,
 }: AttendanceMarkRowProps) {
   const fetcher = useFetcher();
   const isPending = fetcher.state !== "idle";
@@ -37,36 +41,46 @@ export function AttendanceMarkRow({
   const initials = (firstName[0] ?? "") + (lastName[0] ?? "");
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 border-b border-gray-50last:border-0 hover:bg-gray-50 transition-colors">
-      {/* Avatar */}
-      <div
-        className="w-10 h-10 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-sm font-bold text-red-700 font-sans shrink-0"
-        aria-hidden="true"
-      >
-        {initials.toUpperCase()}
-      </div>
+    <li className="border-b border-gray-100 px-3 py-3 transition-colors last:border-b-0 hover:bg-gray-50 sm:px-4 sm:py-3.5">
+      <div className="flex items-start gap-3">
+        <label className="mt-1 shrink-0 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.(userId)}
+            disabled={disabled}
+            className="h-4 w-4 cursor-pointer rounded border-gray-300 text-red-700 focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed"
+            aria-label={`Select ${firstName} ${lastName}`}
+          />
+        </label>
 
-      {/* Name */}
-      <div className="flex-1 min-w-0">
-        <p className="font-sans font-bold text-gray-800 text-base truncate">
-          {firstName} {lastName}
-        </p>
-        {optimisticStatus && (
-          <p
-            className={`font-sans text-xs font-bold ${
-              optimisticStatus === "PRESENT" ? "text-green-600" : "text-red-500"
-            }`}
-          >
-            {optimisticStatus === "PRESENT" ? "✓ Present" : "✗ Absent"}
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-xs font-bold text-red-700 font-sans sm:h-10 sm:w-10 sm:text-sm"
+          aria-hidden="true"
+        >
+          {initials.toUpperCase()}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-sans text-sm font-bold leading-5 text-gray-800 sm:text-base">
+            {firstName} {lastName}
           </p>
-        )}
+          {optimisticStatus && (
+            <p
+              className={`mt-1 font-sans text-[11px] font-bold uppercase tracking-[0.08em] sm:text-xs ${
+                optimisticStatus === "PRESENT" ? "text-green-600" : "text-red-500"
+              }`}
+            >
+              {optimisticStatus === "PRESENT" ? "Present" : "Absent"}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Present / Absent buttons — submitted via hidden form fields */}
       <fetcher.Form
         method="post"
         action="/portal/attendance"
-        className="flex gap-2 shrink-0"
+        className="mt-3 grid grid-cols-2 gap-2 sm:mt-0 sm:flex sm:justify-end"
       >
         <input type="hidden" name="intent" value="markAttendance" />
         <input type="hidden" name="userId" value={userId} />
@@ -83,8 +97,8 @@ export function AttendanceMarkRow({
           aria-pressed={optimisticStatus === "PRESENT"}
           aria-label={`Mark ${firstName} ${lastName} as present`}
           className={[
-            "min-h-11 min-w-18 px-3 rounded-xl",
-            "font-sans font-bold text-sm border",
+            "min-h-10 w-full rounded-xl px-3 sm:min-h-11 sm:min-w-18 sm:w-auto",
+            "border font-sans text-sm font-bold",
             "transition-all duration-150 touch-manipulation",
             "focus:outline-none focus:ring-2 focus:ring-green-400",
             "disabled:opacity-40 disabled:cursor-not-allowed",
@@ -106,8 +120,8 @@ export function AttendanceMarkRow({
           aria-pressed={optimisticStatus === "ABSENT"}
           aria-label={`Mark ${firstName} ${lastName} as absent`}
           className={[
-            "min-h-11 min-w-18 px-3 rounded-xl",
-            "font-sans font-bold text-sm border",
+            "min-h-10 w-full rounded-xl px-3 sm:min-h-11 sm:min-w-18 sm:w-auto",
+            "border font-sans text-sm font-bold",
             "transition-all duration-150 touch-manipulation",
             "focus:outline-none focus:ring-2 focus:ring-red-400",
             "disabled:opacity-40 disabled:cursor-not-allowed",

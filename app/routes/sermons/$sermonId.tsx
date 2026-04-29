@@ -193,7 +193,7 @@ export default function SermonDetailPage() {
           <div className="flex items-center gap-3 mb-5">
             <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
             <h2 className="font-serif text-xl font-bold text-gray-900 m-0">
-              Daily Bread Tie-In
+                    Community Tie-In
             </h2>
           </div>
 
@@ -240,7 +240,7 @@ export default function SermonDetailPage() {
               to="/portal/community"
               className="inline-flex items-center rounded-full bg-red-700 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-800"
             >
-              Reflect in Daily Bread
+                  Reflect in Community
             </Link>
             <Link
               to="/prayer-request"

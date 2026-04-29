@@ -590,13 +590,13 @@ function EventFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-form-title"
     >
-      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white">
-        <div className="flex items-center justify-between border-b border-gray-100 p-6">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white">
+        <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-6">
           <h2 id="event-form-title" className="font-serif text-xl font-bold text-gray-900">
             {event ? "Edit Event" : "Add Event"}
           </h2>
@@ -608,7 +608,7 @@ function EventFormModal({
             ×
           </button>
         </div>
-        <fetcher.Form ref={formRef} method="post" className="space-y-4 p-6">
+        <fetcher.Form ref={formRef} method="post" className="space-y-4 p-4 sm:p-6">
           <input type="hidden" name="intent" value={event ? "update" : "create"} />
           {event && <input type="hidden" name="id" value={event.id} />}
 
@@ -665,7 +665,7 @@ function EventFormModal({
             />
             <FieldError id="e-location-error" errors={errors.location} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="e-startDate" className={labelClass}>
                 Start Date & Time *
@@ -777,7 +777,7 @@ function EventFormModal({
               Publish immediately
             </span>
           </label>
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <PendingButton
               type="submit"
               isPending={isSubmitting}
@@ -820,7 +820,7 @@ export default function AdminEventsPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">Events</h1>
           <p className="text-sm text-gray-400">
@@ -838,7 +838,7 @@ export default function AdminEventsPage() {
         </button>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <MetricCard label="Registrations" value={String(totalRegistrations)} />
         <MetricCard label="Checked In" value={String(totalCheckedIn)} />
         <MetricCard label="Waitlisted" value={String(totalWaitlisted)} />
@@ -911,14 +911,14 @@ function AdminEventCard({
 
   return (
     <div
-      className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-red-100 ${
+      className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-red-100 sm:p-5 ${
         isPast ? "opacity-70" : ""
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="truncate text-lg font-serif font-bold text-gray-900">{event.title}</p>
+            <p className="break-words text-lg font-serif font-bold text-gray-900">{event.title}</p>
             <toggleFetcher.Form method="post">
               <input type="hidden" name="intent" value="togglePublished" />
               <input type="hidden" name="id" value={event.id} />
@@ -962,7 +962,7 @@ function AdminEventCard({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {!isPast && (
             <reminderFetcher.Form method="post">
               <input type="hidden" name="intent" value="sendReminder" />
@@ -971,7 +971,7 @@ function AdminEventCard({
                 type="submit"
                 isPending={isSendingReminder}
                 pendingText="Sending..."
-                className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
+                className="w-full rounded-lg border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
               >
                 Send reminder
               </PendingButton>
@@ -982,14 +982,14 @@ function AdminEventCard({
             <input type="hidden" name="eventId" value={event.id} />
             <button
               type="submit"
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
             >
               Export roster
             </button>
           </Form>
           <button
             onClick={() => onEdit(event)}
-            className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="w-full rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             Edit
           </button>
@@ -1005,7 +1005,7 @@ function AdminEventCard({
                   e.preventDefault();
                 }
               }}
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+              className="w-full rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
             >
               Delete
             </PendingButton>
@@ -1013,7 +1013,7 @@ function AdminEventCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatPill label="Confirmed" value={String(event.counts.confirmed)} tone="slate" />
         <StatPill label="Checked in" value={String(event.counts.checkedIn)} tone="emerald" />
         <StatPill label="Waitlist" value={String(event.counts.waitlist)} tone="amber" />
@@ -1026,7 +1026,7 @@ function AdminEventCard({
 
       {event.requiresRegistration ? (
         <details className="group mt-5 rounded-xl border border-gray-100 bg-gray-50">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-sm font-bold text-gray-800">Registrant roster</p>
               <p className="text-xs text-gray-500">
@@ -1101,7 +1101,7 @@ function RegistrationRow({
 
   return (
     <div className="px-4 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-bold text-gray-800">{registration.name}</p>
@@ -1131,7 +1131,7 @@ function RegistrationRow({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {registration.status === "WAITLISTED" ? (
             <actionFetcher.Form method="post">
               <input type="hidden" name="intent" value="promoteWaitlist" />
@@ -1141,7 +1141,7 @@ function RegistrationRow({
                 type="submit"
                 isPending={isSubmitting}
                 pendingText="Updating..."
-                className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-800 transition-all hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60"
+                className="w-full rounded-lg border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800 transition-all hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60"
               >
                 Promote
               </PendingButton>
@@ -1160,7 +1160,7 @@ function RegistrationRow({
                 isPending={isSubmitting}
                 pendingText="Saving..."
                 className={[
-                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all focus:outline-none focus:ring-2 disabled:opacity-60",
+                  "w-full rounded-lg px-3 py-2 text-xs font-bold transition-all focus:outline-none focus:ring-2 disabled:opacity-60",
                   registration.checkedInAt
                     ? "border border-gray-200 text-gray-700 hover:bg-gray-50 focus:ring-gray-300"
                     : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 focus:ring-emerald-300",

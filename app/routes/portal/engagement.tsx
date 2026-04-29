@@ -572,7 +572,7 @@ export default function EngagementPage() {
 
             {[
               ["prayerUpdatesEmail", "Email me about updates to my prayer requests."],
-              ["sermonAnnouncements", "Send me sermon drops and Daily Bread tie-ins."],
+              ["sermonAnnouncements", "Send me sermon drops and Community tie-ins."],
               ["servingOpportunities", "Notify me when serving opportunities open up."],
               ["eventReminders", "Keep me updated on church events and reminders."],
               ["smsUrgentCare", "Text me for urgent pastoral care follow-up."],

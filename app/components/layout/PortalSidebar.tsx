@@ -193,7 +193,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/portal/dashboard", label: "Dashboard", icon: <DashIcon /> },
   { to: "/portal/attendance", label: "Attendance", icon: <CheckIcon /> },
   { to: "/portal/directory", label: "Directory", icon: <UsersIcon /> },
-  { to: "/portal/community", label: "Daily Bread", icon: <BookIcon /> },
+  { to: "/portal/community", label: "Community", icon: <BookIcon /> },
   { to: "/portal/engagement", label: "Engage", icon: <SparkIcon /> },
   { to: "/portal/profile", label: "My Profile", icon: <PersonIcon /> },
 ];

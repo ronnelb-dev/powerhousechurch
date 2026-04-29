@@ -2,16 +2,19 @@
 import {
   useLoaderData,
   Form,
+  useNavigation,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { useState } from "react";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { AttendanceMarkRow } from "~/components/church/AttendanceMarkRow";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { PendingButton } from "~/components/ui/PendingButton";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [
@@ -92,10 +95,9 @@ export async function action({ request }: ActionFunctionArgs) {
   if (user.role === "MEMBER") throw new Response("Forbidden", { status: 403 });
 
   const formData = await request.formData();
-  const userId = formData.get("userId") as string;
+  const intent = formData.get("intent") as string;
   const date   = formData.get("date") as string;
   const type   = formData.get("type") as "SUNDAY_SERVICE" | "CELL_GROUP";
-  const status = formData.get("status") as "PRESENT" | "ABSENT";
 
   // Prevent marking future dates
   const selectedDate = new Date(date + "T00:00:00");
@@ -105,16 +107,85 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "Cannot mark attendance for a future date." };
   }
 
-  // CELL_LEADER can only mark members in their own group
-  if (user.role === "CELL_LEADER") {
-    const targetUser = await db.user.findUnique({
-      where: { id: userId },
-      select: { cellGroupId: true },
+  const assertLeaderAccess = async (userIds: string[]) => {
+    if (user.role !== "CELL_LEADER") return;
+    const allowedMembers = await db.user.findMany({
+      where: {
+        id: { in: userIds },
+        cellGroupId: user.cellGroupId ?? "__no_group__",
+      },
+      select: { id: true },
     });
-    if (targetUser?.cellGroupId !== user.cellGroupId) {
+    if (allowedMembers.length !== userIds.length) {
       throw new Response("Forbidden", { status: 403 });
     }
+  };
+
+  if (intent === "bulkMarkPresent") {
+    const userIds = formData
+      .getAll("userIds")
+      .map((value) => String(value))
+      .filter(Boolean);
+
+    if (userIds.length === 0) {
+      return { error: "Select at least one member first." };
+    }
+
+    await assertLeaderAccess(userIds);
+
+    const existingRecords = await db.attendance.findMany({
+      where: {
+        userId: { in: userIds },
+        type,
+        date: selectedDate,
+      },
+      select: { userId: true, status: true },
+    });
+    const previousStatuses = new Map(
+      existingRecords.map((record) => [record.userId, record.status]),
+    );
+
+    await Promise.all(
+      userIds.map((userId) =>
+        db.attendance.upsert({
+          where: { userId_type_date: { userId, type, date: selectedDate } },
+          update: { status: "PRESENT", markedById: user.id },
+          create: {
+            userId,
+            type,
+            status: "PRESENT",
+            date: selectedDate,
+            markedById: user.id,
+            cellGroupId: user.cellGroupId ?? undefined,
+          },
+        }),
+      ),
+    );
+
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "attendance.mark.bulk",
+      entityType: "attendance",
+      entityId: `${type}:${date}:bulk-present`,
+      summary: `Marked ${userIds.length} members present for ${date}`,
+      details: {
+        memberIds: userIds,
+        attendanceType: type,
+        date,
+        previousStatuses: Object.fromEntries(previousStatuses),
+        nextStatus: "PRESENT",
+      },
+    });
+
+    return { success: true };
   }
+
+  const userId = formData.get("userId") as string;
+  const status = formData.get("status") as "PRESENT" | "ABSENT";
+
+  await assertLeaderAccess([userId]);
 
   const previousRecord = await db.attendance.findUnique({
     where: { userId_type_date: { userId, type, date: selectedDate } },
@@ -157,23 +228,36 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function AttendancePage() {
   const { members, attendanceMap, date, type, isFuture, cellGroups } =
     useLoaderData<typeof loader>();
+  const navigation = useNavigation();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const presentCount = Object.values(attendanceMap).filter((s) => s === "PRESENT").length;
   const absentCount  = Object.values(attendanceMap).filter((s) => s === "ABSENT").length;
+  const bulkPending =
+    navigation.state === "submitting" &&
+    navigation.formData?.get("intent") === "bulkMarkPresent";
+
+  const toggleSelected = (userId: string) => {
+    setSelectedIds((current) =>
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId],
+    );
+  };
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl">
-      <h1 className="font-serif text-2xl font-bold text-gray-900 mb-1">
+    <div className="max-w-3xl p-4 sm:p-6 md:p-8">
+      <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">
         Attendance
       </h1>
-      <p className="text-sm text-gray-400 font-sans mb-8">
+      <p className="mb-6 font-sans text-sm text-gray-400 sm:mb-8">
         Mark attendance with a single tap. Records save instantly.
       </p>
 
       {/* Controls */}
-      <Form method="get" className="flex flex-wrap gap-3 mb-6">
+      <Form method="get" className="mb-5 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 sm:mb-6 sm:p-5">
         {/* Date picker */}
-        <div>
+        <div className="w-full">
           <label htmlFor="date" className="sr-only">Select date</label>
           <input
             id="date"
@@ -182,14 +266,14 @@ export default function AttendancePage() {
             defaultValue={date}
             max={new Date().toISOString().slice(0, 10)}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="px-4 py-2.5 text-sm font-sans border border-gray-200
-                       rounded-lg bg-white text-gray-700 focus:outline-none
-                       focus:ring-2 focus:ring-red-300 cursor-pointer"
+            className="w-full cursor-pointer rounded-lg border border-gray-200
+                       bg-white px-4 py-2.5 text-sm font-sans text-gray-700
+                       focus:outline-none focus:ring-2 focus:ring-red-300"
           />
         </div>
 
         {/* Type toggle */}
-        <fieldset className="flex gap-2" aria-label="Attendance type">
+        <fieldset className="grid grid-cols-2 gap-2" aria-label="Attendance type">
           {(["SUNDAY_SERVICE", "CELL_GROUP"] as const).map((t) => (
             <label key={t} className="cursor-pointer">
               <input
@@ -202,14 +286,14 @@ export default function AttendancePage() {
               />
               <span
                 className={[
-                  "inline-block px-4 py-2.5 text-xs font-sans font-bold rounded-lg",
-                  "border transition-all cursor-pointer",
+                  "flex min-h-11 items-center justify-center rounded-lg border px-3 py-2.5 text-center text-xs font-sans font-bold",
+                  "cursor-pointer transition-all",
                   type === t
                     ? "bg-red-700 text-white border-red-700"
                     : "bg-white text-gray-600 border-gray-200 hover:border-red-300",
                 ].join(" ")}
               >
-                {t === "SUNDAY_SERVICE" ? "Sunday Service" : "Cell Group"}
+                {t === "SUNDAY_SERVICE" ? "Sunday Service" : "Midweek Service"}
               </span>
             </label>
           ))}
@@ -220,9 +304,9 @@ export default function AttendancePage() {
           <select
             name="cellGroupId"
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="px-4 py-2.5 text-sm font-sans border border-gray-200
-                       rounded-lg bg-white text-gray-700 focus:outline-none
-                       focus:ring-2 focus:ring-red-300 cursor-pointer"
+            className="w-full cursor-pointer rounded-lg border border-gray-200
+                       bg-white px-4 py-2.5 text-sm font-sans text-gray-700
+                       focus:outline-none focus:ring-2 focus:ring-red-300"
             aria-label="Filter by cell group"
           >
             <option value="">All Groups</option>
@@ -235,15 +319,65 @@ export default function AttendancePage() {
 
       {/* Summary strip */}
       {members.length > 0 && (
-        <div className="flex gap-4 mb-6 text-sm font-sans">
-          <span className="text-green-600 font-bold">{presentCount} present</span>
-          <span className="text-gray-300">·</span>
-          <span className="text-red-600 font-bold">{absentCount} absent</span>
-          <span className="text-gray-300">·</span>
-          <span className="text-gray-400">
-            {members.length - presentCount - absentCount} unmarked
-          </span>
+        <div className="mb-5 grid grid-cols-3 gap-2 text-center font-sans text-xs sm:mb-6 sm:text-sm">
+          <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2.5">
+            <p className="font-bold text-green-700">{presentCount}</p>
+            <p className="mt-0.5 text-green-600">Present</p>
+          </div>
+          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5">
+            <p className="font-bold text-red-700">{absentCount}</p>
+            <p className="mt-0.5 text-red-600">Absent</p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <p className="font-bold text-gray-700">{members.length - presentCount - absentCount}</p>
+            <p className="mt-0.5 text-gray-500">Unmarked</p>
+          </div>
         </div>
+      )}
+
+      {members.length > 0 && (
+        <Form
+          method="post"
+          className="mb-5 rounded-2xl border border-red-100 bg-red-50/70 p-4 sm:mb-6"
+        >
+          <input type="hidden" name="intent" value="bulkMarkPresent" />
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="type" value={type} />
+          {selectedIds.map((userId) => (
+            <input key={userId} type="hidden" name="userIds" value={userId} />
+          ))}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-sans text-sm font-bold text-red-900">
+                {selectedIds.length} selected
+              </p>
+              <p className="mt-1 font-sans text-xs text-red-700">
+                Choose members below, then mark them present in one step.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                disabled={selectedIds.length === 0 || bulkPending}
+                className="min-h-10 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Clear
+              </button>
+              <PendingButton
+                type="submit"
+                isPending={bulkPending}
+                pendingText="Saving..."
+                disabled={selectedIds.length === 0 || isFuture}
+                className="min-h-10 rounded-lg bg-red-700 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Mark Selected Present
+              </PendingButton>
+            </div>
+          </div>
+        </Form>
       )}
 
       {/* Future date warning */}
@@ -259,7 +393,7 @@ export default function AttendancePage() {
 
       {/* Member list */}
       {members.length > 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           <ul
             role="list"
             aria-label="Members attendance list"
@@ -274,6 +408,8 @@ export default function AttendancePage() {
                 date={date}
                 type={type}
                 disabled={isFuture}
+                selected={selectedIds.includes(member.id)}
+                onToggleSelect={toggleSelected}
               />
             ))}
           </ul>
