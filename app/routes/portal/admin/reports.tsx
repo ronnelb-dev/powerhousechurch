@@ -23,14 +23,6 @@ type AttendanceTrendPoint = {
   attendanceRate: number;
 };
 
-type GivingTrendPoint = {
-  monthKey: string;
-  shortLabel: string;
-  fullLabel: string;
-  amount: number;
-  giftsCount: number;
-};
-
 type MemberGrowthPoint = {
   monthKey: string;
   shortLabel: string;
@@ -79,7 +71,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const monthSeries = getLastNMonths(12);
   const firstSunday = sundaySeries[0] ?? getMostRecentSunday();
   const lastSunday = sundaySeries[sundaySeries.length - 1] ?? firstSunday;
-  const firstMonth = monthSeries[0] ?? startOfMonth(new Date());
 
   const [
     cellGroups,
@@ -91,7 +82,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     totalSermons,
     totalPrayers,
     attendanceRecords,
-    givingRecords,
     memberRows,
     recentAuditLogs,
   ] = await Promise.all([
@@ -123,16 +113,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         user: { select: { isActive: true } },
       },
     }),
-    db.givingRecord.findMany({
-      where: {
-        createdAt: { gte: firstMonth },
-      },
-      select: {
-        amount: true,
-        status: true,
-        createdAt: true,
-      },
-    }),
     db.user.findMany({
       where: { isActive: true },
       select: { createdAt: true },
@@ -162,10 +142,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     records: attendanceRecords,
     totalMembers,
   });
-  const givingTrend = buildGivingTrend({
-    monthSeries,
-    records: givingRecords,
-  });
   const memberGrowth = buildMemberGrowth({
     monthSeries,
     records: memberRows,
@@ -183,7 +159,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     totalChildAttendance,
     totalPrayers,
     attendanceTrend,
-    givingTrend,
     memberGrowth,
     recentAuditLogs: recentAuditLogs.map((entry) => ({
       ...entry,
@@ -425,44 +400,6 @@ function buildAttendanceTrend(args: {
   });
 }
 
-function buildGivingTrend(args: {
-  monthSeries: Date[];
-  records: Array<{
-    amount: number;
-    status: string;
-    createdAt: Date;
-  }>;
-}): GivingTrendPoint[] {
-  const bucket = new Map<string, { amount: number; giftsCount: number }>();
-
-  for (const record of args.records) {
-    if (!isGivingStatusCounted(record.status)) continue;
-    const key = toMonthKey(record.createdAt);
-    const existing = bucket.get(key) ?? { amount: 0, giftsCount: 0 };
-    existing.amount += record.amount;
-    existing.giftsCount += 1;
-    bucket.set(key, existing);
-  }
-
-  return args.monthSeries.map((month) => {
-    const monthKey = toMonthKey(month);
-    const counts = bucket.get(monthKey) ?? { amount: 0, giftsCount: 0 };
-    return {
-      monthKey,
-      shortLabel: month.toLocaleDateString("en-PH", {
-        month: "short",
-        year: "2-digit",
-      }),
-      fullLabel: month.toLocaleDateString("en-PH", {
-        month: "long",
-        year: "numeric",
-      }),
-      amount: counts.amount,
-      giftsCount: counts.giftsCount,
-    };
-  });
-}
-
 function buildMemberGrowth(args: {
   monthSeries: Date[];
   records: Array<{ createdAt: Date }>;
@@ -565,36 +502,6 @@ function toMonthKey(date: Date) {
   return `${year}-${month}`;
 }
 
-function isGivingStatusCounted(status: string) {
-  const normalized = status.trim().toLowerCase();
-  if (!normalized) return true;
-
-  return ![
-    "failed",
-    "canceled",
-    "cancelled",
-    "refunded",
-    "requires_payment_method",
-    "requires_action",
-  ].includes(normalized);
-}
-
-function formatCurrency(amountInCentavos: number) {
-  return (amountInCentavos / 100).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  });
-}
-
-function formatCompactCurrency(amountInCentavos: number) {
-  if (amountInCentavos === 0) return "₱0";
-  return `₱${new Intl.NumberFormat("en-PH", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(amountInCentavos / 100)}`;
-}
-
 function getAttendanceTone(rate: number) {
   if (rate >= 90) return "bg-emerald-600";
   if (rate >= 75) return "bg-emerald-400";
@@ -618,7 +525,6 @@ export default function AdminReportsPage() {
     totalChildAttendance,
     totalPrayers,
     attendanceTrend,
-    givingTrend,
     memberGrowth,
     recentAuditLogs,
   } = useLoaderData<typeof loader>();
@@ -646,19 +552,6 @@ export default function AdminReportsPage() {
       return best;
     }, null) ?? latestAttendance;
 
-  const totalGivingLast12Months = givingTrend.reduce(
-    (sum, point) => sum + point.amount,
-    0,
-  );
-  const monthlyAverageGiving =
-    givingTrend.length > 0
-      ? Math.round(totalGivingLast12Months / givingTrend.length)
-      : 0;
-  const totalGiftsLast12Months = givingTrend.reduce(
-    (sum, point) => sum + point.giftsCount,
-    0,
-  );
-
   const firstGrowthPoint = memberGrowth[0] ?? null;
   const latestGrowthPoint = memberGrowth[memberGrowth.length - 1] ?? null;
   const newMembersLast12Months = memberGrowth.reduce(
@@ -673,8 +566,8 @@ export default function AdminReportsPage() {
           Reports & Analytics
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-gray-500 font-sans">
-          Track attendance momentum, monthly generosity, and member growth from one
-          leadership dashboard, then export raw records whenever you need to dig deeper.
+          Track attendance momentum and member growth from one leadership dashboard,
+          then export raw records whenever you need to dig deeper.
         </p>
       </div>
 
@@ -771,65 +664,7 @@ export default function AdminReportsPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <div className="rounded-xl border border-gray-100 bg-white p-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-600 font-sans">
-                  Monthly Giving
-                </p>
-                <h2 className="mt-3 font-serif text-xl font-bold text-gray-900">
-                  12-month generosity trend
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-gray-500 font-sans">
-                  A monthly view of recorded giving helps leadership spot momentum,
-                  plateaus, and seasonal shifts in generosity.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:min-w-[16rem]">
-                <MetricTile
-                  label="Received"
-                  value={formatCurrency(totalGivingLast12Months)}
-                  note="Last 12 months"
-                />
-                <MetricTile
-                  label="Monthly average"
-                  value={formatCurrency(monthlyAverageGiving)}
-                  note={`${totalGiftsLast12Months} recorded gifts`}
-                />
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <TrendChart
-                id="giving-trend"
-                ariaLabel="Giving totals by month"
-                data={givingTrend.map((point) => ({
-                  label: point.shortLabel,
-                  fullLabel: point.fullLabel,
-                  value: point.amount,
-                  detail: `${point.giftsCount} gifts`,
-                }))}
-                stroke="#15803d"
-                fillFrom="rgba(21,128,61,0.22)"
-                fillTo="rgba(21,128,61,0.03)"
-                valueFormatter={formatCurrency}
-              />
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {givingTrend.slice(-4).map((point) => (
-                <span
-                  key={point.monthKey}
-                  className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 font-sans"
-                  title={point.fullLabel}
-                >
-                  {point.shortLabel}: {formatCompactCurrency(point.amount)}
-                </span>
-              ))}
-            </div>
-          </div>
-
+        <div>
           <div className="rounded-xl border border-gray-100 bg-white p-7">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>

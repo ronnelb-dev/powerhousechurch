@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Powerhouse Church Website Presentation</title>
+    <style>
+      :root {
+        --bg: #f5efe8;
+        --panel: rgba(255, 250, 245, 0.92);
+        --panel-strong: rgba(255, 255, 255, 0.96);
+        --text: #2a1714;
+        --muted: #6f5953;
+        --brand: #923034;
+        --brand-dark: #5b2627;
+        --gold: #d6a24c;
+        --green: #214437;
+        --line: rgba(146, 48, 52, 0.14);
+        --shadow: 0 28px 70px rgba(64, 24, 22, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(214, 162, 76, 0.2), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(33, 68, 55, 0.12), transparent 24%),
+          linear-gradient(180deg, #f8f2ec 0%, #efe3d8 100%);
+      }
+
+      .app {
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 0 auto 18px;
+        max-width: 1320px;
+      }
+
+      .toolbar h1 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .controls button {
+        border: 0;
+        border-radius: 999px;
+        background: var(--brand);
+        color: white;
+        padding: 10px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+
+      .controls button:hover {
+        background: var(--brand-dark);
+      }
+
+      .counter {
+        min-width: 78px;
+        text-align: center;
+        font-weight: 700;
+        color: var(--brand);
+      }
+
+      .deck {
+        position: relative;
+        max-width: 1320px;
+        margin: 0 auto;
+      }
+
+      .slide {
+        display: none;
+        min-height: calc(100vh - 126px);
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .slide.active {
+        display: grid;
+      }
+
+      .slide-inner {
+        display: grid;
+        gap: 28px;
+        padding: 42px;
+        min-height: 100%;
+      }
+
+      .title-slide {
+        background:
+          linear-gradient(135deg, rgba(35, 23, 21, 0.95), rgba(146, 48, 52, 0.88) 58%, rgba(214, 162, 76, 0.72)),
+          var(--brand);
+        color: white;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 8px 14px;
+        border-radius: 999px;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.12);
+        color: inherit;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: clamp(40px, 6vw, 72px);
+        line-height: 0.95;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.1;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.6;
+      }
+
+      .lede {
+        max-width: 820px;
+        font-size: 20px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 28px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .cards {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card {
+        background: var(--panel-strong);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 22px;
+      }
+
+      .card h4 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--brand);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 24px;
+        font-family: Georgia, "Times New Roman", serif;
+        line-height: 1.15;
+      }
+
+      .stat {
+        padding: 18px 20px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(250,242,236,0.92));
+        border: 1px solid var(--line);
+      }
+
+      .stat span {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 30px;
+        color: var(--brand);
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      .stat p {
+        color: var(--muted);
+      }
+
+      .shot {
+        background: white;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.75);
+        overflow: hidden;
+        box-shadow: 0 20px 48px rgba(53, 24, 22, 0.16);
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .caption {
+        padding: 14px 18px;
+        border-top: 1px solid rgba(146, 48, 52, 0.1);
+        background: #fffaf6;
+      }
+
+      .caption strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 16px;
+      }
+
+      .list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .list-item {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .list-item .num {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: rgba(146, 48, 52, 0.1);
+        color: var(--brand);
+        font-weight: 800;
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(146, 48, 52, 0.08);
+        border: 1px solid rgba(146, 48, 52, 0.12);
+        color: var(--brand);
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .flow-step {
+        padding: 18px;
+        border-radius: 20px;
+        background: white;
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      .flow-step span {
+        display: inline-block;
+        margin-bottom: 10px;
+        color: var(--brand);
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 11px;
+      }
+
+      .footer-note {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .accent-panel {
+        background: linear-gradient(135deg, rgba(33, 68, 55, 0.95), rgba(35, 23, 21, 0.95));
+        color: white;
+        border-radius: 24px;
+        padding: 24px;
+      }
+
+      .accent-panel .pill {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.16);
+        color: white;
+      }
+
+      .title-slide .footer-note {
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      @media (max-width: 980px) {
+        .slide {
+          min-height: auto;
+        }
+
+        .slide-inner,
+        .grid-2,
+        .grid-3,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .app {
+          padding: 14px;
+        }
+
+        .slide-inner {
+          padding: 26px;
+        }
+
+        h2 {
+          font-size: 42px;
+        }
+
+        .lede {
+          font-size: 18px;
+        }
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .toolbar {
+          display: none;
+        }
+
+        .slide {
+          display: grid !important;
+          page-break-after: always;
+          min-height: 100vh;
+          box-shadow: none;
+          border-radius: 0;
+          border: 0;
+        }
+
+        .app {
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="toolbar">
+        <h1>Powerhouse Church Website Presentation</h1>
+        <div class="controls">
+          <button type="button" id="prevBtn">Previous</button>
+          <div class="counter" id="counter">1 / 9</div>
+          <button type="button" id="nextBtn">Next</button>
+        </div>
+      </div>
+
+      <div class="deck">
+        <section class="slide active title-slide">
+          <div class="slide-inner">
+            <div class="eyebrow">Powerhouse Church Digital Platform</div>
+            <div>
+              <h2>Presenting a website built to welcome, disciple, and manage church life.</h2>
+              <p class="lede" style="margin-top: 24px;">
+                This platform is more than a church homepage. It combines public outreach,
+                first-time guest follow-up, member engagement, and admin operations in one
+                connected experience.
+              </p>
+            </div>
+            <div class="grid-3">
+              <div class="stat">
+                <span>Public Website</span>
+                <strong>11+</strong>
+                <p>Pages for worship, events, sermons, giving, contact, prayer, and first-time guests.</p>
+              </div>
+              <div class="stat">
+                <span>Members Portal</span>
+                <strong>7</strong>
+                <p>Private tools for dashboard, directory, community, attendance, care, and engagement.</p>
+              </div>
+              <div class="stat">
+                <span>Admin Hub</span>
+                <strong>10+</strong>
+                <p>Operational screens for events, reports, sermons, communications, prayers, and visit plans.</p>
+              </div>
+            </div>
+            <div class="footer-note">
+              <span>Prepared from the live codebase and local app screens</span>
+              <span>Use arrow keys or on-screen buttons to navigate</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">What The Website Solves</div>
+            <div class="grid-2">
+              <div class="cards">
+                <h3>One platform serving three audiences</h3>
+                <p class="muted">
+                  The website is structured around a clear ministry funnel: welcome new people,
+                  nurture existing members, and equip staff and leaders to follow through.
+                </p>
+                <div class="card">
+                  <h4>Public Audience</h4>
+                  <strong>Discover the church and take a first step</strong>
+                  <p>Home, about, ministries, live stream, events, prayer request, giving, contact, gallery, sermons, blog, and plan-your-visit.</p>
+                </div>
+                <div class="card">
+                  <h4>Members</h4>
+                  <strong>Stay connected during the week</strong>
+                  <p>Personal dashboard, community reflections, attendance visibility, directory access, care workflows, and engagement tracking.</p>
+                </div>
+                <div class="card">
+                  <h4>Leaders and Admins</h4>
+                  <strong>Manage church operations with less friction</strong>
+                  <p>Event registration, reminder emails, reports, communications, prayer workflows, visit-plan follow-up, and audit visibility.</p>
+                </div>
+              </div>
+              <div class="accent-panel">
+                <h3 style="margin-bottom: 18px;">Core message</h3>
+                <p class="lede" style="max-width: none; font-size: 24px;">
+                  The site turns ministry intent into repeatable digital workflows.
+                </p>
+                <div class="pill-row" style="margin-top: 22px;">
+                  <div class="pill">Welcome visitors</div>
+                  <div class="pill">Reduce admin load</div>
+                  <div class="pill">Support discipleship</div>
+                  <div class="pill">Capture data cleanly</div>
+                </div>
+                <div class="flow" style="margin-top: 24px; grid-template-columns: 1fr;">
+                  <div class="flow-step">
+                    <span>Example Journey</span>
+                    <p>Visitor lands on the homepage, plans a first visit, receives follow-up, joins events, and eventually becomes an engaged portal user.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Brand And First Impression</div>
+            <div class="grid-2">
+              <div class="shot">
+                <img src="./assets/home.png" alt="Powerhouse Church homepage screenshot" />
+                <div class="caption">
+                  <strong>Homepage hero</strong>
+                  <p>Warm, confident visual language paired with direct calls to action like “Plan Your Sunday” and “Watch Live.”</p>
+                </div>
+              </div>
+              <div class="cards">
+                <h3>The homepage communicates both atmosphere and next steps.</h3>
+                <div class="list">
+                  <div class="list-item">
+                    <div class="num">1</div>
+                    <div>
+                      <strong>Clear positioning</strong>
+                      <p class="muted">The site immediately tells visitors what kind of church this is: Spirit-filled, Scripture-rooted, and community-oriented.</p>
+                    </div>
+                  </div>
+                  <div class="list-item">
+                    <div class="num">2</div>
+                    <div>
+                      <strong>Strong conversion path</strong>
+                      <p class="muted">Primary actions move people into live attendance, first-time planning, sermons, and events without making them search.</p>
+                    </div>
+                  </div>
+                  <div class="list-item">
+                    <div class="num">3</div>
+                    <div>
+                      <strong>Content freshness</strong>
+                      <p class="muted">Latest message and upcoming events are loaded dynamically, helping the website stay current week to week.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="pill-row">
+                  <div class="pill">Mission-forward copy</div>
+                  <div class="pill">Live content blocks</div>
+                  <div class="pill">Service times surfaced</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Visitor Journey</div>
+            <div class="grid-2">
+              <div class="cards">
+                <h3>The first-time guest flow is thoughtfully designed.</h3>
+                <p class="muted">
+                  This is not just an information page. It is a practical intake flow that
+                  helps the church prepare for a person before they arrive.
+                </p>
+                <div class="flow">
+                  <div class="flow-step">
+                    <span>Step 1</span>
+                    <p>Learn what to expect on a Sunday.</p>
+                  </div>
+                  <div class="flow-step">
+                    <span>Step 2</span>
+                    <p>Choose service timing and visit date.</p>
+                  </div>
+                  <div class="flow-step">
+                    <span>Step 3</span>
+                    <p>Share kids and follow-up needs.</p>
+                  </div>
+                  <div class="flow-step">
+                    <span>Step 4</span>
+                    <p>Trigger confirmation and internal follow-up.</p>
+                  </div>
+                </div>
+                <div class="card">
+                  <h4>Why This Matters</h4>
+                  <strong>It helps ministry teams act before Sunday.</strong>
+                  <p>Ushers, pastoral staff, and kids ministry receive cleaner context so the experience can feel personal rather than reactive.</p>
+                </div>
+              </div>
+              <div class="shot">
+                <img src="./assets/new-here.png" alt="Plan your visit page screenshot" />
+                <div class="caption">
+                  <strong>Plan Your Visit page</strong>
+                  <p>The form supports service selection, kids details, and optional follow-up while keeping the tone warm and accessible.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Ongoing Engagement</div>
+            <div class="grid-2">
+              <div class="shot">
+                <img src="./assets/events.png" alt="Events page screenshot" />
+                <div class="caption">
+                  <strong>Events page with RSVP capability</strong>
+                  <p>Upcoming events can collect registrations, manage capacity, waitlists, and even offer calendar add-to options.</p>
+                </div>
+              </div>
+              <div class="cards">
+                <h3>The site keeps people involved beyond Sunday.</h3>
+                <div class="card">
+                  <h4>Content Channels</h4>
+                  <strong>Sermons, blog, live stream, and gallery</strong>
+                  <p>Visitors and members can continue engaging with messages and church life throughout the week.</p>
+                </div>
+                <div class="card">
+                  <h4>Action Channels</h4>
+                  <strong>Events, prayer requests, giving, and contact</strong>
+                  <p>The site offers multiple practical ways for someone to respond instead of remaining a passive viewer.</p>
+                </div>
+                <div class="card">
+                  <h4>Operational Details</h4>
+                  <strong>RSVP confirmation and calendar integration</strong>
+                  <p>Event registrations feed real workflows, including confirmation emails and downloadable or Google Calendar links.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Members Portal</div>
+            <div class="grid-2">
+              <div class="cards">
+                <h3>The private portal supports pastoral care and weekly rhythms.</h3>
+                <div class="grid-3">
+                  <div class="card">
+                    <h4>Dashboard</h4>
+                    <strong>Personal overview</strong>
+                    <p>Attendance consistency, latest sermon, quick actions, and engagement summaries.</p>
+                  </div>
+                  <div class="card">
+                    <h4>Community</h4>
+                    <strong>Reflection feed</strong>
+                    <p>Members can share devotion posts, respond to prompts, and engage around weekly sermon content.</p>
+                  </div>
+                  <div class="card">
+                    <h4>Directory</h4>
+                    <strong>Church connection</strong>
+                    <p>A more relational experience than a public site alone, especially for cell-group life and follow-up.</p>
+                  </div>
+                </div>
+                <div class="card">
+                  <h4>Leadership Benefit</h4>
+                  <strong>It brings discipleship into the digital week.</strong>
+                  <p>Rather than ending after a service, sermons, reflections, care, and attendance all continue inside the portal.</p>
+                </div>
+              </div>
+              <div class="accent-panel">
+                <h3 style="margin-bottom: 18px;">Portal features available in code</h3>
+                <div class="pill-row">
+                  <div class="pill">Dashboard</div>
+                  <div class="pill">Profile</div>
+                  <div class="pill">Directory</div>
+                  <div class="pill">Community</div>
+                  <div class="pill">Care Queue</div>
+                  <div class="pill">Engagement Hub</div>
+                  <div class="pill">Attendance View</div>
+                </div>
+                <p style="margin-top: 20px;">
+                  The portal also adapts by role. Members see personal and community tools,
+                  while leaders can surface attendance summaries and care alerts for their groups.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Admin And Operations</div>
+            <div class="cards">
+              <h3>The back office is where this becomes a ministry system, not just a website.</h3>
+              <div class="grid-3">
+                <div class="card">
+                  <h4>Events Management</h4>
+                  <strong>Create, publish, export, remind</strong>
+                  <p>Admins can manage events, registration limits, waitlists, check-ins, roster exports, and reminder emails.</p>
+                </div>
+                <div class="card">
+                  <h4>Reports And Analytics</h4>
+                  <strong>Attendance, growth</strong>
+                  <p>Leadership dashboards track trends across attendance and member growth with CSV export support.</p>
+                </div>
+                <div class="card">
+                  <h4>Care And Follow-Up</h4>
+                  <strong>Prayer and visit-plan workflows</strong>
+                  <p>The system supports prayer follow-up, visitor tracking, and care visibility for pastors and leaders.</p>
+                </div>
+              </div>
+              <div class="flow">
+                <div class="flow-step">
+                  <span>Content</span>
+                  <p>Sermons, posts, ministries, settings, and communications are manageable from admin routes.</p>
+                </div>
+                <div class="flow-step">
+                  <span>People</span>
+                  <p>Members, cell groups, and kids ministry data connect to actual pastoral workflows.</p>
+                </div>
+                <div class="flow-step">
+                  <span>Accountability</span>
+                  <p>Audit logging is built into sensitive report-export and admin actions.</p>
+                </div>
+                <div class="flow-step">
+                  <span>Efficiency</span>
+                  <p>Admin tooling reduces spreadsheet handoffs and manual follow-up work.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Technical Foundation</div>
+            <div class="grid-2">
+              <div class="cards">
+                <h3>Modern full-stack architecture</h3>
+                <div class="pill-row">
+                  <div class="pill">React 19</div>
+                  <div class="pill">React Router 7</div>
+                  <div class="pill">TypeScript</div>
+                  <div class="pill">Tailwind CSS 4</div>
+                  <div class="pill">Prisma</div>
+                  <div class="pill">PostgreSQL / Neon</div>
+                  <div class="pill">Lucia Auth</div>
+                  <div class="pill">Resend Email</div>
+                  <div class="pill">Vercel Deploy</div>
+                </div>
+                <div class="card">
+                  <h4>Engineering Strengths</h4>
+                  <strong>Built for dynamic content and real workflows</strong>
+                  <p>Events, sermons, settings, authentication, public forms, and reporting all run from a shared application and data layer.</p>
+                </div>
+              </div>
+              <div class="cards">
+                <div class="card">
+                  <h4>Security And Quality</h4>
+                  <strong>Guardrails are already part of the platform</strong>
+                  <p>Public submissions use rate limiting and spam protection patterns, while login and account workflows are handled through dedicated auth flows.</p>
+                </div>
+                <div class="card">
+                  <h4>Scalability</h4>
+                  <strong>Ready for future enhancements</strong>
+                  <p>The route structure and data model leave room for richer mobile experiences, tighter analytics, more ministry modules, and stronger shared services later.</p>
+                </div>
+                <div class="card">
+                  <h4>Testing</h4>
+                  <strong>Critical workflows already covered</strong>
+                  <p>Existing tests focus on auth decisions, public submissions, RSVP handling, and rate limiting.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="eyebrow" style="background: rgba(146, 48, 52, 0.08); color: var(--brand);">Closing</div>
+            <div class="grid-2">
+              <div class="cards">
+                <h3>Why this website matters</h3>
+                <div class="list">
+                  <div class="list-item">
+                    <div class="num">1</div>
+                    <div>
+                      <strong>It welcomes people intentionally.</strong>
+                      <p class="muted">The site gives first-time guests a low-friction path into real human follow-up.</p>
+                    </div>
+                  </div>
+                  <div class="list-item">
+                    <div class="num">2</div>
+                    <div>
+                      <strong>It extends ministry beyond the room.</strong>
+                      <p class="muted">Members can continue in sermons, community, care, and engagement throughout the week.</p>
+                    </div>
+                  </div>
+                  <div class="list-item">
+                    <div class="num">3</div>
+                    <div>
+                      <strong>It strengthens operations.</strong>
+                      <p class="muted">Leaders gain cleaner reporting, simpler event workflows, and better visibility across ministry activity.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="accent-panel">
+                <h3 style="margin-bottom: 16px;">Suggested final line</h3>
+                <p class="lede" style="max-width: none;">
+                  “Powerhouse Church now has a digital platform that does not just describe the ministry. It actively helps the ministry happen.”
+                </p>
+                <p style="margin-top: 22px;">
+                  Optional next discussion after the presentation:
+                  which workflows should be prioritized next for polish, automation, or rollout support.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const counter = document.getElementById("counter");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      let index = 0;
+
+      function render() {
+        slides.forEach((slide, slideIndex) => {
+          slide.classList.toggle("active", slideIndex === index);
+        });
+        counter.textContent = `${index + 1} / ${slides.length}`;
+        prevBtn.disabled = index === 0;
+        nextBtn.disabled = index === slides.length - 1;
+        prevBtn.style.opacity = index === 0 ? "0.45" : "1";
+        nextBtn.style.opacity = index === slides.length - 1 ? "0.45" : "1";
+      }
+
+      prevBtn.addEventListener("click", () => {
+        if (index > 0) {
+          index -= 1;
+          render();
+        }
+      });
+
+      nextBtn.addEventListener("click", () => {
+        if (index < slides.length - 1) {
+          index += 1;
+          render();
+        }
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault();
+          if (index < slides.length - 1) {
+            index += 1;
+            render();
+          }
+        }
+
+        if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault();
+          if (index > 0) {
+            index -= 1;
+            render();
+          }
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+Error: No route matches URL "/sw.js"
+    at getInternalRouterError (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-QFMPRPBF.mjs:5266:5)
+    at Object.query (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-QFMPRPBF.mjs:3298:19)
+    at handleDocumentRequest (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-2UH5WJXA.mjs:1459:38)
+    at requestHandler (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-2UH5WJXA.mjs:1318:24)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at nodeHandler (C:\work\powerhousechurch\node_modules\@react-router\dev\dist\vite.js:3802:30)
+    at C:\work\powerhousechurch\node_modules\@react-router\dev\dist\vite.js:3809:17
+No routes matched location "/sw.js" 
+Error: No route matches URL "/sw.js"
+    at getInternalRouterError (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-QFMPRPBF.mjs:5266:5)
+    at Object.query (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-QFMPRPBF.mjs:3298:19)
+    at handleDocumentRequest (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-2UH5WJXA.mjs:1459:38)
+    at requestHandler (file:///C:/work/powerhousechurch/node_modules/react-router/dist/development/chunk-2UH5WJXA.mjs:1318:24)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at nodeHandler (C:\work\powerhousechurch\node_modules\@react-router\dev\dist\vite.js:3802:30)
+    at C:\work\powerhousechurch\node_modules\@react-router\dev\dist\vite.js:3809:17
+No routes matched location "/sw.js" 
