@@ -285,6 +285,16 @@ export default function NewHerePage() {
           >
             Ask a Question
           </Link>
+          <Link
+            to="/welcome-inside"
+            className={buttonVariants({
+              size: "lg",
+              variant: "outline",
+              className: "w-full justify-center border-white/20 bg-white/10 text-white hover:bg-white/15 sm:w-auto",
+            })}
+          >
+            I'm Already Here
+          </Link>
         </div>
       </PageHero>
 
