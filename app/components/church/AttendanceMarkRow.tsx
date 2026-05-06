@@ -5,7 +5,9 @@
 // Buttons ≥44px tall AND ≥72px wide for comfortable mobile tapping.
 
 import { useFetcher } from "react-router";
+import { useEffect, useRef, useState } from "react";
 import { PendingButton } from "~/components/ui/PendingButton";
+import { useToast } from "~/components/ui/ToastProvider";
 
 interface AttendanceMarkRowProps {
   userId: string;
@@ -31,6 +33,9 @@ export function AttendanceMarkRow({
   onToggleSelect,
 }: AttendanceMarkRowProps) {
   const fetcher = useFetcher();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const isPending = fetcher.state !== "idle";
 
   // Optimistic status — show the value the user just submitted immediately
@@ -39,6 +44,45 @@ export function AttendanceMarkRow({
     : currentStatus;
 
   const initials = (firstName[0] ?? "") + (lastName[0] ?? "");
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+      return;
+    }
+
+    const data = fetcher.data as {
+      error?: string;
+      success?: string | boolean;
+      status?: "PRESENT" | "ABSENT";
+    };
+    const message =
+      data.error ??
+      (data.status
+        ? `${firstName} ${lastName} marked ${data.status === "PRESENT" ? "present" : "absent"}.`
+        : typeof data.success === "string"
+          ? data.success
+          : null);
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: data.error ? "error" : "success",
+      message,
+    });
+
+    if (!data.error && data.status) {
+      setSavedMessage(`Saved ${data.status === "PRESENT" ? "present" : "absent"}`);
+    }
+  }, [fetcher.data, fetcher.state, firstName, lastName, showToast]);
+
+  useEffect(() => {
+    if (!savedMessage) return;
+    const timeoutId = window.setTimeout(() => setSavedMessage(null), 2600);
+    return () => window.clearTimeout(timeoutId);
+  }, [savedMessage]);
 
   return (
     <li className="border-b border-gray-100 px-3 py-3 transition-colors last:border-b-0 hover:bg-gray-50 sm:px-4 sm:py-3.5">
@@ -74,6 +118,14 @@ export function AttendanceMarkRow({
               {optimisticStatus === "PRESENT" ? "Present" : "Absent"}
             </p>
           )}
+          {savedMessage ? (
+            <p
+              className="mt-1 font-sans text-[11px] font-bold text-green-700"
+              role="status"
+            >
+              {savedMessage}
+            </p>
+          ) : null}
         </div>
       </div>
 

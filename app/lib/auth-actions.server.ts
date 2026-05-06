@@ -1,6 +1,12 @@
-import { hash, verify } from "@node-rs/argon2";
 import { redirect } from "react-router";
 import { z } from "zod";
+
+import {
+  hashPassword,
+  verifyPassword,
+  type PasswordHashFunction,
+  type PasswordVerifyFunction,
+} from "~/lib/password-hash.server";
 
 const registerSchema = z
   .object({
@@ -75,7 +81,7 @@ type RegisterDeps = {
       delete(args: unknown): Promise<unknown>;
     };
   };
-  hashPassword?: typeof hash;
+  hashPassword?: PasswordHashFunction;
   sendVerificationEmailForUser: (
     user: { id: string; email: string; firstName: string },
     origin: string,
@@ -88,7 +94,7 @@ type LoginDeps = {
       findFirst(args: unknown): Promise<UserRecord | null>;
     };
   };
-  verifyPassword?: typeof verify;
+  verifyPassword?: PasswordVerifyFunction;
   createSession: (userId: string) => Promise<{
     sessionId: string;
     cookie: string;
@@ -125,12 +131,7 @@ export async function handleRegisterSubmission(
     } satisfies RegisterActionData;
   }
 
-  const passwordHash = await (deps.hashPassword ?? hash)(password, {
-    memoryCost: 19456,
-    timeCost: 2,
-    outputLen: 32,
-    parallelism: 1,
-  });
+  const passwordHash = await (deps.hashPassword ?? hashPassword)(password);
 
   const user = await deps.db.user.create({
     data: {
@@ -189,15 +190,9 @@ export async function handleLoginSubmission(
     return { error: "Invalid credentials. Please try again." } satisfies LoginActionData;
   }
 
-  const validPassword = await (deps.verifyPassword ?? verify)(
+  const validPassword = await (deps.verifyPassword ?? verifyPassword)(
     user.passwordHash,
     raw.password,
-    {
-      memoryCost: 19456,
-      timeCost: 2,
-      outputLen: 32,
-      parallelism: 1,
-    },
   );
 
   if (!validPassword) {

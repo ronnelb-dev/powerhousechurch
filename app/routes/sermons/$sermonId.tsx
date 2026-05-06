@@ -172,7 +172,7 @@ export default function SermonDetailPage() {
 
       {/* Sermon notes */}
       {sermon.notes && (
-        <div className="prose prose-red max-w-none">
+        <div className="rich-text max-w-none">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
             <h2 className="font-serif text-xl font-bold text-gray-800 m-0">

@@ -1,9 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { hash } from "@node-rs/argon2";
-
 import { db } from "~/lib/db.server";
 import { sendPasswordResetEmail } from "~/lib/email.server";
+import { hashPassword } from "~/lib/password-hash.server";
 
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
@@ -57,12 +56,7 @@ export async function resetPasswordWithToken(token: string, password: string) {
   const validated = await validatePasswordResetToken(token);
   if (!validated.ok) return validated;
 
-  const passwordHash = await hash(password, {
-    memoryCost: 19456,
-    timeCost: 2,
-    outputLen: 32,
-    parallelism: 1,
-  });
+  const passwordHash = await hashPassword(password);
 
   await db.$transaction(async (tx) => {
     await tx.user.update({

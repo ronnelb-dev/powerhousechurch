@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/typography";
 
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -41,10 +40,7 @@
     min-height: 100vh;
     color: var(--foreground);
     font-family: var(--font-sans);
-    background:
-      radial-gradient(circle at top left, rgba(214, 162, 76, 0.22), transparent 32%),
-      radial-gradient(circle at top right, rgba(146, 48, 52, 0.18), transparent 28%),
-      linear-gradient(180deg, #f5ebdf 0%, #f8f1e7 24%, #fcfaf7 100%);
+    background: linear-gradient(180deg, #f6f1ea 0%, #f8f5f0 42%, #fbfaf8 100%);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
@@ -146,16 +142,16 @@
   }
 }
 
-.prose {
+.rich-text {
   color: var(--muted-foreground);
 }
 
-.prose h2,
-.prose h3 {
+.rich-text h2,
+.rich-text h3 {
   color: var(--foreground);
 }
 
-.prose blockquote {
+.rich-text blockquote {
   border-left: 3px solid rgba(146, 48, 52, 0.45);
   background: rgba(255, 250, 245, 0.9);
   color: var(--foreground);

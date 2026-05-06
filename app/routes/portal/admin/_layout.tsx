@@ -10,9 +10,7 @@ import {
   useRouteError,
   type LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
 import { requireAdmin } from "~/lib/auth.server";
-import { Sheet } from "~/components/ui/sheet";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // requireAdmin throws 403 for non-admins, redirects to /auth/login for guests
@@ -38,144 +36,31 @@ const ADMIN_NAV = [
 
 export default function AdminLayout() {
   const location = useLocation();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isActive = (to: string) => location.pathname.startsWith(to);
-
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [location.pathname]);
+  const currentSection = ADMIN_NAV.find(({ to }) => isActive(to))?.label ?? "Overview";
 
   return (
     <div className="min-h-full">
       {/* Admin sub-header */}
       <div className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900">
-        <div className="flex items-center justify-between gap-4 px-4 py-3 lg:hidden">
+        <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="min-w-0">
             <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-yellow-400">
               Admin Panel
             </p>
             <p className="mt-1 truncate font-sans text-sm text-gray-300">
-              {ADMIN_NAV.find(({ to }) => isActive(to))?.label ?? "Overview"}
+              {currentSection}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/portal/dashboard"
-              className="inline-flex min-h-10 items-center rounded-lg border border-gray-700 px-3 py-2 text-xs font-sans font-bold text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
-            >
-              Portal
-            </Link>
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(true)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-700 text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              aria-expanded={mobileNavOpen}
-              aria-controls="admin-mobile-nav"
-              aria-label="Open admin navigation"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="hidden items-center justify-between gap-4 px-6 py-3 lg:flex">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-sans font-bold tracking-widest uppercase text-yellow-400">
-              Admin Panel
-            </span>
-            <span className="text-gray-600" aria-hidden="true">|</span>
-            <nav className="flex items-center gap-1" aria-label="Admin navigation">
-              {ADMIN_NAV.map(({ to, label }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className={[
-                    "rounded-md px-3 py-1.5 text-xs font-sans font-bold transition-all",
-                    "focus:outline-none focus:ring-2 focus:ring-yellow-400",
-                    isActive(to)
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white",
-                  ].join(" ")}
-                  aria-current={isActive(to) ? "page" : undefined}
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          </div>
           <Link
             to="/portal/dashboard"
-            className="text-xs font-sans text-gray-500 transition-colors hover:text-gray-300"
+            className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-gray-700 px-3 py-2 text-xs font-sans font-bold text-gray-300 transition-colors hover:bg-gray-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
           >
-            ← Back to portal
+            Portal
           </Link>
         </div>
       </div>
-
-      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <div
-          id="admin-mobile-nav"
-          className="absolute right-0 top-0 h-full w-full max-w-[min(22rem,92vw)] overflow-y-auto border-l border-gray-800 bg-gray-950 p-5 shadow-2xl"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Admin navigation"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-yellow-400">
-                Admin Panel
-              </p>
-              <p className="mt-2 text-sm font-sans text-gray-400">
-                Choose a section to manage.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(false)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-800 text-gray-300 transition-colors hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              aria-label="Close admin navigation"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          <nav className="mt-6 space-y-2" aria-label="Admin navigation">
-            {ADMIN_NAV.map(({ to, label }) => (
-              <Link
-                key={to}
-                to={to}
-                className={[
-                  "flex min-h-12 items-center rounded-xl px-4 py-3 text-sm font-sans font-bold transition-all",
-                  "focus:outline-none focus:ring-2 focus:ring-yellow-400",
-                  isActive(to)
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-300 hover:bg-gray-900 hover:text-white",
-                ].join(" ")}
-                aria-current={isActive(to) ? "page" : undefined}
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="mt-6 border-t border-gray-800 pt-5">
-            <Link
-              to="/portal/dashboard"
-              className="inline-flex min-h-11 items-center rounded-lg border border-gray-800 px-4 py-2 text-sm font-sans font-bold text-gray-300 transition-colors hover:bg-gray-900 hover:text-white"
-            >
-              ← Back to portal
-            </Link>
-          </div>
-        </div>
-      </Sheet>
 
       {/* Admin page content */}
       <div className="max-w-6xl p-4 sm:p-6 md:p-8">

@@ -308,6 +308,10 @@ const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Admin" },
 ];
 
+function getRoleLabel(role: string) {
+  return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role;
+}
+
 function MemberRow({
   member,
   cellGroups,
@@ -387,7 +391,18 @@ function MemberRow({
           <select
             name="role"
             defaultValue={member.role}
-            onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+            onChange={(event) => {
+              const nextRole = event.currentTarget.value;
+              if (nextRole === member.role) return;
+              const confirmed = window.confirm(
+                `Change ${member.firstName} ${member.lastName}'s role from ${getRoleLabel(member.role)} to ${getRoleLabel(nextRole)}?`,
+              );
+              if (!confirmed) {
+                event.currentTarget.value = member.role;
+                return;
+              }
+              fetcher.submit(event.currentTarget.form!);
+            }}
             disabled={fetcher.state !== "idle"}
             className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs
                        text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
@@ -431,7 +446,19 @@ function MemberRow({
         })}
       </td>
       <td className="py-3 px-4">
-        <fetcher.Form method="post">
+        <fetcher.Form
+          method="post"
+          onSubmit={(event) => {
+            const confirmed = window.confirm(
+              member.isActive
+                ? `Deactivate ${member.firstName} ${member.lastName}? They will no longer appear in active member workflows.`
+                : `Reactivate ${member.firstName} ${member.lastName}? They will return to active member workflows.`,
+            );
+            if (!confirmed) {
+              event.preventDefault();
+            }
+          }}
+        >
           <input type="hidden" name="intent" value="toggleActive" />
           <input type="hidden" name="userId" value={member.id} />
           <PendingButton
@@ -555,7 +582,18 @@ function MemberMobileCard({
               <select
                 name="role"
                 defaultValue={member.role}
-                onChange={(event) => fetcher.submit(event.currentTarget.form!)}
+                onChange={(event) => {
+                  const nextRole = event.currentTarget.value;
+                  if (nextRole === member.role) return;
+                  const confirmed = window.confirm(
+                    `Change ${member.firstName} ${member.lastName}'s role from ${getRoleLabel(member.role)} to ${getRoleLabel(nextRole)}?`,
+                  );
+                  if (!confirmed) {
+                    event.currentTarget.value = member.role;
+                    return;
+                  }
+                  fetcher.submit(event.currentTarget.form!);
+                }}
                 disabled={fetcher.state !== "idle"}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm
                            text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
@@ -593,7 +631,19 @@ function MemberMobileCard({
               </select>
             </fetcher.Form>
 
-            <fetcher.Form method="post">
+            <fetcher.Form
+              method="post"
+              onSubmit={(event) => {
+                const confirmed = window.confirm(
+                  member.isActive
+                    ? `Deactivate ${member.firstName} ${member.lastName}? They will no longer appear in active member workflows.`
+                    : `Reactivate ${member.firstName} ${member.lastName}? They will return to active member workflows.`,
+                );
+                if (!confirmed) {
+                  event.preventDefault();
+                }
+              }}
+            >
               <input type="hidden" name="intent" value="toggleActive" />
               <input type="hidden" name="userId" value={member.id} />
               <PendingButton

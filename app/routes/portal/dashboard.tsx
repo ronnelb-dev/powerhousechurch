@@ -184,24 +184,24 @@ function MetricCard({
 }) {
   const toneClasses =
     tone === "alert"
-      ? "border-red-100 bg-red-50/70"
+      ? "border-red-200 bg-white"
       : tone === "success"
-        ? "border-green-100 bg-green-50/70"
-        : "border-white/70 bg-white/88";
+        ? "border-green-200 bg-white"
+        : "border-gray-200 bg-white";
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${toneClasses}`}>
-      <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
+    <div className={`rounded-lg border p-4 ${toneClasses}`}>
+      <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
         {label}
       </p>
-      <p className="mt-3 font-serif text-3xl font-bold text-gray-900">
+      <p className="mt-2 font-sans text-2xl font-bold text-gray-900">
         {value}
       </p>
       <p className="mt-1 text-xs font-sans text-gray-500">{note}</p>
       {action ? (
         <Link
           to={action.to}
-          className="mt-3 inline-flex text-xs font-sans font-bold text-red-700 transition-colors hover:text-red-900"
+          className="mt-3 inline-flex text-xs font-sans font-bold text-gray-700 transition-colors hover:text-gray-950"
         >
           {action.label} →
         </Link>
@@ -223,15 +223,15 @@ function QuickActionCard({
 }) {
   const toneClasses =
     tone === "warm"
-      ? "border-red-100 bg-red-50/70 hover:border-red-200"
+      ? "border-gray-200 border-l-red-300 bg-white hover:border-gray-300"
       : tone === "gold"
-        ? "border-amber-100 bg-amber-50/70 hover:border-amber-200"
-        : "border-gray-100 bg-white hover:border-gray-200";
+        ? "border-gray-200 border-l-amber-300 bg-white hover:border-gray-300"
+        : "border-gray-200 border-l-gray-300 bg-white hover:border-gray-300";
 
   return (
     <Link
       to={to}
-      className={`group block rounded-2xl border p-4 transition-all ${toneClasses}`}
+      className={`group block rounded-lg border border-l-2 px-4 py-3 transition-colors ${toneClasses}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -261,6 +261,48 @@ export default function DashboardPage() {
       : user.role === "CELL_LEADER"
         ? "Cell Leader"
         : "Member";
+  const heroIntro =
+    user.role === "ADMIN"
+      ? "Stay close to the church's operational pulse: attendance, care, members, and ministry follow-up."
+      : user.role === "CELL_LEADER"
+        ? cellGroup
+          ? `You are leading ${cellGroup.name} Group. Keep momentum strong with attendance, care, and community rhythms this week.`
+          : "Your leader tools will become more useful once a cell group is assigned."
+        : cellGroup
+          ? `You are connected to ${cellGroup.name} Group. Keep growing through sermons, prayer, and community life this week.`
+          : "Your portal keeps prayer, sermons, community, and church life close at hand.";
+  const primaryActions =
+    user.role === "ADMIN"
+      ? [
+          { to: "/portal/attendance", label: "Mark Attendance", variant: "primary" as const },
+          { to: "/portal/admin/members", label: "Manage Members", variant: "secondary" as const },
+          { to: "/portal/care", label: "Care Queue", variant: "secondary" as const },
+        ]
+      : user.role === "CELL_LEADER"
+        ? [
+            { to: "/portal/attendance", label: "Mark Attendance", variant: "primary" as const },
+            { to: "/portal/care", label: "Care Queue", variant: "secondary" as const },
+          ]
+        : [
+            { to: "/portal/community", label: "Open Community", variant: "primary" as const },
+            { to: "/portal/engagement", label: "View Engagement", variant: "secondary" as const },
+          ];
+  const scopeCard =
+    user.role === "ADMIN"
+      ? {
+          label: "Admin Snapshot",
+          title: cellGroup ? `${cellGroup.name} Group` : "Church Operations",
+          description: cellGroup
+            ? `${memberCount} members connected in your current group. Use admin tools for the wider church view.`
+            : "Use the admin workspace to manage members, ministries, communications, reports, and care rhythms.",
+        }
+      : {
+          label: "Group Snapshot",
+          title: cellGroup ? `${cellGroup.name} Group` : "Awaiting Cell Group",
+          description: cellGroup
+            ? `${memberCount} members connected in your current group.`
+            : "Once assigned, your group updates and attendance rhythms will appear here.",
+        };
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
@@ -268,7 +310,40 @@ export default function DashboardPage() {
     latestSermon?.weeklyGuide || latestSermon?.reflectionPrompts,
   );
   const quickActions = [
-    ...(isCellLeaderOrAdmin
+    ...(user.role === "ADMIN"
+      ? [
+          {
+            to: "/portal/attendance",
+            title: "Mark Attendance",
+            description: "Update Sunday service or cell group attendance in a few taps.",
+            tone: "warm" as const,
+          },
+          {
+            to: "/portal/care",
+            title: "Care Queue",
+            description: "Follow up with members who may need encouragement this week.",
+            tone: "gold" as const,
+          },
+          {
+            to: "/portal/admin/members",
+            title: "Manage Members",
+            description: "Update roles, assignments, status, exports, and bulk actions.",
+            tone: "neutral" as const,
+          },
+          {
+            to: "/portal/admin/communications",
+            title: "Communications",
+            description: "Send church updates and manage scheduled messages.",
+            tone: "neutral" as const,
+          },
+          {
+            to: "/portal/admin/reports",
+            title: "Reports",
+            description: "Review attendance, engagement, and ministry health signals.",
+            tone: "gold" as const,
+          },
+        ]
+      : isCellLeaderOrAdmin
       ? [
           {
             to: "/portal/attendance",
@@ -305,66 +380,61 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="max-w-6xl p-4 sm:p-6 md:p-8">
-      <section className="relative overflow-hidden rounded-[2rem] border border-red-100 bg-linear-to-br from-[#fff4ef] via-white to-[#fff8e7] p-6 shadow-sm sm:p-8">
-        <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-red-100/60 blur-3xl" aria-hidden="true" />
-        <div className="absolute bottom-0 right-12 h-24 w-24 rounded-full bg-amber-100/70 blur-2xl" aria-hidden="true" />
-
-        <div className="relative grid gap-6 lg:grid-cols-[1.4fr_0.95fr] lg:items-start">
+    <div className="max-w-6xl p-4 sm:p-5 md:p-6">
+      <section className="rounded-lg border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1.5">
-              <span className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-red-700">
+            <div className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1">
+              <span className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-700">
                 {roleLabel}
               </span>
             </div>
-            <h1 className="mt-4 font-serif text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            <h1 className="mt-3 font-sans text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
               Welcome back, {user.firstName}.
             </h1>
             <p className="mt-2 max-w-2xl text-sm font-sans leading-6 text-gray-600 sm:text-base">
               {today}
             </p>
             <p className="mt-3 max-w-2xl text-sm font-sans leading-6 text-gray-600">
-              {cellGroup
-                ? `You are connected to ${cellGroup.name} Group. Keep momentum strong with attendance, care, and community rhythms this week.`
-                : "Your portal keeps prayer, sermons, community, and church life close at hand."}
+              {heroIntro}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link
-                to="/portal/community"
-                className="inline-flex min-h-11 items-center rounded-full bg-red-700 px-5 py-2.5 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800"
-              >
-                Open Community
-              </Link>
-              <Link
-                to="/portal/engagement"
-                className="inline-flex min-h-11 items-center rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-sans font-bold text-red-700 transition-colors hover:bg-red-50"
-              >
-                View Engagement
-              </Link>
+              {primaryActions.map((action) => (
+                <Link
+                  key={action.to}
+                  to={action.to}
+                  className={[
+                    "inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-sans font-bold transition-colors",
+                    action.variant === "primary"
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
+                      : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-950",
+                  ].join(" ")}
+                >
+                  {action.label}
+                </Link>
+              ))}
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-2xl border border-white/80 bg-white/88 p-4 shadow-sm">
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
-                Group Snapshot
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+                {scopeCard.label}
               </p>
-              <p className="mt-3 font-serif text-xl font-bold text-gray-900">
-                {cellGroup ? `${cellGroup.name} Group` : "Awaiting Cell Group"}
+              <p className="mt-2 font-sans text-base font-bold text-gray-900">
+                {scopeCard.title}
               </p>
               <p className="mt-1 text-sm font-sans leading-6 text-gray-500">
-                {cellGroup
-                  ? `${memberCount} members connected in your current group.`
-                  : "Once assigned, your group updates and attendance rhythms will appear here."}
+                {scopeCard.description}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/80 bg-white/88 p-4 shadow-sm">
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Weekly Focus
               </p>
-              <p className="mt-3 font-serif text-xl font-bold text-gray-900">
+              <p className="mt-2 font-sans text-base font-bold text-gray-900">
                 {sermonHasGuide ? "Community prompts are ready" : "Fresh sermon content available"}
               </p>
               <p className="mt-1 text-sm font-sans leading-6 text-gray-500">
@@ -375,7 +445,7 @@ export default function DashboardPage() {
               {latestSermon ? (
                 <Link
                   to={`/sermons/${latestSermon.id}`}
-                  className="mt-3 inline-flex text-sm font-sans font-bold text-red-700 transition-colors hover:text-red-900"
+                  className="mt-3 inline-flex text-sm font-sans font-bold text-gray-700 transition-colors hover:text-gray-950"
                 >
                   Open latest sermon →
                 </Link>
@@ -387,14 +457,14 @@ export default function DashboardPage() {
 
       {/* Pastoral alert — only visible when members need care */}
       {isCellLeaderOrAdmin && needsCare.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-5">
           <PastoralAlert members={needsCare} />
         </div>
       )}
 
       {/* KPI cards — cell leader / admin only */}
       {isCellLeaderOrAdmin && attendanceSummary && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Members"
             value={String(memberCount)}
@@ -421,16 +491,16 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <div className="space-y-6">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_0.95fr]">
+        <div className="space-y-5">
           {recentAttendance.length > 0 && (
-            <section className="rounded-[1.6rem] border border-gray-100 bg-white p-6 shadow-sm">
+            <section className="rounded-lg border border-gray-200 bg-white p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
+                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                     Consistency
                   </p>
-                  <h2 className="mt-2 font-serif text-xl font-bold text-gray-900">
+                  <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
                     My Sunday Attendance
                   </h2>
                   <p className="mt-1 text-sm font-sans text-gray-500">
@@ -448,13 +518,13 @@ export default function DashboardPage() {
           )}
 
           {latestSermon && (
-            <section className="rounded-[1.6rem] border border-gray-100 bg-white p-6 shadow-sm">
+            <section className="rounded-lg border border-gray-200 bg-white p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-2xl">
-                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-red-600">
+                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                     Latest Message
                   </p>
-                  <h2 className="mt-3 font-serif text-2xl font-bold text-gray-900">
+                  <h2 className="mt-2 font-sans text-xl font-bold text-gray-900">
                     {latestSermon.title}
                   </h2>
                   <p className="mt-1 text-sm font-sans text-gray-400">
@@ -473,14 +543,14 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-2">
                   <Link
                     to={`/sermons/${latestSermon.id}`}
-                    className="inline-flex min-h-11 items-center rounded-lg bg-red-700 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="inline-flex min-h-10 items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400"
                   >
                     Watch Message
                   </Link>
                   {sermonHasGuide ? (
                     <Link
                       to="/portal/community"
-                      className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-sans font-bold text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                      className="inline-flex min-h-10 items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-300"
                     >
                       Open Community
                     </Link>
@@ -491,19 +561,19 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="space-y-6">
-          <section className="rounded-[1.6rem] border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="space-y-5">
+          <section className="rounded-lg border border-gray-200 bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
+                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Next Steps
                 </p>
-                <h2 className="mt-2 font-serif text-xl font-bold text-gray-900">
+                <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
                   Quick Actions
                 </h2>
               </div>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2">
               {quickActions.map((action) => (
                 <QuickActionCard
                   key={action.to}
@@ -516,39 +586,39 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-[1.6rem] border border-gray-100 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-5">
             <div>
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-gray-500">
+              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Stay Engaged
               </p>
-              <h2 className="mt-2 font-serif text-xl font-bold text-gray-900">
+              <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
                 Personal Momentum
               </h2>
             </div>
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Prayer
                 </p>
-                <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                <p className="mt-1.5 font-sans text-xl font-bold text-gray-900">
                   {engagementSummary.prayerRequestCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Requests shared</p>
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Sermons
                 </p>
-                <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                <p className="mt-1.5 font-sans text-xl font-bold text-gray-900">
                   {engagementSummary.savedSermonCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Saved messages</p>
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.14em] text-gray-500">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Serving
                 </p>
-                <p className="mt-2 font-serif text-2xl font-bold text-gray-900">
+                <p className="mt-1.5 font-sans text-xl font-bold text-gray-900">
                   {engagementSummary.servingInterestCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Forms submitted</p>
@@ -556,7 +626,7 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/portal/engagement"
-              className="mt-4 inline-flex text-sm font-sans font-bold text-red-700 transition-colors hover:text-red-900"
+              className="mt-4 inline-flex text-sm font-sans font-bold text-gray-700 transition-colors hover:text-gray-950"
             >
               Open your engagement hub →
             </Link>

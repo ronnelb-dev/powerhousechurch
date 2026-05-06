@@ -7,11 +7,13 @@ import {
   Scripts,
   ScrollRestoration,
   useFetchers,
+  useLocation,
   useNavigation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { RouteLoadingSkeleton } from "./components/ui/RouteLoadingSkeleton";
 import { ToastProvider } from "./components/ui/ToastProvider";
 import { getSettings } from "./lib/settings.server";
 import "./app.css";
@@ -28,7 +30,7 @@ export const links: Route.LinksFunction = () => [
     },
     {
       rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+      href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap",
     },
 
 ];
@@ -64,8 +66,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const navigation = useNavigation();
   const fetchers = useFetchers();
+  const location = useLocation();
 
-  const isNavigating = navigation.state !== "idle";
+  const navigationMethod = navigation.formMethod?.toLowerCase();
+  const isContentNavigation =
+    navigation.state !== "idle" &&
+    (!navigationMethod || navigationMethod === "get");
+  const isActionNavigation =
+    navigation.state !== "idle" &&
+    Boolean(navigationMethod && navigationMethod !== "get");
   const isFetcherLoading = fetchers.some((fetcher) => {
     if (fetcher.state === "idle") {
       return false;
@@ -74,8 +83,16 @@ export default function App() {
     const method = fetcher.formMethod?.toLowerCase();
     return !method || method === "get";
   });
-  const shouldShowOverlay = isNavigating || isFetcherLoading;
+  const shouldShowSkeleton = isContentNavigation || isFetcherLoading;
+  const shouldShowSpinner = isActionNavigation;
+  const shouldShowOverlay = shouldShowSkeleton || shouldShowSpinner;
   const [isLoading, setIsLoading] = useState(false);
+  const loadingPath = navigation.location?.pathname ?? location.pathname;
+  const skeletonVariant = loadingPath.startsWith("/portal/admin")
+    ? "admin"
+    : loadingPath.startsWith("/portal")
+      ? "portal"
+      : "public";
 
   useEffect(() => {
     if (!shouldShowOverlay) {
@@ -103,10 +120,12 @@ export default function App() {
   return (
     <ToastProvider>
       <Outlet />
-      <LoadingSpinner
-        isLoading={isLoading}
-        label={isNavigating ? "Loading page" : "Loading content"}
+      <RouteLoadingSkeleton
+        isLoading={isLoading && shouldShowSkeleton}
+        variant={skeletonVariant}
+        label={isContentNavigation ? "Loading page" : "Loading content"}
       />
+      <LoadingSpinner isLoading={isLoading && shouldShowSpinner} label="Processing" />
     </ToastProvider>
   );
 }

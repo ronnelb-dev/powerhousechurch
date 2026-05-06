@@ -5,7 +5,7 @@
 // Active state: yellow left border accent
 
 import { Link, useLocation } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface NavItem {
   to: string;
@@ -224,12 +224,21 @@ function SidebarContent({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const primaryNavItems: NavItem[] = [
+    NAV_ITEMS[0]!,
+    ...(userRole === "CELL_LEADER"
+      ? [{ to: "/portal/care", label: "Care Queue", icon: <CareIcon /> }]
+      : []),
+    ...(userRole === "MEMBER"
+      ? NAV_ITEMS.slice(2)
+      : NAV_ITEMS.slice(1)),
+  ];
 
   return (
     <div className="flex flex-col h-full bg-red-900 text-white">
       {/* Header */}
       <div className="safe-top" />
-      <div className="px-4 pt-5 pb-4 border-b border-red-800/60">
+      <div className="flex items-start justify-between gap-3 border-b border-red-800/60 px-4 pb-4 pt-5">
         <Link
           to="/"
           className="block group focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded"
@@ -245,6 +254,28 @@ function SidebarContent({
             Members Portal
           </p>
         </Link>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-800 text-red-200 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            aria-label="Close navigation"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {/* Navigation */}
@@ -253,13 +284,7 @@ function SidebarContent({
         aria-label="Portal navigation"
       >
         <ul role="list" className="space-y-0.5">
-          {[
-            ...NAV_ITEMS.slice(0, 1),
-            ...(userRole === "ADMIN" || userRole === "CELL_LEADER"
-              ? [{ to: "/portal/care", label: "Care Queue", icon: <CareIcon /> }]
-              : []),
-            ...NAV_ITEMS.slice(1),
-          ].map(({ to, label, icon }) => (
+          {primaryNavItems.map(({ to, label, icon }) => (
             <li key={to}>
               <Link
                 to={to}
@@ -305,6 +330,7 @@ function SidebarContent({
                 { to: "/portal/admin/sermons", label: "Sermons" },
                 { to: "/portal/admin/events", label: "Events" },
                 { to: "/portal/admin/visit-plans", label: "Visit Plans" },
+                { to: "/portal/admin/posts", label: "Community" },
                 { to: "/portal/admin/reports", label: "Reports" },
                 { to: "/portal/admin/settings", label: "Settings" },
               ].map(({ to, label }) => (
@@ -368,6 +394,13 @@ function SidebarContent({
 export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const wasMobileOpenRef = useRef(false);
+
+  const closeMobileMenu = () => {
+    setMobileOpen(false);
+  };
 
   // Close on route change
   useEffect(() => {
@@ -382,14 +415,57 @@ export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
     };
   }, [mobileOpen]);
 
-  // Escape key to close
+  // Trap focus inside the mobile drawer while it is open.
   useEffect(() => {
     if (!mobileOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+      if (e.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable || focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
+
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      wasMobileOpenRef.current = true;
+      window.setTimeout(() => {
+        const firstFocusable = drawerRef.current?.querySelector<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        firstFocusable?.focus();
+      }, 0);
+      return;
+    }
+
+    if (wasMobileOpenRef.current) {
+      wasMobileOpenRef.current = false;
+      menuButtonRef.current?.focus();
+    }
   }, [mobileOpen]);
 
   return (
@@ -407,6 +483,7 @@ export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-red-900 flex items-center px-4 shadow-lg">
         <div className="safe-top" />
         <button
+          ref={menuButtonRef}
           className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-white/10 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
           onClick={() => setMobileOpen(true)}
           aria-expanded={mobileOpen}
@@ -438,10 +515,11 @@ export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
         <>
           <div
             className="fixed inset-0 z-40 bg-black/60 md:hidden"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMobileMenu}
             aria-hidden="true"
           />
           <div
+            ref={drawerRef}
             id="portal-mobile-menu"
             className="fixed top-0 left-0 z-50 w-[min(280px,85vw)] md:hidden"
             style={{ height: "100dvh" }}
@@ -452,7 +530,7 @@ export function PortalSidebar({ userRole, userName }: PortalSidebarProps) {
             <SidebarContent
               userRole={userRole}
               userName={userName}
-              onClose={() => setMobileOpen(false)}
+              onClose={closeMobileMenu}
             />
           </div>
         </>

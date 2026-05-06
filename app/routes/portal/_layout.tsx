@@ -31,12 +31,12 @@ export default function PortalLayout() {
   const user = useLoaderData<typeof loader>();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-dvh bg-gray-50 md:h-dvh md:overflow-hidden">
       <PortalSidebar
         userRole={user.role}
         userName={`${user.firstName} ${user.lastName}`}
       />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 md:overflow-y-auto">
         <main id="main-content" className="min-h-full pt-18 md:pt-0">
           <Outlet context={user} />
         </main>

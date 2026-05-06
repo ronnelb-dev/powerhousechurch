@@ -20,6 +20,7 @@
       "routes/cell-groups": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/events": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/new-here": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/welcome-inside": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/give": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/live": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/contact": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -135,6 +136,13 @@
         "parentId": "routes/_public",
         "file": "app/routes/new-here.tsx",
         "path": "new-here",
+        "config": {}
+      },
+      "routes/welcome-inside": {
+        "id": "routes/welcome-inside",
+        "parentId": "routes/_public",
+        "file": "app/routes/welcome-inside.tsx",
+        "path": "welcome-inside",
         "config": {}
       },
       "routes/give": {
@@ -500,6 +508,12 @@
         "file": "routes/new-here.tsx",
         "path": "new-here"
       },
+      "routes/welcome-inside": {
+        "id": "routes/welcome-inside",
+        "parentId": "routes/_public",
+        "file": "routes/welcome-inside.tsx",
+        "path": "welcome-inside"
+      },
       "routes/give": {
         "id": "routes/give",
         "parentId": "routes/_public",
@@ -795,6 +809,10 @@
               {
                 "file": "routes/new-here.tsx",
                 "path": "new-here"
+              },
+              {
+                "file": "routes/welcome-inside.tsx",
+                "path": "welcome-inside"
               },
               {
                 "file": "routes/give.tsx",

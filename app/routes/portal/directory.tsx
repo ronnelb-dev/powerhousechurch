@@ -108,6 +108,21 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
+function directoryPageUrl({
+  filters,
+  page,
+}: {
+  filters: ReturnType<typeof useLoaderData<typeof loader>>["filters"];
+  page: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.cellGroupId) params.set("cellGroupId", filters.cellGroupId);
+  if (filters.gender) params.set("gender", filters.gender);
+  params.set("page", String(page));
+  return `/portal/directory?${params.toString()}`;
+}
+
 export default function DirectoryPage() {
   const { members, total, page, totalPages, cellGroups, filters, isAdmin } =
     useLoaderData<typeof loader>();
@@ -283,7 +298,7 @@ export default function DirectoryPage() {
         >
           {page > 1 && (
             <Link
-              to={`/portal/directory?search=${filters.search}&cellGroupId=${filters.cellGroupId}&gender=${filters.gender}&page=${page - 1}`}
+              to={directoryPageUrl({ filters, page: page - 1 })}
               className="px-4 py-2 rounded-lg border border-gray-200 text-sm
                          font-sans font-bold text-gray-600 hover:border-red-300
                          hover:text-red-700 transition-all"
@@ -296,7 +311,7 @@ export default function DirectoryPage() {
           </span>
           {page < totalPages && (
             <Link
-              to={`/portal/directory?search=${filters.search}&cellGroupId=${filters.cellGroupId}&gender=${filters.gender}&page=${page + 1}`}
+              to={directoryPageUrl({ filters, page: page + 1 })}
               className="px-4 py-2 rounded-lg border border-gray-200 text-sm
                          font-sans font-bold text-gray-600 hover:border-red-300
                          hover:text-red-700 transition-all"

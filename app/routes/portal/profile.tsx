@@ -12,13 +12,19 @@ import {
 import { useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
-import { hash, verify } from "@node-rs/argon2";
 import { requireUser } from "~/lib/auth.server";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
+import { hashPassword, verifyPassword } from "~/lib/password-hash.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
+import {
+  PortalHeader,
+  PortalPage,
+  PortalSection,
+  PortalSectionHeading,
+} from "~/components/ui/Portal";
 
 export const meta: MetaFunction = () => [
   { title: "My Profile — Powerhouse Church Portal" },
@@ -152,9 +158,10 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     if (!dbUser) throw new Response("Not found", { status: 404 });
 
-    const valid = await verify(dbUser.passwordHash, result.data.currentPassword, {
-      memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1,
-    });
+    const valid = await verifyPassword(
+      dbUser.passwordHash,
+      result.data.currentPassword,
+    );
     if (!valid) {
       return {
         success: false,
@@ -163,9 +170,7 @@ export async function action({ request }: ActionFunctionArgs) {
       } satisfies ActionData;
     }
 
-    const newHash = await hash(result.data.newPassword, {
-      memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1,
-    });
+    const newHash = await hashPassword(result.data.newPassword);
     await db.user.update({ where: { id: user.id }, data: { passwordHash: newHash } });
     return { success: true, message: "Password changed successfully." } satisfies ActionData;
   }
@@ -191,7 +196,12 @@ export default function ProfilePage() {
   const navigation   = useNavigation();
   const profileFormRef = useRef<HTMLFormElement>(null);
   const passwordFormRef = useRef<HTMLFormElement>(null);
-  const isSubmitting = navigation.state === "submitting";
+  const pendingIntent =
+    navigation.state === "submitting"
+      ? String(navigation.formData?.get("intent") ?? "")
+      : "";
+  const isProfileSubmitting = pendingIntent === "updateProfile";
+  const isPasswordSubmitting = pendingIntent === "changePassword";
 
   const profileErrors = (actionData?.success === false && "errors" in actionData && actionData.intent === "updateProfile")
     ? (actionData.errors as Record<string, string[] | undefined>)
@@ -225,28 +235,33 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-2xl">
+    <PortalPage className="max-w-3xl">
+      <PortalHeader
+        eyebrow="Members Portal"
+        title="My Profile"
+        subtitle="Keep your contact details, photo, and account security up to date."
+      />
+
       {/* Profile header */}
-      <div className="flex items-center gap-5 mb-10">
+      <div className="mb-6 flex items-center gap-4">
         {user.profilePhoto ? (
           <img
             src={user.profilePhoto}
             alt=""
-            className="h-16 w-16 flex-shrink-0 rounded-full border border-gray-100 object-cover shadow-sm"
+            className="h-14 w-14 flex-shrink-0 rounded-full border border-gray-200 object-cover"
           />
         ) : (
           <div
-            className="w-16 h-16 rounded-full bg-red-700 flex items-center justify-center
-                       text-white font-serif text-2xl font-bold flex-shrink-0"
+            className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 font-sans text-lg font-bold text-white"
             aria-hidden="true"
           >
             {initials}
           </div>
         )}
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-gray-900">
+        <div className="min-w-0">
+          <h2 className="font-sans text-lg font-bold text-gray-900">
             {user.firstName} {user.lastName}
-          </h1>
+          </h2>
           <p className="text-sm text-gray-400 font-sans">
             {roleLabel}
             {user.cellGroup ? ` · ${user.cellGroup.name}` : ""}
@@ -268,10 +283,11 @@ export default function ProfilePage() {
       )}
 
       {/* Profile form */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-7 mb-6">
-        <h2 className="font-serif text-lg font-bold text-gray-800 mb-6">
-          Personal Information
-        </h2>
+      <PortalSection className="mb-5">
+        <PortalSectionHeading
+          title="Personal Information"
+          subtitle="These details help leaders identify and contact you accurately."
+        />
         <Form ref={profileFormRef} method="post" encType="multipart/form-data" noValidate>
           <input type="hidden" name="intent" value="updateProfile" />
           <ValidationSummary errors={profileErrors} />
@@ -381,22 +397,21 @@ export default function ProfilePage() {
 
           <PendingButton
             type="submit"
-            isPending={isSubmitting}
+            isPending={isProfileSubmitting}
             pendingText="Saving..."
-            className="px-6 py-3 bg-red-700 text-white font-sans font-bold text-sm
-                       rounded-lg hover:bg-red-800 disabled:opacity-60 transition-all
-                       focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-gray-400"
           >
             Save Changes
           </PendingButton>
         </Form>
-      </div>
+      </PortalSection>
 
       {/* Password change */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-7">
-        <h2 className="font-serif text-lg font-bold text-gray-800 mb-6">
-          Change Password
-        </h2>
+      <PortalSection>
+        <PortalSectionHeading
+          title="Change Password"
+          subtitle="Use a strong password that you do not reuse on other sites."
+        />
         <Form ref={passwordFormRef} method="post" noValidate>
           <input type="hidden" name="intent" value="changePassword" />
           <ValidationSummary errors={passwordErrors} globalError={globalPasswordError} />
@@ -446,17 +461,15 @@ export default function ProfilePage() {
 
           <PendingButton
             type="submit"
-            isPending={isSubmitting}
+            isPending={isPasswordSubmitting}
             pendingText="Updating..."
-            className="px-6 py-3 bg-gray-800 text-white font-sans font-bold text-sm
-                       rounded-lg hover:bg-gray-900 disabled:opacity-60 transition-all
-                       focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-gray-400"
           >
             Update Password
           </PendingButton>
         </Form>
-      </div>
-    </div>
+      </PortalSection>
+    </PortalPage>
   );
 }
 

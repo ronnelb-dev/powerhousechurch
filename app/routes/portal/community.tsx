@@ -16,7 +16,13 @@ import { db } from "~/lib/db.server";
 import { DevotionPost } from "~/components/church/DevotionPost";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { SectionHeader } from "~/components/ui/SectionHeader";
+import {
+  PortalHeader,
+  PortalPage,
+  PortalSection,
+  PortalSectionHeading,
+  portalButtonClasses,
+} from "~/components/ui/Portal";
 import { Sheet } from "~/components/ui/sheet";
 import { useToast } from "~/components/ui/ToastProvider";
 import { useEffect, useRef, useState } from "react";
@@ -257,41 +263,36 @@ export default function CommunityPage() {
   }, [actionData, showToast]);
 
   return (
-    <div className="p-6 md:p-8 max-w-2xl">
-      <SectionHeader
+    <PortalPage className="max-w-2xl">
+      <PortalHeader
         eyebrow="Members Portal"
         title="Community"
         subtitle="Share what God is speaking to you through His Word."
       />
 
       {latestSermon && (
-        <div className="mt-8 rounded-3xl border border-red-100 bg-linear-to-br from-red-50 via-white to-amber-50 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-sans font-bold tracking-[0.2em] uppercase text-red-700 mb-2">
-                This Week's Sermon Guide
-              </p>
-              <h2 className="font-serif text-2xl font-bold text-gray-900">
-                {latestSermon.title}
-              </h2>
-              <p className="mt-1 text-sm font-sans text-gray-500">
-                {latestSermon.speaker} ·{" "}
-                {new Date(latestSermon.date).toLocaleDateString("en-PH", {
-                  month: "long", day: "numeric", year: "numeric",
-                })}
-              </p>
-            </div>
-            <Link
-              to={`/sermons/${latestSermon.id}`}
-              className="inline-flex items-center rounded-full bg-red-700 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-800"
-            >
-              Open Sermon
-            </Link>
-          </div>
+        <PortalSection className="mb-5">
+          <PortalSectionHeading
+            eyebrow="This Week's Sermon Guide"
+            title={latestSermon.title}
+            subtitle={`${latestSermon.speaker} · ${new Date(latestSermon.date).toLocaleDateString("en-PH", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}`}
+            actions={
+              <Link
+                to={`/sermons/${latestSermon.id}`}
+                className={portalButtonClasses({ variant: "secondary" })}
+              >
+                Open Sermon
+              </Link>
+            }
+          />
 
           {latestSermon.scriptureFocus && (
-            <div className="mt-5">
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-2">
+            <div>
+              <p className="mb-2 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Scripture Focus
               </p>
               <p className="text-sm font-sans leading-7 text-gray-700">
@@ -302,7 +303,7 @@ export default function CommunityPage() {
 
           {latestSermon.weeklyGuide && (
             <div className="mt-5">
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-2">
+              <p className="mb-2 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Weekly Guide
               </p>
               <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-gray-700">
@@ -313,14 +314,14 @@ export default function CommunityPage() {
 
           {reflectionPrompts.length > 0 && (
             <div className="mt-5">
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.18em] text-red-700 mb-3">
+              <p className="mb-3 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Reflection Prompts
               </p>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {reflectionPrompts.map((prompt) => (
                   <div
                     key={prompt}
-                    className="rounded-2xl border border-white bg-white/80 px-4 py-3 text-sm font-sans text-gray-700 shadow-sm"
+                    className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-sans text-gray-700"
                   >
                     {prompt}
                   </div>
@@ -328,7 +329,7 @@ export default function CommunityPage() {
               </div>
             </div>
           )}
-        </div>
+        </PortalSection>
       )}
 
       {/* Admin approval queue */}
@@ -528,7 +529,7 @@ export default function CommunityPage() {
           message="Be the first to share what God is speaking to you today."
         />
       )}
-    </div>
+    </PortalPage>
   );
 }
 

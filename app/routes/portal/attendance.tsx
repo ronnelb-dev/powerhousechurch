@@ -2,6 +2,7 @@
 import {
   useLoaderData,
   Form,
+  useActionData,
   useNavigation,
   isRouteErrorResponse,
   useRouteError,
@@ -9,12 +10,14 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { AttendanceMarkRow } from "~/components/church/AttendanceMarkRow";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { PendingButton } from "~/components/ui/PendingButton";
+import { PortalHeader, PortalPage, PortalSection } from "~/components/ui/Portal";
+import { useToast } from "~/components/ui/ToastProvider";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [
@@ -121,7 +124,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   };
 
-  if (intent === "bulkMarkPresent") {
+  if (intent === "bulkMarkPresent" || intent === "bulkMarkAbsent") {
+    const nextStatus = intent === "bulkMarkPresent" ? "PRESENT" : "ABSENT";
     const userIds = formData
       .getAll("userIds")
       .map((value) => String(value))
@@ -149,11 +153,11 @@ export async function action({ request }: ActionFunctionArgs) {
       userIds.map((userId) =>
         db.attendance.upsert({
           where: { userId_type_date: { userId, type, date: selectedDate } },
-          update: { status: "PRESENT", markedById: user.id },
+          update: { status: nextStatus, markedById: user.id },
           create: {
             userId,
             type,
-            status: "PRESENT",
+            status: nextStatus,
             date: selectedDate,
             markedById: user.id,
             cellGroupId: user.cellGroupId ?? undefined,
@@ -168,18 +172,20 @@ export async function action({ request }: ActionFunctionArgs) {
       actorRole: user.role,
       action: "attendance.mark.bulk",
       entityType: "attendance",
-      entityId: `${type}:${date}:bulk-present`,
-      summary: `Marked ${userIds.length} members present for ${date}`,
+      entityId: `${type}:${date}:bulk-${nextStatus.toLowerCase()}`,
+      summary: `Marked ${userIds.length} members ${nextStatus.toLowerCase()} for ${date}`,
       details: {
         memberIds: userIds,
         attendanceType: type,
         date,
         previousStatuses: Object.fromEntries(previousStatuses),
-        nextStatus: "PRESENT",
+        nextStatus,
       },
     });
 
-    return { success: true };
+    return {
+      success: `Marked ${userIds.length} member${userIds.length === 1 ? "" : "s"} ${nextStatus === "PRESENT" ? "present" : "absent"}.`,
+    };
   }
 
   const userId = formData.get("userId") as string;
@@ -222,20 +228,34 @@ export async function action({ request }: ActionFunctionArgs) {
     },
   });
 
-  return { success: true };
+  return {
+    success: `Marked member ${status === "PRESENT" ? "present" : "absent"}.`,
+    status,
+  };
 }
 
 export default function AttendancePage() {
   const { members, attendanceMap, date, type, isFuture, cellGroups } =
     useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const { showToast } = useToast();
+  const lastToastRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const feedback =
+    actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
+      ? actionData
+      : null;
 
   const presentCount = Object.values(attendanceMap).filter((s) => s === "PRESENT").length;
   const absentCount  = Object.values(attendanceMap).filter((s) => s === "ABSENT").length;
-  const bulkPending =
-    navigation.state === "submitting" &&
-    navigation.formData?.get("intent") === "bulkMarkPresent";
+  const pendingIntent =
+    navigation.state === "submitting"
+      ? String(navigation.formData?.get("intent") ?? "")
+      : "";
+  const presentBulkPending = pendingIntent === "bulkMarkPresent";
+  const absentBulkPending = pendingIntent === "bulkMarkAbsent";
+  const bulkPending = presentBulkPending || absentBulkPending;
 
   const toggleSelected = (userId: string) => {
     setSelectedIds((current) =>
@@ -245,17 +265,39 @@ export default function AttendancePage() {
     );
   };
 
+  useEffect(() => {
+    const message =
+      feedback && "error" in feedback && feedback.error
+        ? feedback.error
+        : feedback && "success" in feedback && feedback.success
+          ? feedback.success
+          : null;
+
+    if (!message || lastToastRef.current === message) {
+      return;
+    }
+
+    lastToastRef.current = message;
+    showToast({
+      tone: feedback && "error" in feedback && feedback.error ? "error" : "success",
+      message: String(message),
+    });
+
+    if (feedback && "success" in feedback && feedback.success) {
+      setSelectedIds([]);
+    }
+  }, [feedback, showToast]);
+
   return (
-    <div className="max-w-3xl p-4 sm:p-6 md:p-8">
-      <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">
-        Attendance
-      </h1>
-      <p className="mb-6 font-sans text-sm text-gray-400 sm:mb-8">
-        Mark attendance with a single tap. Records save instantly.
-      </p>
+    <PortalPage className="max-w-3xl">
+      <PortalHeader
+        eyebrow="Members Portal"
+        title="Attendance"
+        subtitle="Mark attendance with a single tap. Records save instantly."
+      />
 
       {/* Controls */}
-      <Form method="get" className="mb-5 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 sm:mb-6 sm:p-5">
+      <Form method="get" className="mb-5 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
         {/* Date picker */}
         <div className="w-full">
           <label htmlFor="date" className="sr-only">Select date</label>
@@ -293,7 +335,7 @@ export default function AttendancePage() {
                     : "bg-white text-gray-600 border-gray-200 hover:border-red-300",
                 ].join(" ")}
               >
-                {t === "SUNDAY_SERVICE" ? "Sunday Service" : "Midweek Service"}
+                {t === "SUNDAY_SERVICE" ? "Sunday Service" : "Cell Group"}
               </span>
             </label>
           ))}
@@ -338,9 +380,8 @@ export default function AttendancePage() {
       {members.length > 0 && (
         <Form
           method="post"
-          className="mb-5 rounded-2xl border border-red-100 bg-red-50/70 p-4 sm:mb-6"
+          className="mb-5 rounded-lg border border-gray-200 bg-white p-4"
         >
-          <input type="hidden" name="intent" value="bulkMarkPresent" />
           <input type="hidden" name="date" value={date} />
           <input type="hidden" name="type" value={type} />
           {selectedIds.map((userId) => (
@@ -349,15 +390,15 @@ export default function AttendancePage() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-sans text-sm font-bold text-red-900">
+              <p className="font-sans text-sm font-bold text-gray-900">
                 {selectedIds.length} selected
               </p>
-              <p className="mt-1 font-sans text-xs text-red-700">
-                Choose members below, then mark them present in one step.
+              <p className="mt-1 font-sans text-xs text-gray-500">
+                Choose members below, then mark them present or absent in one step.
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
@@ -368,12 +409,25 @@ export default function AttendancePage() {
               </button>
               <PendingButton
                 type="submit"
-                isPending={bulkPending}
+                name="intent"
+                value="bulkMarkAbsent"
+                isPending={absentBulkPending}
                 pendingText="Saving..."
-                disabled={selectedIds.length === 0 || isFuture}
+                disabled={selectedIds.length === 0 || isFuture || bulkPending}
+                className="min-h-10 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Mark Absent
+              </PendingButton>
+              <PendingButton
+                type="submit"
+                name="intent"
+                value="bulkMarkPresent"
+                isPending={presentBulkPending}
+                pendingText="Saving..."
+                disabled={selectedIds.length === 0 || isFuture || bulkPending}
                 className="min-h-10 rounded-lg bg-red-700 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Mark Selected Present
+                Mark Present
               </PendingButton>
             </div>
           </div>
@@ -393,7 +447,7 @@ export default function AttendancePage() {
 
       {/* Member list */}
       {members.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <PortalSection className="overflow-hidden p-0">
           <ul
             role="list"
             aria-label="Members attendance list"
@@ -413,7 +467,7 @@ export default function AttendancePage() {
               />
             ))}
           </ul>
-        </div>
+        </PortalSection>
       ) : (
         <EmptyState
           icon="members"
@@ -421,7 +475,7 @@ export default function AttendancePage() {
           message="No members are assigned to this group yet. Contact your administrator."
         />
       )}
-    </div>
+    </PortalPage>
   );
 }
 
