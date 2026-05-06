@@ -83,7 +83,11 @@ export default function App() {
     const method = fetcher.formMethod?.toLowerCase();
     return !method || method === "get";
   });
-  const shouldShowSkeleton = isContentNavigation || isFetcherLoading;
+  const isSamePathNavigation =
+    isContentNavigation &&
+    navigation.location?.pathname === location.pathname;
+  const shouldShowSkeleton =
+    (isContentNavigation && !isSamePathNavigation) || isFetcherLoading;
   const shouldShowSpinner = isActionNavigation;
   const shouldShowOverlay = shouldShowSkeleton || shouldShowSpinner;
   const [isLoading, setIsLoading] = useState(false);

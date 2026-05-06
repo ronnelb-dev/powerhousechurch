@@ -22,8 +22,10 @@ import { PendingButton } from "~/components/ui/PendingButton";
 import {
   PortalHeader,
   PortalPage,
+  PortalPanel,
   PortalSection,
   PortalSectionHeading,
+  portalButtonClasses,
 } from "~/components/ui/Portal";
 
 export const meta: MetaFunction = () => [
@@ -243,7 +245,7 @@ export default function ProfilePage() {
       />
 
       {/* Profile header */}
-      <div className="mb-6 flex items-center gap-4">
+      <PortalPanel className="mb-5 flex items-center gap-4 bg-white">
         {user.profilePhoto ? (
           <img
             src={user.profilePhoto}
@@ -268,7 +270,7 @@ export default function ProfilePage() {
             {" · "}Member since {joinDate}
           </p>
         </div>
-      </div>
+      </PortalPanel>
 
       {/* Success banner */}
       {actionData?.success && (
@@ -399,7 +401,7 @@ export default function ProfilePage() {
             type="submit"
             isPending={isProfileSubmitting}
             pendingText="Saving..."
-            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className={portalButtonClasses()}
           >
             Save Changes
           </PendingButton>
@@ -463,7 +465,7 @@ export default function ProfilePage() {
             type="submit"
             isPending={isPasswordSubmitting}
             pendingText="Updating..."
-            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className={portalButtonClasses()}
           >
             Update Password
           </PendingButton>

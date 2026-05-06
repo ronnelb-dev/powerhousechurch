@@ -13,6 +13,14 @@ import { getMembersNeedingCare } from "~/lib/attendance.server";
 import { PastoralAlert } from "~/components/church/PastoralAlert";
 import { AttendanceHeatmap, type HeatmapCell } from "~/components/church/AttendanceHeatmap";
 import { EmptyState } from "~/components/ui/EmptyState";
+import {
+  PortalHeader,
+  PortalPage,
+  PortalPanel,
+  PortalSection,
+  PortalSectionHeading,
+  portalButtonClasses,
+} from "~/components/ui/Portal";
 
 export const meta: MetaFunction = () => [
   { title: "Dashboard — Powerhouse Church Portal" },
@@ -21,70 +29,106 @@ export const meta: MetaFunction = () => [
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
 
-  // Fetch cell group if applicable
   let cellGroup = null;
   let memberCount = 0;
   let attendanceSummary = null;
   let needsCare: Awaited<ReturnType<typeof getMembersNeedingCare>> = [];
   let recentAttendance: HeatmapCell[] = [];
-  const [prayerRequestCount, savedSermonCount, servingInterestCount] =
-    await Promise.all([
-      db.prayerRequest.count({ where: { memberId: user.id } }),
-      db.sermonBookmark.count({ where: { userId: user.id, isBookmarked: true } }),
-      db.servingInterest.count({ where: { userId: user.id } }),
-    ]);
+  const last12 = user.cellGroupId ? getLast12Sundays() : [];
+  const thisSunday =
+    user.cellGroupId && (user.role === "CELL_LEADER" || user.role === "ADMIN")
+      ? getMostRecentSunday()
+      : null;
+
+  const [
+    prayerRequestCount,
+    savedSermonCount,
+    servingInterestCount,
+    latestSermon,
+    cellGroupResult,
+    memberCountResult,
+    needsCareResult,
+    presentCountResult,
+    totalMarkedResult,
+    recentAttendanceRecords,
+  ] = await Promise.all([
+    db.prayerRequest.count({ where: { memberId: user.id } }),
+    db.sermonBookmark.count({ where: { userId: user.id, isBookmarked: true } }),
+    db.servingInterest.count({ where: { userId: user.id } }),
+    db.sermon.findFirst({
+      where: { isPublished: true },
+      orderBy: { date: "desc" },
+      select: {
+        id: true,
+        title: true,
+        speaker: true,
+        date: true,
+        weeklyGuide: true,
+        reflectionPrompts: true,
+      },
+    }),
+    user.cellGroupId
+      ? db.cellGroup.findUnique({
+          where: { id: user.cellGroupId },
+          select: { id: true, name: true, leaderId: true },
+        })
+      : Promise.resolve(null),
+    user.cellGroupId
+      ? db.user.count({
+          where: { cellGroupId: user.cellGroupId, isActive: true },
+        })
+      : Promise.resolve(0),
+    user.cellGroupId && (user.role === "CELL_LEADER" || user.role === "ADMIN")
+      ? getMembersNeedingCare({ cellGroupId: user.cellGroupId })
+      : Promise.resolve([]),
+    user.cellGroupId && thisSunday
+      ? db.attendance.count({
+          where: {
+            cellGroupId: user.cellGroupId,
+            type: "SUNDAY_SERVICE",
+            status: "PRESENT",
+            date: thisSunday,
+          },
+        })
+      : Promise.resolve(0),
+    user.cellGroupId && thisSunday
+      ? db.attendance.count({
+          where: {
+            cellGroupId: user.cellGroupId,
+            type: "SUNDAY_SERVICE",
+            date: thisSunday,
+          },
+        })
+      : Promise.resolve(0),
+    user.cellGroupId
+      ? db.attendance.findMany({
+          where: {
+            userId: user.id,
+            type: "SUNDAY_SERVICE",
+            date: { in: last12 },
+          },
+          select: { date: true, status: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
   if (user.cellGroupId) {
-    cellGroup = await db.cellGroup.findUnique({
-      where: { id: user.cellGroupId },
-      select: { id: true, name: true, leaderId: true },
-    });
+    cellGroup = cellGroupResult;
+    memberCount = memberCountResult;
 
-    memberCount = await db.user.count({
-      where: { cellGroupId: user.cellGroupId, isActive: true },
-    });
-
-    // For CELL_LEADER or ADMIN — show pastoral care alert
     if (user.role === "CELL_LEADER" || user.role === "ADMIN") {
-      needsCare = await getMembersNeedingCare({ cellGroupId: user.cellGroupId });
-
-      // Attendance % for this Sunday
-      const thisSunday = getMostRecentSunday();
-      const presentCount = await db.attendance.count({
-        where: {
-          cellGroupId: user.cellGroupId,
-          type:   "SUNDAY_SERVICE",
-          status: "PRESENT",
-          date:   thisSunday,
-        },
-      });
-      const totalMarked = await db.attendance.count({
-        where: {
-          cellGroupId: user.cellGroupId,
-          type: "SUNDAY_SERVICE",
-          date: thisSunday,
-        },
-      });
+      needsCare = needsCareResult;
       attendanceSummary = {
-        presentCount,
-        totalMarked,
+        presentCount: presentCountResult,
+        totalMarked: totalMarkedResult,
         memberCount,
-        percentage: memberCount > 0 ? Math.round((presentCount / memberCount) * 100) : 0,
+        percentage:
+          memberCount > 0 ? Math.round((presentCountResult / memberCount) * 100) : 0,
       };
     }
 
-    // Personal heatmap — last 12 Sundays
-    const last12 = getLast12Sundays();
-    const records = await db.attendance.findMany({
-      where: {
-        userId: user.id,
-        type:   "SUNDAY_SERVICE",
-        date:   { in: last12 },
-      },
-      select: { date: true, status: true },
-    });
     const recordMap = new Map(
-      records.map((r) => [
+      recentAttendanceRecords.map((r) => [
         r.date instanceof Date
           ? r.date.toISOString().slice(0, 10)
           : String(r.date).slice(0, 10),
@@ -108,20 +152,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       } satisfies HeatmapCell;
     });
   }
-
-  // Latest sermon for quick access
-  const latestSermon = await db.sermon.findFirst({
-    where: { isPublished: true },
-    orderBy: { date: "desc" },
-    select: {
-      id: true,
-      title: true,
-      speaker: true,
-      date: true,
-      weeklyGuide: true,
-      reflectionPrompts: true,
-    },
-  });
 
   return {
     user: {
@@ -380,45 +410,36 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="max-w-6xl p-4 sm:p-5 md:p-6">
-      <section className="rounded-lg border border-gray-200 bg-white p-5 sm:p-6">
+    <PortalPage>
+      <PortalHeader
+        eyebrow={roleLabel}
+        title={`Welcome back, ${user.firstName}.`}
+        subtitle={today}
+        actions={primaryActions.map((action) => (
+          <Link
+            key={action.to}
+            to={action.to}
+            className={portalButtonClasses({
+              variant: action.variant === "primary" ? "primary" : "secondary",
+            })}
+          >
+            {action.label}
+          </Link>
+        ))}
+      />
+
+      <PortalSection className="sm:p-6">
         <div className="grid gap-5 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1">
-              <span className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-700">
-                {roleLabel}
-              </span>
-            </div>
-            <h1 className="mt-3 font-sans text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-              Welcome back, {user.firstName}.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm font-sans leading-6 text-gray-600 sm:text-base">
-              {today}
-            </p>
-            <p className="mt-3 max-w-2xl text-sm font-sans leading-6 text-gray-600">
-              {heroIntro}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {primaryActions.map((action) => (
-                <Link
-                  key={action.to}
-                  to={action.to}
-                  className={[
-                    "inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-sans font-bold transition-colors",
-                    action.variant === "primary"
-                      ? "bg-gray-900 text-white hover:bg-gray-800"
-                      : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-950",
-                  ].join(" ")}
-                >
-                  {action.label}
-                </Link>
-              ))}
-            </div>
+            <PortalSectionHeading
+              eyebrow="Today"
+              title="Portal Overview"
+              subtitle={heroIntro}
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <PortalPanel>
               <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 {scopeCard.label}
               </p>
@@ -428,9 +449,9 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm font-sans leading-6 text-gray-500">
                 {scopeCard.description}
               </p>
-            </div>
+            </PortalPanel>
 
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <PortalPanel>
               <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                 Weekly Focus
               </p>
@@ -450,10 +471,10 @@ export default function DashboardPage() {
                   Open latest sermon →
                 </Link>
               ) : null}
-            </div>
+            </PortalPanel>
           </div>
         </div>
-      </section>
+      </PortalSection>
 
       {/* Pastoral alert — only visible when members need care */}
       {isCellLeaderOrAdmin && needsCare.length > 0 && (
@@ -494,31 +515,23 @@ export default function DashboardPage() {
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_0.95fr]">
         <div className="space-y-5">
           {recentAttendance.length > 0 && (
-            <section className="rounded-lg border border-gray-200 bg-white p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                    Consistency
-                  </p>
-                  <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
-                    My Sunday Attendance
-                  </h2>
-                  <p className="mt-1 text-sm font-sans text-gray-500">
-                    A quick look at your rhythm over the last 12 Sundays.
-                  </p>
-                </div>
-              </div>
+            <PortalSection>
+              <PortalSectionHeading
+                eyebrow="Consistency"
+                title="My Sunday Attendance"
+                subtitle="A quick look at your rhythm over the last 12 Sundays."
+              />
               <div className="mt-5">
                 <AttendanceHeatmap
                   cells={recentAttendance}
                   label="Last 12 Sundays"
                 />
               </div>
-            </section>
+            </PortalSection>
           )}
 
           {latestSermon && (
-            <section className="rounded-lg border border-gray-200 bg-white p-5">
+            <PortalSection>
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-2xl">
                   <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
@@ -543,36 +556,27 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-2">
                   <Link
                     to={`/sermons/${latestSermon.id}`}
-                    className="inline-flex min-h-10 items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    className={portalButtonClasses()}
                   >
                     Watch Message
                   </Link>
                   {sermonHasGuide ? (
                     <Link
                       to="/portal/community"
-                      className="inline-flex min-h-10 items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                      className={portalButtonClasses({ variant: "secondary" })}
                     >
                       Open Community
                     </Link>
                   ) : null}
                 </div>
               </div>
-            </section>
+            </PortalSection>
           )}
         </div>
 
         <div className="space-y-5">
-          <section className="rounded-lg border border-gray-200 bg-white p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                  Next Steps
-                </p>
-                <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
-                  Quick Actions
-                </h2>
-              </div>
-            </div>
+          <PortalSection>
+            <PortalSectionHeading eyebrow="Next Steps" title="Quick Actions" />
             <div className="mt-4 space-y-2">
               {quickActions.map((action) => (
                 <QuickActionCard
@@ -584,19 +588,12 @@ export default function DashboardPage() {
                 />
               ))}
             </div>
-          </section>
+          </PortalSection>
 
-          <section className="rounded-lg border border-gray-200 bg-white p-5">
-            <div>
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Stay Engaged
-              </p>
-              <h2 className="mt-1.5 font-sans text-lg font-bold text-gray-900">
-                Personal Momentum
-              </h2>
-            </div>
+          <PortalSection>
+            <PortalSectionHeading eyebrow="Stay Engaged" title="Personal Momentum" />
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Prayer
                 </p>
@@ -604,8 +601,8 @@ export default function DashboardPage() {
                   {engagementSummary.prayerRequestCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Requests shared</p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              </PortalPanel>
+              <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Sermons
                 </p>
@@ -613,8 +610,8 @@ export default function DashboardPage() {
                   {engagementSummary.savedSermonCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Saved messages</p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              </PortalPanel>
+              <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Serving
                 </p>
@@ -622,7 +619,7 @@ export default function DashboardPage() {
                   {engagementSummary.servingInterestCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Forms submitted</p>
-              </div>
+              </PortalPanel>
             </div>
             <Link
               to="/portal/engagement"
@@ -630,7 +627,7 @@ export default function DashboardPage() {
             >
               Open your engagement hub →
             </Link>
-          </section>
+          </PortalSection>
         </div>
       </div>
 
@@ -644,7 +641,7 @@ export default function DashboardPage() {
           />
         </div>
       )}
-    </div>
+    </PortalPage>
   );
 }
 

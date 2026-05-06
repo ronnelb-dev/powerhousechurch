@@ -153,6 +153,18 @@ export default function GivePage() {
   const [customAmount, setCustomAmount]     = useState("");
   const [selectedCategory, setSelectedCategory] = useState("TITHE");
 
+  const errors = actionData?.success === false && "errors" in actionData
+    ? actionData.errors : {};
+  const globalError = actionData?.success === false && "globalError" in actionData
+    ? actionData.globalError : null;
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    globalError,
+    fieldOrder: ["category", "amount", "name", "email"],
+  });
+
   // Success — show confirmation
   if (isSuccess && successfulAmount >= 100) {
     const displayAmount = (successfulAmount / 100).toLocaleString("en-PH", {
@@ -197,18 +209,6 @@ export default function GivePage() {
       </div>
     );
   }
-
-  const errors = actionData?.success === false && "errors" in actionData
-    ? actionData.errors : {};
-  const globalError = actionData?.success === false && "globalError" in actionData
-    ? actionData.globalError : null;
-
-  useFocusFirstInvalidField({
-    formRef,
-    errors,
-    globalError,
-    fieldOrder: ["category", "amount", "name", "email"],
-  });
 
   // Compute the hidden amount field value (in centavos)
   const amountInCentavos =

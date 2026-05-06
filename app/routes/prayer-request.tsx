@@ -93,6 +93,13 @@ export default function PrayerRequestPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const errors = actionData?.success === false ? actionData.errors : {};
+
+  useFocusFirstInvalidField({
+    formRef,
+    errors,
+    fieldOrder: ["name", "email", "request"],
+  });
 
   if (actionData?.success) {
     return (
@@ -124,14 +131,6 @@ export default function PrayerRequestPage() {
       </div>
     );
   }
-
-  const errors = actionData?.success === false ? actionData.errors : {};
-
-  useFocusFirstInvalidField({
-    formRef,
-    errors,
-    fieldOrder: ["name", "email", "request"],
-  });
 
   return (
     <>

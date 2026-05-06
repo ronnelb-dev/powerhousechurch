@@ -19,6 +19,7 @@ import { PendingButton } from "~/components/ui/PendingButton";
 import {
   PortalHeader,
   PortalPage,
+  PortalPanel,
   PortalSection,
   PortalSectionHeading,
   portalButtonClasses,
@@ -334,17 +335,17 @@ export default function CommunityPage() {
 
       {/* Admin approval queue */}
       {userRole === "ADMIN" && pendingPosts.length > 0 && (
-        <div className="mt-8 mb-6 bg-amber-50 border border-amber-200 rounded-xl p-5">
-          <p className="text-xs font-sans font-bold tracking-widest uppercase
-                        text-amber-700 mb-3">
-            Pending Approval ({pendingPosts.length})
-          </p>
+        <PortalSection className="mb-5 border-amber-200 bg-amber-50">
+          <PortalSectionHeading
+            eyebrow="Admin Review"
+            title={`Pending Approval (${pendingPosts.length})`}
+            subtitle="Review submitted reflections before they appear in the community feed."
+          />
           <div className="space-y-3">
             {pendingPosts.map((p) => (
-              <div
+              <PortalPanel
                 key={p.id}
-                className="bg-white border border-amber-100 rounded-lg p-4
-                           flex items-start justify-between gap-4"
+                className="flex items-start justify-between gap-4 border-amber-100 bg-white"
               >
                 <div className="flex-1 min-w-0">
                   {p.bibleVerse && (
@@ -363,8 +364,9 @@ export default function CommunityPage() {
                     <input type="hidden" name="postId" value={p.id} />
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-green-600 text-white text-xs
-                                 font-bold rounded-lg hover:bg-green-700 transition-colors"
+                      className={portalButtonClasses({
+                        className: "min-h-9 bg-green-700 px-3 py-1.5 text-xs hover:bg-green-800",
+                      })}
                     >
                       Approve
                     </button>
@@ -374,17 +376,19 @@ export default function CommunityPage() {
                     <input type="hidden" name="postId" value={p.id} />
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-red-100 text-red-700 text-xs
-                                 font-bold rounded-lg hover:bg-red-200 transition-colors"
+                      className={portalButtonClasses({
+                        variant: "danger",
+                        className: "min-h-9 px-3 py-1.5 text-xs",
+                      })}
                     >
                       Remove
                     </button>
                   </Form>
                 </div>
-              </div>
+              </PortalPanel>
             ))}
           </div>
-        </div>
+        </PortalSection>
       )}
 
       <Sheet open={showComposer} onOpenChange={setShowComposer}>
@@ -480,9 +484,7 @@ export default function CommunityPage() {
                 type="submit"
                 isPending={isPosting}
                 pendingText="Posting..."
-                className="rounded-lg bg-red-700 px-6 py-2.5 text-sm font-sans font-bold
-                           text-white transition-all hover:bg-red-800 disabled:opacity-60
-                           focus:outline-none focus:ring-2 focus:ring-red-400"
+                className={portalButtonClasses({ className: "px-6" })}
               >
                 Post Reflection
               </PendingButton>
@@ -514,7 +516,7 @@ export default function CommunityPage() {
 
       {/* Feed */}
       {posts.length > 0 ? (
-        <div>
+        <div className="space-y-4">
           {posts.map((post) => (
             <DevotionPost
               key={post.id}

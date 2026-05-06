@@ -9,7 +9,7 @@ type RouteLoadingSkeletonProps = {
 function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-gray-200/80", className)}
+      className={cn("rounded-md bg-gray-200/80 motion-safe:animate-pulse", className)}
       aria-hidden="true"
     />
   );

@@ -3,6 +3,7 @@ import {
   useLoaderData,
   Form,
   useActionData,
+  useLocation,
   useNavigation,
   isRouteErrorResponse,
   useRouteError,
@@ -47,18 +48,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Determine which cell group to show
   // ADMIN sees all members (or can filter); CELL_LEADER sees own group
   let members: { id: string; firstName: string; lastName: string }[] = [];
+  const selectedCellGroupId =
+    user.role === "ADMIN" ? (url.searchParams.get("cellGroupId") ?? "") : "";
 
   if (user.role === "ADMIN") {
-    const groupId = url.searchParams.get("cellGroupId") ?? user.cellGroupId;
     members = await db.user.findMany({
-      where: { isActive: true, role: "MEMBER", ...(groupId ? { cellGroupId: groupId } : {}) },
+      where: {
+        isActive: true,
+        role: "MEMBER",
+        ...(selectedCellGroupId ? { cellGroupId: selectedCellGroupId } : {}),
+      },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       select: { id: true, firstName: true, lastName: true },
     });
   } else {
     // CELL_LEADER sees their own group only
     if (!user.cellGroupId) {
-      return { members: [], attendanceMap: {}, date: dateParam, type, isFuture, cellGroups: [] };
+      return {
+        members: [],
+        attendanceMap: {},
+        date: dateParam,
+        type,
+        isFuture,
+        cellGroups: [],
+        selectedCellGroupId,
+      };
     }
     members = await db.user.findMany({
       where: { isActive: true, cellGroupId: user.cellGroupId },
@@ -90,7 +104,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
         })
       : [];
 
-  return { members, attendanceMap, date: dateParam, type, isFuture, cellGroups };
+  return {
+    members,
+    attendanceMap,
+    date: dateParam,
+    type,
+    isFuture,
+    cellGroups,
+    selectedCellGroupId,
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -124,6 +146,19 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   };
 
+  const getSelectedMemberCellGroups = async (userIds: string[]) => {
+    const members = await db.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, cellGroupId: true },
+    });
+
+    if (members.length !== userIds.length) {
+      return null;
+    }
+
+    return new Map(members.map((member) => [member.id, member.cellGroupId]));
+  };
+
   if (intent === "bulkMarkPresent" || intent === "bulkMarkAbsent") {
     const nextStatus = intent === "bulkMarkPresent" ? "PRESENT" : "ABSENT";
     const userIds = formData
@@ -136,6 +171,10 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     await assertLeaderAccess(userIds);
+    const memberCellGroupMap = await getSelectedMemberCellGroups(userIds);
+    if (!memberCellGroupMap) {
+      return { error: "Some selected members could not be found." };
+    }
 
     const existingRecords = await db.attendance.findMany({
       where: {
@@ -153,14 +192,18 @@ export async function action({ request }: ActionFunctionArgs) {
       userIds.map((userId) =>
         db.attendance.upsert({
           where: { userId_type_date: { userId, type, date: selectedDate } },
-          update: { status: nextStatus, markedById: user.id },
+          update: {
+            status: nextStatus,
+            markedById: user.id,
+            cellGroupId: memberCellGroupMap.get(userId) ?? null,
+          },
           create: {
             userId,
             type,
             status: nextStatus,
             date: selectedDate,
             markedById: user.id,
-            cellGroupId: user.cellGroupId ?? undefined,
+            cellGroupId: memberCellGroupMap.get(userId) ?? null,
           },
         }),
       ),
@@ -192,6 +235,11 @@ export async function action({ request }: ActionFunctionArgs) {
   const status = formData.get("status") as "PRESENT" | "ABSENT";
 
   await assertLeaderAccess([userId]);
+  const memberCellGroupMap = await getSelectedMemberCellGroups([userId]);
+  const memberCellGroupId = memberCellGroupMap?.get(userId);
+  if (!memberCellGroupMap) {
+    return { error: "Selected member could not be found." };
+  }
 
   const previousRecord = await db.attendance.findUnique({
     where: { userId_type_date: { userId, type, date: selectedDate } },
@@ -200,14 +248,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
   await db.attendance.upsert({
     where: { userId_type_date: { userId, type, date: selectedDate } },
-    update: { status, markedById: user.id },
+    update: { status, markedById: user.id, cellGroupId: memberCellGroupId ?? null },
     create: {
       userId,
       type,
       status,
       date: selectedDate,
       markedById: user.id,
-      cellGroupId: user.cellGroupId ?? undefined,
+      cellGroupId: memberCellGroupId ?? null,
     },
   });
 
@@ -235,10 +283,19 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function AttendancePage() {
-  const { members, attendanceMap, date, type, isFuture, cellGroups } =
+  const {
+    members,
+    attendanceMap,
+    date,
+    type,
+    isFuture,
+    cellGroups,
+    selectedCellGroupId,
+  } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const location = useLocation();
   const { showToast } = useToast();
   const lastToastRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -256,6 +313,9 @@ export default function AttendancePage() {
   const presentBulkPending = pendingIntent === "bulkMarkPresent";
   const absentBulkPending = pendingIntent === "bulkMarkAbsent";
   const bulkPending = presentBulkPending || absentBulkPending;
+  const isRefreshing =
+    navigation.state === "loading" &&
+    navigation.location?.pathname === location.pathname;
 
   const toggleSelected = (userId: string) => {
     setSelectedIds((current) =>
@@ -324,12 +384,12 @@ export default function AttendancePage() {
                 value={t}
                 defaultChecked={type === t}
                 onChange={(e) => e.currentTarget.form?.requestSubmit()}
-                className="sr-only"
+                className="peer sr-only"
               />
               <span
                 className={[
                   "flex min-h-11 items-center justify-center rounded-lg border px-3 py-2.5 text-center text-xs font-sans font-bold",
-                  "cursor-pointer transition-all",
+                  "cursor-pointer transition-all peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-red-300 peer-focus-visible:ring-offset-2",
                   type === t
                     ? "bg-red-700 text-white border-red-700"
                     : "bg-white text-gray-600 border-gray-200 hover:border-red-300",
@@ -345,6 +405,7 @@ export default function AttendancePage() {
         {cellGroups.length > 0 && (
           <select
             name="cellGroupId"
+            defaultValue={selectedCellGroupId}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
             className="w-full cursor-pointer rounded-lg border border-gray-200
                        bg-white px-4 py-2.5 text-sm font-sans text-gray-700
@@ -447,10 +508,12 @@ export default function AttendancePage() {
 
       {/* Member list */}
       {members.length > 0 ? (
-        <PortalSection className="overflow-hidden p-0">
+        <PortalSection className="relative overflow-hidden p-0">
+          {isRefreshing ? <AttendanceListSkeleton /> : null}
           <ul
             role="list"
             aria-label="Members attendance list"
+            className={isRefreshing ? "pointer-events-none opacity-40" : undefined}
           >
             {members.map((member) => (
               <AttendanceMarkRow
@@ -476,6 +539,37 @@ export default function AttendancePage() {
         />
       )}
     </PortalPage>
+  );
+}
+
+function AttendanceListSkeleton() {
+  return (
+    <div
+      className="absolute inset-0 z-10 bg-white/95 p-4"
+      role="status"
+      aria-live="polite"
+      aria-label="Refreshing attendance list"
+    >
+      <div className="space-y-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-4 rounded bg-gray-200 motion-safe:animate-pulse" />
+              <div className="h-10 w-10 rounded-full bg-red-100 motion-safe:animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-40 rounded bg-gray-200 motion-safe:animate-pulse" />
+                <div className="h-3 w-20 rounded bg-gray-100 motion-safe:animate-pulse" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <div className="h-10 rounded-xl bg-green-100 motion-safe:animate-pulse sm:w-20" />
+              <div className="h-10 rounded-xl bg-red-100 motion-safe:animate-pulse sm:w-20" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">Refreshing attendance list</span>
+    </div>
   );
 }
 

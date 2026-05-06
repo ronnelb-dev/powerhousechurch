@@ -3,14 +3,23 @@ import {
   useLoaderData,
   Form,
   Link,
+  useLocation,
+  useNavigation,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import type { Prisma } from "@prisma/client";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import {
+  PortalHeader,
+  PortalPage,
+  PortalSection,
+  portalButtonClasses,
+} from "~/components/ui/Portal";
 
 export const meta: MetaFunction = () => [
   { title: "Member Directory — Powerhouse Church Portal" },
@@ -27,23 +36,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const gender = url.searchParams.get("gender") ?? "";
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
 
-  const where = {
-    isActive: true,
-    ...(cellGroupId === "UNASSIGNED"
-      ? { cellGroupId: null }
-      : cellGroupId
-        ? { cellGroupId }
-        : {}),
-    ...(gender ? { gender } : {}),
-    ...(search
-      ? {
-          OR: [
-            { firstName: { contains: search } },
-            { lastName: { contains: search } },
-          ],
-        }
-      : {}),
-  };
+  const where: Prisma.UserWhereInput = { isActive: true };
+
+  if (cellGroupId === "UNASSIGNED") {
+    where.cellGroupId = null;
+  } else if (cellGroupId) {
+    where.cellGroupId = cellGroupId;
+  }
+
+  if (gender) {
+    where.gender = gender;
+  }
+
+  if (search) {
+    where.OR = [
+      { firstName: { contains: search, mode: "insensitive" } },
+      { lastName: { contains: search, mode: "insensitive" } },
+    ];
+  }
 
   const [members, total, cellGroups] = await Promise.all([
     db.user.findMany({
@@ -57,9 +67,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         lastName: true,
         gender: true,
         role: true,
-        // Only expose contact info to admins
-        email: user.role === "ADMIN",
-        phone: user.role === "ADMIN",
+        email: true,
+        phone: true,
         cellGroup: { select: { id: true, name: true } },
       },
     }),
@@ -72,7 +81,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ]);
 
   return {
-    members,
+    members: members.map((member) => ({
+      ...member,
+      email: user.role === "ADMIN" ? member.email : null,
+      phone: user.role === "ADMIN" ? member.phone : null,
+    })),
     total,
     page,
     totalPages: Math.ceil(total / PER_PAGE),
@@ -126,18 +139,23 @@ function directoryPageUrl({
 export default function DirectoryPage() {
   const { members, total, page, totalPages, cellGroups, filters, isAdmin } =
     useLoaderData<typeof loader>();
+  const navigation = useNavigation();
+  const location = useLocation();
+  const isRefreshing =
+    navigation.state === "loading" &&
+    navigation.location?.pathname === location.pathname;
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
-      <h1 className="font-serif text-2xl font-bold text-gray-900 mb-1">
-        Member Directory
-      </h1>
-      <p className="text-sm text-gray-400 font-sans mb-8">
-        {total} {total === 1 ? "member" : "members"} in the church family.
-      </p>
+    <PortalPage className="max-w-4xl">
+      <PortalHeader
+        eyebrow="Members Portal"
+        title="Member Directory"
+        subtitle={`${total} ${total === 1 ? "member" : "members"} in the church family.`}
+      />
 
       {/* Filters */}
-      <Form method="get" className="flex flex-wrap gap-3 mb-6" role="search">
+      <PortalSection className="mb-5 p-4 sm:p-5">
+        <Form method="get" className="flex flex-wrap gap-3" role="search">
         {/* Search */}
         <div className="relative flex-1 min-w-48">
           <svg
@@ -199,9 +217,7 @@ export default function DirectoryPage() {
 
         <button
           type="submit"
-          className="px-4 py-2.5 bg-red-700 text-white text-sm font-sans
-                     font-bold rounded-lg hover:bg-red-800 transition-colors
-                     focus:outline-none focus:ring-2 focus:ring-red-400"
+          className={portalButtonClasses()}
         >
           Search
         </button>
@@ -209,78 +225,79 @@ export default function DirectoryPage() {
         {(filters.search || filters.cellGroupId || filters.gender) && (
           <Link
             to="/portal/directory"
-            className="px-4 py-2.5 text-sm font-sans font-bold text-gray-500
-                       hover:text-gray-700 transition-colors"
+            className={portalButtonClasses({ variant: "ghost" })}
           >
             Clear ×
           </Link>
         )}
       </Form>
+      </PortalSection>
 
       {/* Member list */}
-      {members.length > 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <ul role="list" aria-label="Member list">
-            {members.map((member, i) => {
-              const initials = (member.firstName?.[0] ?? "") + (member.lastName?.[0] ?? "");
-              return (
-                <li
-                  key={member.id}
-                  className={[
-                    "flex items-center gap-4 px-5 py-4",
-                    i < members.length - 1 ? "border-b border-gray-50" : "",
-                  ].join(" ")}
-                >
-                  {/* Avatar */}
-                  <div
-                    className="w-10 h-10 rounded-full bg-red-50 border border-red-100
-                               flex items-center justify-center text-sm font-bold
-                               text-red-700 font-sans flex-shrink-0"
-                    aria-hidden="true"
+      <div className="relative">
+        {isRefreshing ? <DirectoryListSkeleton /> : null}
+        {members.length > 0 ? (
+          <PortalSection
+            className={`overflow-hidden p-0 ${isRefreshing ? "pointer-events-none opacity-40" : ""}`}
+          >
+            <ul role="list" aria-label="Member list">
+              {members.map((member, i) => {
+                const initials = (member.firstName?.[0] ?? "") + (member.lastName?.[0] ?? "");
+                return (
+                  <li
+                    key={member.id}
+                    className={[
+                      "flex items-center gap-4 px-5 py-4",
+                      i < members.length - 1 ? "border-b border-gray-100" : "",
+                    ].join(" ")}
                   >
-                    {initials}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <p className="text-sm font-sans font-bold text-gray-800">
-                        {member.firstName} {member.lastName}
-                      </p>
-                      <RoleBadge role={member.role} />
+                    <div
+                      className="w-10 h-10 rounded-full bg-red-50 border border-red-100
+                                 flex items-center justify-center text-sm font-bold
+                                 text-red-700 font-sans flex-shrink-0"
+                      aria-hidden="true"
+                    >
+                      {initials}
                     </div>
-                    <p className="text-xs text-gray-400 font-sans">
-                      {member.cellGroup?.name ?? "Unassigned"} ·{" "}
-                      {member.gender === "MALE" ? "Male" : "Female"}
-                    </p>
-                    {/* Contact — admin only */}
-                    {isAdmin && (member.email || member.phone) && (
-                      <p className="text-xs text-gray-400 font-sans mt-0.5">
-                        {member.email && (
-                          <a
-                            href={`mailto:${member.email}`}
-                            className="hover:text-red-700 transition-colors"
-                          >
-                            {member.email}
-                          </a>
-                        )}
-                        {member.email && member.phone && " · "}
-                        {member.phone && (
-                          <a
-                            href={`tel:${member.phone}`}
-                            className="hover:text-red-700 transition-colors"
-                          >
-                            {member.phone}
-                          </a>
-                        )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="text-sm font-sans font-bold text-gray-800">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        <RoleBadge role={member.role} />
+                      </div>
+                      <p className="text-xs text-gray-400 font-sans">
+                        {member.cellGroup?.name ?? "Unassigned"} ·{" "}
+                        {member.gender === "MALE" ? "Male" : "Female"}
                       </p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                      {isAdmin && (member.email || member.phone) && (
+                        <p className="text-xs text-gray-400 font-sans mt-0.5">
+                          {member.email && (
+                            <a
+                              href={`mailto:${member.email}`}
+                              className="hover:text-red-700 transition-colors"
+                            >
+                              {member.email}
+                            </a>
+                          )}
+                          {member.email && member.phone && " · "}
+                          {member.phone && (
+                            <a
+                              href={`tel:${member.phone}`}
+                              className="hover:text-red-700 transition-colors"
+                            >
+                              {member.phone}
+                            </a>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </PortalSection>
       ) : (
         <EmptyState
           icon="members"
@@ -289,6 +306,7 @@ export default function DirectoryPage() {
           action={{ label: "Clear filters", to: "/portal/directory" }}
         />
       )}
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -317,10 +335,34 @@ export default function DirectoryPage() {
                          hover:text-red-700 transition-all"
             >
               Next →
-            </Link>
-          )}
-        </nav>
+          </Link>
+        )}
+      </nav>
       )}
+    </PortalPage>
+  );
+}
+
+function DirectoryListSkeleton() {
+  return (
+    <div
+      className="absolute inset-x-0 top-0 z-10 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+      role="status"
+      aria-live="polite"
+      aria-label="Refreshing member list"
+    >
+      <div className="space-y-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-red-100 motion-safe:animate-pulse" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-40 rounded bg-gray-200 motion-safe:animate-pulse" />
+              <div className="h-3 w-56 max-w-full rounded bg-gray-100 motion-safe:animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">Refreshing member list</span>
     </div>
   );
 }
