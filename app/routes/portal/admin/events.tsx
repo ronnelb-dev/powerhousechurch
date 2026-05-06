@@ -19,6 +19,7 @@ import {
   buildEventCalendarUrl,
   buildGoogleCalendarUrl,
 } from "~/lib/calendar";
+import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
 import { sendEventReminderEmail } from "~/lib/email.server";
 
@@ -109,7 +110,6 @@ const EventSchema = z
     location: z.string().min(1, "Location is required").max(200),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, "Invalid date"),
     endDate: z.string().optional().or(z.literal("")),
-    imageUrl: z.string().url().optional().or(z.literal("")),
     isPublished: z.coerce.boolean().default(true),
     requiresRegistration: z.coerce.boolean().default(false),
     capacity: z.string().optional().or(z.literal("")),
@@ -191,7 +191,6 @@ export async function action({ request }: ActionFunctionArgs) {
       location: String(formData.get("location") ?? "").trim(),
       startDate: String(formData.get("startDate") ?? ""),
       endDate: String(formData.get("endDate") ?? ""),
-      imageUrl: String(formData.get("imageUrl") ?? ""),
       isPublished: formData.get("isPublished") === "true",
       requiresRegistration: formData.get("requiresRegistration") === "true",
       capacity: String(formData.get("capacity") ?? ""),
@@ -208,8 +207,23 @@ export async function action({ request }: ActionFunctionArgs) {
     const { startDate, endDate, capacity, registrationDeadline, ...rest } =
       result.data;
     const id = String(formData.get("id") ?? "");
+    const currentImageUrl = String(formData.get("currentImageUrl") ?? "");
+    const uploadedImage = await uploadImageToCloudinary(
+      formData.get("imageFile"),
+      "powerhouse/events",
+    );
+
+    if (!uploadedImage.ok) {
+      return {
+        success: false,
+        eventId: intent === "update" ? id : undefined,
+        errors: { imageFile: [uploadedImage.error] },
+      };
+    }
+
     const data = {
       ...rest,
+      imageUrl: uploadedImage.secureUrl || currentImageUrl || null,
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : null,
       capacity: result.data.requiresRegistration && capacity ? Number(capacity) : null,
@@ -582,7 +596,7 @@ function EventFormModal({
       "location",
       "startDate",
       "endDate",
-      "imageUrl",
+      "imageFile",
       "capacity",
       "registrationDeadline",
     ],
@@ -608,9 +622,15 @@ function EventFormModal({
             ×
           </button>
         </div>
-        <fetcher.Form ref={formRef} method="post" className="space-y-4 p-4 sm:p-6">
+        <fetcher.Form
+          ref={formRef}
+          method="post"
+          encType="multipart/form-data"
+          className="space-y-4 p-4 sm:p-6"
+        >
           <input type="hidden" name="intent" value={event ? "update" : "create"} />
           {event && <input type="hidden" name="id" value={event.id} />}
+          <input type="hidden" name="currentImageUrl" value={event?.imageUrl ?? ""} />
 
           <ValidationSummary
             errors={errors}
@@ -699,20 +719,31 @@ function EventFormModal({
             </div>
           </div>
           <div>
-            <label htmlFor="e-imageUrl" className={labelClass}>
-              Image URL (Cloudinary)
+            <label htmlFor="e-imageFile" className={labelClass}>
+              Event image
             </label>
+            {event?.imageUrl ? (
+              <div className="mb-3 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                <img
+                  src={event.imageUrl}
+                  alt=""
+                  className="h-36 w-full object-cover"
+                />
+              </div>
+            ) : null}
             <input
-              id="e-imageUrl"
-              type="url"
-              name="imageUrl"
-              defaultValue={event?.imageUrl ?? ""}
-              placeholder="https://res.cloudinary.com/..."
-              aria-invalid={Boolean(errors.imageUrl?.length)}
-              aria-describedby={describedBy(errors.imageUrl && "e-imageUrl-error")}
+              id="e-imageFile"
+              type="file"
+              name="imageFile"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              aria-invalid={Boolean(errors.imageFile?.length)}
+              aria-describedby={describedBy(errors.imageFile && "e-imageFile-error")}
               className={inputClass}
             />
-            <FieldError id="e-imageUrl-error" errors={errors.imageUrl} />
+            <p className="mt-1 text-xs text-gray-500">
+              Upload JPG, PNG, WebP, or GIF up to 5 MB. Leave blank to keep the current image.
+            </p>
+            <FieldError id="e-imageFile-error" errors={errors.imageFile} />
           </div>
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <label className="flex cursor-pointer items-center gap-2">

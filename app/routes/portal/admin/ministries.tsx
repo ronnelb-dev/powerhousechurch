@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
+import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
 import { ensureSampleMinistries } from "~/lib/ministries.server";
 import { EmptyState } from "~/components/ui/EmptyState";
@@ -37,7 +38,6 @@ const ministrySchema = z.object({
     .trim()
     .min(1, "Description is required.")
     .max(1000, "Description is too long."),
-  imageUrl: z.string().trim().url("Image URL must be valid.").optional().or(z.literal("")),
   sortOrder: z.coerce.number().int().min(0, "Sort order must be 0 or higher."),
   isActive: z.boolean(),
 });
@@ -47,7 +47,6 @@ function parseMinistryForm(formData: FormData) {
     name: formData.get("name"),
     leader: formData.get("leader"),
     description: formData.get("description"),
-    imageUrl: typeof formData.get("imageUrl") === "string" ? formData.get("imageUrl") : "",
     sortOrder: formData.get("sortOrder"),
     isActive: formData.get("isActive") === "on",
   });
@@ -122,10 +121,23 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
+    const uploadedImage = await uploadImageToCloudinary(
+      formData.get("imageFile"),
+      "powerhouse/ministries",
+    );
+
+    if (!uploadedImage.ok) {
+      return {
+        ok: false,
+        intent,
+        errors: { imageFile: [uploadedImage.error] },
+      };
+    }
+
     await db.ministry.create({
       data: {
         ...result.data,
-        imageUrl: result.data.imageUrl || null,
+        imageUrl: uploadedImage.secureUrl || null,
       },
     });
 
@@ -162,11 +174,26 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
+    const currentImageUrl = String(formData.get("currentImageUrl") ?? "");
+    const uploadedImage = await uploadImageToCloudinary(
+      formData.get("imageFile"),
+      "powerhouse/ministries",
+    );
+
+    if (!uploadedImage.ok) {
+      return {
+        ok: false,
+        intent,
+        ministryId,
+        errors: { imageFile: [uploadedImage.error] },
+      };
+    }
+
     await db.ministry.update({
       where: { id: ministryId },
       data: {
         ...result.data,
-        imageUrl: result.data.imageUrl || null,
+        imageUrl: uploadedImage.secureUrl || currentImageUrl || null,
       },
     });
 
@@ -255,9 +282,14 @@ function MinistryRow({
         </div>
       </td>
       <td className="px-4 py-4">
-        <updateFetcher.Form method="post" className="space-y-3">
+        <updateFetcher.Form
+          method="post"
+          encType="multipart/form-data"
+          className="space-y-3"
+        >
           <input type="hidden" name="intent" value="update" />
           <input type="hidden" name="ministryId" value={ministry.id} />
+          <input type="hidden" name="currentImageUrl" value={ministry.imageUrl ?? ""} />
 
           <div className="grid gap-3 md:grid-cols-2">
             <div>
@@ -303,17 +335,28 @@ function MinistryRow({
             </div>
 
             <div>
+              {ministry.imageUrl ? (
+                <div className="mb-2 overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+                  <img
+                    src={ministry.imageUrl}
+                    alt=""
+                    className="h-24 w-full object-cover"
+                  />
+                </div>
+              ) : null}
               <input
-                id={`ministry-imageUrl-${ministry.id}`}
-                type="url"
-                name="imageUrl"
-                defaultValue={ministry.imageUrl ?? ""}
-                placeholder="https://example.com/image.jpg"
-                aria-invalid={updateErrors?.imageUrl?.[0] ? true : undefined}
-                aria-describedby={describedBy(updateErrors?.imageUrl?.[0] ? `ministry-imageUrl-${ministry.id}-error` : null)}
+                id={`ministry-imageFile-${ministry.id}`}
+                type="file"
+                name="imageFile"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                aria-invalid={updateErrors?.imageFile?.[0] ? true : undefined}
+                aria-describedby={describedBy(updateErrors?.imageFile?.[0] ? `ministry-imageFile-${ministry.id}-error` : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={updateErrors?.imageUrl?.[0]} id={`ministry-imageUrl-${ministry.id}-error`} />
+              <p className="mt-1 text-xs font-sans text-gray-400">
+                Leave blank to keep the current image.
+              </p>
+              <FieldError message={updateErrors?.imageFile?.[0]} id={`ministry-imageFile-${ministry.id}-error`} />
             </div>
 
             <div>
@@ -428,7 +471,12 @@ export default function AdminMinistriesPage() {
           </p>
         </div>
 
-        <createFetcher.Form ref={createFormRef} method="post" className="space-y-4">
+        <createFetcher.Form
+          ref={createFormRef}
+          method="post"
+          encType="multipart/form-data"
+          className="space-y-4"
+        >
           <input type="hidden" name="intent" value="create" />
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -482,18 +530,21 @@ export default function AdminMinistriesPage() {
 
             <div>
               <label className="mb-1 block text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Image URL
+                Ministry Image
               </label>
               <input
-                id="create-ministry-imageUrl"
-                type="url"
-                name="imageUrl"
-                placeholder="https://example.com/image.jpg"
-                aria-invalid={createErrors?.imageUrl?.[0] ? true : undefined}
-                aria-describedby={describedBy(createErrors?.imageUrl?.[0] ? "create-ministry-imageUrl-error" : null)}
+                id="create-ministry-imageFile"
+                type="file"
+                name="imageFile"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                aria-invalid={createErrors?.imageFile?.[0] ? true : undefined}
+                aria-describedby={describedBy(createErrors?.imageFile?.[0] ? "create-ministry-imageFile-error" : null)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
-              <FieldError message={createErrors?.imageUrl?.[0]} id="create-ministry-imageUrl-error" />
+              <p className="mt-1 text-xs font-sans text-gray-400">
+                Upload JPG, PNG, WebP, or GIF up to 5 MB.
+              </p>
+              <FieldError message={createErrors?.imageFile?.[0]} id="create-ministry-imageFile-error" />
             </div>
 
             <div>
