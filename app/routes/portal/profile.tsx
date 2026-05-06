@@ -14,6 +14,7 @@ import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { hash, verify } from "@node-rs/argon2";
 import { requireUser } from "~/lib/auth.server";
+import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
@@ -31,7 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     select: {
       id: true, firstName: true, lastName: true,
       email: true, phone: true, age: true,
-      gender: true, birthday: true, role: true,
+      gender: true, birthday: true, role: true, profilePhoto: true,
       createdAt: true,
       cellGroup: { select: { id: true, name: true } },
     },
@@ -99,6 +100,26 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const { firstName, lastName, email, phone, age, birthday } = result.data;
+    const currentUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { profilePhoto: true },
+    });
+
+    if (!currentUser) throw new Response("Not found", { status: 404 });
+
+    const uploadedPhoto = await uploadImageToCloudinary(
+      formData.get("profilePhoto"),
+      "powerhouse/profiles",
+    );
+
+    if (!uploadedPhoto.ok) {
+      return {
+        success: false,
+        errors: { profilePhoto: [uploadedPhoto.error] },
+        intent,
+      } satisfies ActionData;
+    }
+
     await db.user.update({
       where: { id: user.id },
       data: {
@@ -108,6 +129,7 @@ export async function action({ request }: ActionFunctionArgs) {
         phone:    phone || null,
         age,
         birthday: new Date(birthday),
+        profilePhoto: uploadedPhoto.secureUrl || currentUser.profilePhoto,
       },
     });
     return { success: true, message: "Profile updated successfully." } satisfies ActionData;
@@ -192,7 +214,7 @@ export default function ProfilePage() {
   useFocusFirstInvalidField({
     formRef: profileFormRef,
     errors: profileErrors,
-    fieldOrder: ["firstName", "lastName", "email", "phone", "age", "birthday"],
+    fieldOrder: ["profilePhoto", "firstName", "lastName", "email", "phone", "age", "birthday"],
   });
 
   useFocusFirstInvalidField({
@@ -206,13 +228,21 @@ export default function ProfilePage() {
     <div className="p-6 md:p-8 max-w-2xl">
       {/* Profile header */}
       <div className="flex items-center gap-5 mb-10">
-        <div
-          className="w-16 h-16 rounded-full bg-red-700 flex items-center justify-center
-                     text-white font-serif text-2xl font-bold flex-shrink-0"
-          aria-hidden="true"
-        >
-          {initials}
-        </div>
+        {user.profilePhoto ? (
+          <img
+            src={user.profilePhoto}
+            alt=""
+            className="h-16 w-16 flex-shrink-0 rounded-full border border-gray-100 object-cover shadow-sm"
+          />
+        ) : (
+          <div
+            className="w-16 h-16 rounded-full bg-red-700 flex items-center justify-center
+                       text-white font-serif text-2xl font-bold flex-shrink-0"
+            aria-hidden="true"
+          >
+            {initials}
+          </div>
+        )}
         <div>
           <h1 className="font-serif text-2xl font-bold text-gray-900">
             {user.firstName} {user.lastName}
@@ -242,9 +272,38 @@ export default function ProfilePage() {
         <h2 className="font-serif text-lg font-bold text-gray-800 mb-6">
           Personal Information
         </h2>
-        <Form ref={profileFormRef} method="post" noValidate>
+        <Form ref={profileFormRef} method="post" encType="multipart/form-data" noValidate>
           <input type="hidden" name="intent" value="updateProfile" />
           <ValidationSummary errors={profileErrors} />
+
+          <div className="mb-5">
+            <label htmlFor="profilePhoto" className={labelClass}>Profile Photo</label>
+            {user.profilePhoto ? (
+              <div className="mb-3 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <img
+                  src={user.profilePhoto}
+                  alt=""
+                  className="h-14 w-14 rounded-full object-cover"
+                />
+                <p className="text-xs font-sans text-gray-500">
+                  Choose a new image only if you want to replace your current photo.
+                </p>
+              </div>
+            ) : null}
+            <input
+              id="profilePhoto"
+              type="file"
+              name="profilePhoto"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              aria-invalid={profileErrors?.profilePhoto?.length ? true : undefined}
+              aria-describedby={describedBy(profileErrors?.profilePhoto?.length ? "profilePhoto-error" : "profilePhoto-hint")}
+              className={inputClass}
+            />
+            <p id="profilePhoto-hint" className="mt-1.5 text-xs text-gray-400 font-sans">
+              Upload JPG, PNG, WebP, or GIF up to 5 MB. Leave blank to keep your current photo.
+            </p>
+            <FieldError errors={profileErrors?.profilePhoto} id="profilePhoto-error" />
+          </div>
 
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div>
