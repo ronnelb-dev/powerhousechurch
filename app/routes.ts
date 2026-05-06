@@ -20,6 +20,7 @@ export default [
     route("cell-groups", "routes/cell-groups.tsx"),
     route("events", "routes/events.tsx"),
     route("new-here", "routes/new-here.tsx"),
+    route("welcome-inside", "routes/welcome-inside.tsx"),
     route("give", "routes/give.tsx"),
     route("live", "routes/live.tsx"),
     route("contact", "routes/contact.tsx"),
