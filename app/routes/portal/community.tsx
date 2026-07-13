@@ -274,7 +274,7 @@ export default function CommunityPage() {
       {latestSermon && (
         <PortalSection className="mb-5">
           <PortalSectionHeading
-            eyebrow="This Week's Sermon Guide"
+            eyebrow="This Week's Preaching Guide"
             title={latestSermon.title}
             subtitle={`${latestSermon.speaker} · ${new Date(latestSermon.date).toLocaleDateString("en-PH", {
               month: "long",
@@ -283,10 +283,10 @@ export default function CommunityPage() {
             })}`}
             actions={
               <Link
-                to={`/sermons/${latestSermon.id}`}
+                to={`/preaching/${latestSermon.id}`}
                 className={portalButtonClasses({ variant: "secondary" })}
               >
-                Open Sermon
+                Open Preaching
               </Link>
             }
           />

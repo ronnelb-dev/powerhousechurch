@@ -16,7 +16,6 @@ import { SectionHeader } from "~/components/ui/SectionHeader";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
 import { db } from "~/lib/db.server";
-import { notifyAdminOfVisitPlan, sendVisitPlanConfirmation } from "~/lib/email.server";
 import {
   DEFAULT_VISIT_FORM_VALUES,
   getServiceOptions,
@@ -109,9 +108,6 @@ export async function action({ request }: ActionFunctionArgs) {
   return handleVisitPlanSubmission(rawValues, {
     settings,
     db,
-    resendApiKey: process.env.RESEND_API_KEY,
-    notifyAdminOfVisitPlan,
-    sendVisitPlanConfirmation,
   });
 }
 

@@ -11,11 +11,11 @@ import { db } from "~/lib/db.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const sermon = await db.sermon.findFirst({
-    where: { id: params.sermonId, isPublished: true },
+    where: { id: params.preachingId, isPublished: true },
   });
 
   if (!sermon) {
-    throw new Response("Sermon not found", { status: 404 });
+    throw new Response("Preaching not found", { status: 404 });
   }
 
   return {
@@ -28,13 +28,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  if (!data) return [{ title: "Sermon Not Found — Powerhouse Church" }];
+  if (!data) return [{ title: "Preaching Not Found — Powerhouse Church" }];
   const { sermon } = data;
   return [
     { title: `${sermon.title} — Powerhouse Church` },
     { name: "description", content: `${sermon.title} by ${sermon.speaker}` },
     { property: "og:title", content: sermon.title },
-    { property: "og:description", content: `A sermon by ${sermon.speaker}` },
+    { property: "og:description", content: `A preaching message by ${sermon.speaker}` },
     ...(sermon.thumbnail
       ? [{ property: "og:image", content: sermon.thumbnail }]
       : []),
@@ -69,7 +69,7 @@ export default function SermonDetailPage() {
       {/* Breadcrumb */}
       <nav className="mb-8 text-sm font-sans" aria-label="Breadcrumb">
         <ol className="flex items-center gap-2 text-gray-400">
-          <li><Link to="/sermons" className="hover:text-red-700 transition-colors">Sermons</Link></li>
+          <li><Link to="/preaching" className="hover:text-red-700 transition-colors">Preaching</Link></li>
           <li aria-hidden="true">/</li>
           <li className="text-gray-600 truncate max-w-xs">{sermon.title}</li>
         </ol>
@@ -157,7 +157,7 @@ export default function SermonDetailPage() {
         <div className="mb-8 p-5 bg-primary-50 border border-primary-200 rounded-xl">
           <p className="text-xs font-sans font-bold tracking-widest uppercase
                         text-red-600 mb-3">
-            Listen to the Sermon
+            Listen to the Preaching
           </p>
           <audio
             controls
@@ -170,13 +170,13 @@ export default function SermonDetailPage() {
         </div>
       )}
 
-      {/* Sermon notes */}
+      {/* Preaching notes */}
       {sermon.notes && (
         <div className="rich-text max-w-none">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
             <h2 className="font-serif text-xl font-bold text-gray-800 m-0">
-              Sermon Notes
+              Preaching Notes
             </h2>
           </div>
           <div
@@ -255,11 +255,11 @@ export default function SermonDetailPage() {
       {/* Navigation */}
       <div className="mt-12 pt-8 border-t border-gray-100 flex justify-between">
         <Link
-          to="/sermons"
+          to="/preaching"
           className="text-sm font-sans font-bold text-red-700 hover:text-red-900
                      transition-colors focus:outline-none focus:underline"
         >
-          ← Back to all sermons
+          ← Back to all preaching
         </Link>
         <Link
           to="/prayer-request"
@@ -285,19 +285,19 @@ export function ErrorBoundary() {
           <span className="font-serif text-2xl text-red-700">✝</span>
         </div>
         <h1 className="font-serif text-2xl font-bold text-gray-900 mb-2">
-          {is404 ? "Sermon Not Found" : "Unable to Load Sermon"}
+        {is404 ? "Preaching Not Found" : "Unable to Load Preaching"}
         </h1>
         <p className="text-gray-500 text-sm mb-6">
           {is404
-            ? "This sermon may have been removed or is not yet published."
+            ? "This preaching message may have been removed or is not yet published."
             : "Please try again in a moment."}
         </p>
         <Link
-          to="/sermons"
+          to="/preaching"
           className="px-5 py-2.5 bg-red-700 text-white font-bold text-sm
                      rounded-lg hover:bg-red-800 transition-colors"
         >
-          Browse all sermons
+          Browse all preaching
         </Link>
       </div>
     </div>

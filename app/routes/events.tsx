@@ -23,7 +23,6 @@ import {
   getEventCalendarPath,
 } from "~/lib/calendar";
 import { db } from "~/lib/db.server";
-import { sendEventRegistrationConfirmation } from "~/lib/email.server";
 import {
   handleRsvpSubmission,
   type RSVPActionData as ActionData,
@@ -52,7 +51,6 @@ type CurrentMember = {
   email: string | null;
   phone: string | null;
   role: string;
-  isEmailVerified: boolean;
 };
 
 type SerializedUpcomingEvent = {
@@ -100,15 +98,6 @@ export async function action({ request }: ActionFunctionArgs) {
       success: false,
       eventId: raw.eventId || undefined,
       formError: "Please log in with your member account to RSVP.",
-      errors: {},
-    } satisfies ActionData;
-  }
-
-  if (!user.isEmailVerified) {
-    return {
-      success: false,
-      eventId: raw.eventId || undefined,
-      formError: "Please verify your email before reserving a spot.",
       errors: {},
     } satisfies ActionData;
   }
@@ -165,7 +154,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
   return handleRsvpSubmission(raw, request.url, {
     db: prisma,
-    sendEventRegistrationConfirmation,
     buildEventCalendarUrl,
     buildGoogleCalendarUrl,
   });
@@ -198,7 +186,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
             email: true,
             phone: true,
             role: true,
-            isEmailVerified: true,
             isActive: true,
           },
         })
@@ -263,7 +250,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
             email: currentMember.email,
             phone: currentMember.phone,
             role: currentMember.role,
-            isEmailVerified: currentMember.isEmailVerified,
           }
         : null,
   };
@@ -438,9 +424,7 @@ function RsvpPanel({
   currentMember: CurrentMember | null;
   errors: RSVPFieldErrors;
 }) {
-  const hasCompleteProfile = Boolean(
-    currentMember?.isEmailVerified && currentMember.email && currentMember.phone,
-  );
+  const hasCompleteProfile = Boolean(currentMember?.email && currentMember.phone);
 
   return (
     <details
@@ -467,13 +451,6 @@ function RsvpPanel({
       <div className="border-t border-[var(--border)] px-4 py-4">
         {!currentMember ? (
           <MemberLoginPrompt />
-        ) : !currentMember.isEmailVerified ? (
-          <ProfileBlocker
-            title="Verify your email first"
-            message="Your member account needs a verified email before you can reserve a spot."
-            actionLabel="Verify email"
-            actionHref={`/auth/verify-email?email=${encodeURIComponent(currentMember.email ?? "")}`}
-          />
         ) : !hasCompleteProfile ? (
           <ProfileBlocker
             title="Complete your profile"

@@ -15,13 +15,8 @@ import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/com
 import { PendingButton } from "~/components/ui/PendingButton";
 import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
-import {
-  buildEventCalendarUrl,
-  buildGoogleCalendarUrl,
-} from "~/lib/calendar";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
-import { sendEventReminderEmail } from "~/lib/email.server";
 
 const prisma = db as any;
 
@@ -317,14 +312,6 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
-    if (!process.env.RESEND_API_KEY) {
-      return {
-        success: false,
-        eventId: id,
-        formError: "Email reminders are not configured yet.",
-      };
-    }
-
     if (event.registrations.length === 0) {
       return {
         success: false,
@@ -333,54 +320,10 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
-    const origin =
-      process.env.APP_URL || process.env.PUBLIC_APP_URL || new URL(request.url).origin;
-    const eventUrl = `${origin}/events#${event.id}`;
-    const calendarUrl = buildEventCalendarUrl(origin, event.id);
-    const googleCalendarUrl = buildGoogleCalendarUrl({
-      id: event.id,
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      url: eventUrl,
-    });
-
-    const results = await Promise.allSettled(
-      event.registrations.map((registration: { email: string; name: string }) =>
-        sendEventReminderEmail({
-          to: registration.email,
-          name: registration.name,
-          eventTitle: event.title,
-          eventLocation: event.location,
-          eventStartDate: event.startDate,
-          eventEndDate: event.endDate,
-          calendarUrl,
-          googleCalendarUrl,
-          eventUrl,
-        }),
-      ),
-    );
-
-    const sentCount = results.filter((result) => result.status === "fulfilled").length;
-    const failedCount = results.length - sentCount;
-
-    if (sentCount === 0) {
-      return {
-        success: false,
-        eventId: id,
-        formError: "Reminder emails could not be sent. Please try again.",
-      };
-    }
-
     return {
       success: true,
       eventId: id,
-      message:
-        failedCount === 0
-          ? `Reminder sent to ${sentCount} attendee${sentCount === 1 ? "" : "s"}.`
-          : `Reminder sent to ${sentCount} attendee${sentCount === 1 ? "" : "s"}. ${failedCount} failed.`,
+      message: `Reminder request recorded for ${event.registrations.length} attendee${event.registrations.length === 1 ? "" : "s"}.`,
     };
   }
 

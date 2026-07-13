@@ -7,14 +7,11 @@ import {
   useNavigation,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
-  redirect,
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { z } from "zod";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
-
-import { getSession } from "~/lib/auth.server";
 import {
   resetPasswordWithToken,
   validatePasswordResetToken,
@@ -44,11 +41,6 @@ type LoaderData =
   | { token: string; tokenValid: false; tokenError: string };
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
-  const { user } = await getSession(request);
-  if (user?.isEmailVerified) {
-    throw redirect("/portal/dashboard");
-  }
-
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? "";
 

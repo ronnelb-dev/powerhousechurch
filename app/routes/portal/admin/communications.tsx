@@ -18,7 +18,6 @@ import {
 import {
   getCommunicationAudienceOptions,
   getCommunicationAudienceRecipients,
-  sendCommunicationToAudience,
 } from "~/lib/communications.server";
 import { requireAdmin } from "~/lib/auth.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
@@ -92,7 +91,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       recipients: preview.recipients.slice(0, 12),
       hasMore: preview.recipients.length > 12,
     },
-    emailConfigured: Boolean(process.env.RESEND_API_KEY),
   };
 }
 
@@ -133,32 +131,9 @@ export async function action({ request }: ActionFunctionArgs) {
     } satisfies CommunicationsActionData;
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    return {
-      ok: false,
-      formError: "Email sending is not configured yet. Add RESEND_API_KEY to enable this center.",
-      values: { subject, body },
-    } satisfies CommunicationsActionData;
-  }
-
   const audience = await getCommunicationAudienceRecipients({
     audienceType,
     audienceId,
-  });
-
-  if (audience.recipients.length === 0) {
-    return {
-      ok: false,
-      formError: "This audience has no email recipients yet.",
-      values: { subject, body },
-    } satisfies CommunicationsActionData;
-  }
-
-  const result = await sendCommunicationToAudience({
-    subject,
-    body,
-    audienceLabel: audience.audienceLabel,
-    recipients: audience.recipients,
   });
 
   await recordAdminAuditEvent({
@@ -168,32 +143,21 @@ export async function action({ request }: ActionFunctionArgs) {
     action: "communications.send",
     entityType: "communication_audience",
     entityId: audienceId || audienceType,
-    summary: `Sent "${subject}" to ${audience.audienceLabel}`,
-    details: {
-      audienceType,
-      audienceId: audienceId || null,
-      audienceLabel: audience.audienceLabel,
-      recipientCount: audience.recipients.length,
-      sentCount: result.sentCount,
-      failedCount: result.failedCount,
-      subject,
-    },
-  });
-
-  if (result.sentCount === 0) {
-    return {
-      ok: false,
-      formError: "No messages were sent. Please try again.",
-      values: { subject, body },
-    } satisfies CommunicationsActionData;
-  }
+      summary: `Sent "${subject}" to ${audience.audienceLabel}`,
+      details: {
+        audienceType,
+        audienceId: audienceId || null,
+        audienceLabel: audience.audienceLabel,
+        recipientCount: audience.recipients.length,
+        sentCount: 0,
+        failedCount: 0,
+        subject,
+      },
+    });
 
   return {
     ok: true,
-    message:
-      result.failedCount === 0
-        ? `Queued "${subject}" for ${result.queuedCount} recipient${result.queuedCount === 1 ? "" : "s"}. ${result.sentCount > 0 ? `${result.sentCount} delivered immediately.` : "Delivery will continue from the email queue."}`
-        : `Queued "${subject}" for ${result.queuedCount} recipient${result.queuedCount === 1 ? "" : "s"}. ${result.sentCount} delivered immediately and ${result.failedCount} moved to retry.`,
+    message: `Recorded "${subject}" for ${audience.audienceLabel}. Email delivery is disabled.`,
     values: { subject: "", body: "" },
   } satisfies CommunicationsActionData;
 }
@@ -215,7 +179,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export default function AdminCommunicationsPage() {
-  const { options, selectedAudience, preview, emailConfigured } =
+  const { options, selectedAudience, preview } =
     useLoaderData<typeof loader>();
   const actionData = useActionData() as CommunicationsActionData | undefined;
   const navigation = useNavigation();
@@ -263,11 +227,9 @@ export default function AdminCommunicationsPage() {
         />
       </div>
 
-      {!emailConfigured ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-          `RESEND_API_KEY` is missing, so previews work but sending is disabled until email is configured.
-        </div>
-      ) : null}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+        Outbound email delivery is disabled in this build. Audience previews still work for planning purposes.
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -474,7 +436,7 @@ export default function AdminCommunicationsPage() {
 
           <button
             type="submit"
-            disabled={!emailConfigured || preview.count === 0 || isSubmitting}
+            disabled={preview.count === 0 || isSubmitting}
             className="rounded-xl bg-red-700 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "Sending..." : "Send message"}

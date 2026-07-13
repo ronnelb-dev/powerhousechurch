@@ -26,7 +26,7 @@ const ADMIN_NAV = [
   { to: "/portal/admin/email-queue", label: "Email Queue" },
   { to: "/portal/admin/members",  label: "Members"       },
   { to: "/portal/admin/ministries", label: "Ministries"    },
-  { to: "/portal/admin/sermons",  label: "Sermons"       },
+  { to: "/portal/admin/sermons",  label: "Preaching"     },
   { to: "/portal/admin/events",   label: "Events"        },
   { to: "/portal/admin/visit-plans", label: "Visit Plans" },
   { to: "/portal/admin/posts",    label: "Community"   },

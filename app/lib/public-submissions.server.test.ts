@@ -10,7 +10,6 @@ import {
 describe("handleRsvpSubmission", () => {
   it("waitlists registrations after capacity is reached", async () => {
     const createRegistration = vi.fn().mockResolvedValue(undefined);
-    const sendConfirmation = vi.fn().mockResolvedValue(undefined);
 
     const result = await handleRsvpSubmission(
       {
@@ -49,7 +48,6 @@ describe("handleRsvpSubmission", () => {
               },
             }),
         },
-        sendEventRegistrationConfirmation: sendConfirmation,
         buildEventCalendarUrl: vi.fn().mockReturnValue("https://church.test/ics"),
         buildGoogleCalendarUrl: vi.fn().mockReturnValue("https://calendar.test"),
       },
@@ -60,21 +58,18 @@ describe("handleRsvpSubmission", () => {
         data: expect.objectContaining({ status: "WAITLISTED" }),
       }),
     );
-    expect(sendConfirmation).toHaveBeenCalled();
     expect(result).toEqual({
       success: true,
       eventId: "event_1",
       status: "WAITLISTED",
       message:
-        "The event is full, so you have been added to the waitlist. A confirmation email is on its way.",
+        "The event is full, so you have been added to the waitlist.",
     });
   });
 });
 
 describe("visitor submissions", () => {
-  it("sends contact messages through the injected sender", async () => {
-    const sendContactEmail = vi.fn().mockResolvedValue(undefined);
-
+  it("accepts contact messages without email sending", async () => {
     const result = await handleContactSubmission(
       {
         name: "Jane Doe",
@@ -84,26 +79,14 @@ describe("visitor submissions", () => {
         honeypot: "",
       },
       {
-        resendApiKey: "test-key",
-        sendContactEmail,
       },
     );
 
-    expect(sendContactEmail).toHaveBeenCalledWith({
-      name: "Jane Doe",
-      email: "jane@example.com",
-      subject: "Need directions",
-      message: "Could someone share the best entrance to use on Sunday?",
-      honeypot: "",
-    });
     expect(result).toEqual({ success: true });
   });
 
   it("stores prayer requests and only emails confirmations when an address is present", async () => {
     const createPrayerRequest = vi.fn().mockResolvedValue(undefined);
-    const notifyAdmin = vi.fn().mockResolvedValue(undefined);
-    const sendConfirmation = vi.fn().mockResolvedValue(undefined);
-
     const result = await handlePrayerRequestSubmission(
       {
         name: "Jane Doe",
@@ -119,8 +102,6 @@ describe("visitor submissions", () => {
             create: createPrayerRequest,
           },
         },
-        notifyAdminOfPrayerRequest: notifyAdmin,
-        sendPrayerRequestConfirmation: sendConfirmation,
       },
     );
 
@@ -133,19 +114,11 @@ describe("visitor submissions", () => {
         isPrivate: true,
       },
     });
-    expect(notifyAdmin).toHaveBeenCalledWith(
-      "Jane Doe",
-      "Please pray for wisdom for our family this week.",
-      true,
-    );
-    expect(sendConfirmation).not.toHaveBeenCalled();
     expect(result).toEqual({ success: true });
   });
 
-  it("stores visit plans and sends both admin and guest emails when email is configured", async () => {
+  it("stores visit plans without sending email", async () => {
     const createVisitPlan = vi.fn().mockResolvedValue(undefined);
-    const notifyAdmin = vi.fn().mockResolvedValue(undefined);
-    const sendConfirmation = vi.fn().mockResolvedValue(undefined);
 
     const result = await handleVisitPlanSubmission(
       {
@@ -171,9 +144,6 @@ describe("visitor submissions", () => {
             create: createVisitPlan,
           },
         },
-        resendApiKey: "test-key",
-        notifyAdminOfVisitPlan: notifyAdmin,
-        sendVisitPlanConfirmation: sendConfirmation,
       },
     );
 
@@ -185,14 +155,6 @@ describe("visitor submissions", () => {
           bringingKids: true,
           kidsCount: 1,
         }),
-      }),
-    );
-    expect(notifyAdmin).toHaveBeenCalled();
-    expect(sendConfirmation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "jane@example.com",
-        firstName: "Jane",
-        preferredService: "Sunday 7:00 AM",
       }),
     );
     expect(result).toEqual({

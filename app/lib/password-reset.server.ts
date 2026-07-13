@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { db } from "~/lib/db.server";
-import { sendPasswordResetEmail } from "~/lib/email.server";
 import { hashPassword } from "~/lib/password-hash.server";
 
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
@@ -12,11 +11,9 @@ function hashToken(token: string) {
 
 export async function sendPasswordResetForUser(
   user: { id: string; email: string; firstName: string },
-  origin: string,
 ) {
   const token = randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
-  const resetUrl = `${origin}/auth/reset-password?token=${token}`;
 
   await db.passwordResetToken.deleteMany({
     where: { userId: user.id },
@@ -29,8 +26,6 @@ export async function sendPasswordResetForUser(
       expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
     },
   });
-
-  await sendPasswordResetEmail(user.email, user.firstName, resetUrl);
 }
 
 export async function validatePasswordResetToken(token: string) {

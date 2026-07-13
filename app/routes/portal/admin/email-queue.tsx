@@ -91,7 +91,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const outboundEmail = getOutboundEmailModel();
 
   if (intent === "process") {
-    const result = await processPendingOutboundEmails({ limit: 25 });
+    const result = await processPendingOutboundEmails();
     await recordAdminAuditEvent({
       request,
       actorId: user.id,

@@ -49,18 +49,6 @@ type RSVPDeps = {
       options?: { isolationLevel?: Prisma.TransactionIsolationLevel },
     ): Promise<T>;
   };
-  sendEventRegistrationConfirmation(args: {
-    to: string;
-    name: string;
-    eventTitle: string;
-    eventLocation: string;
-    eventStartDate: Date;
-    eventEndDate?: Date | null;
-    status: "CONFIRMED" | "WAITLISTED";
-    calendarUrl?: string;
-    googleCalendarUrl?: string;
-    eventUrl?: string;
-  }): Promise<unknown>;
   buildEventCalendarUrl(origin: string, eventId: string): string;
   buildGoogleCalendarUrl(args: {
     id: string;
@@ -73,14 +61,22 @@ type RSVPDeps = {
   }): string;
 };
 
-type ContactDeps = {
-  resendApiKey?: string;
-  sendContactEmail(args: {
-    name: string;
-    email: string;
-    subject: string;
-    message: string;
-  }): Promise<unknown>;
+type ContactDeps = Record<string, never>;
+type PrayerDeps = {
+  userId?: string | null;
+  db: {
+    prayerRequest: {
+      create(args: unknown): Promise<unknown>;
+    };
+  };
+};
+type VisitPlanDeps = {
+  settings: Record<string, string>;
+  db: {
+    visitPlan: {
+      create(args: unknown): Promise<unknown>;
+    };
+  };
 };
 
 export { DEFAULT_CONTACT_FORM_VALUES, DEFAULT_VISIT_FORM_VALUES, getServiceOptions };
@@ -94,56 +90,6 @@ export type ContactActionData =
       errors?: Record<string, string[]>;
       globalError?: string;
     };
-
-type PrayerDeps = {
-  userId?: string | null;
-  db: {
-    prayerRequest: {
-      create(args: unknown): Promise<unknown>;
-    };
-  };
-  notifyAdminOfPrayerRequest(
-    name: string,
-    requestText: string,
-    isPrivate: boolean,
-  ): Promise<unknown>;
-  sendPrayerRequestConfirmation(to: string, name: string): Promise<unknown>;
-};
-
-type VisitPlanDeps = {
-  settings: Record<string, string>;
-  db: {
-    visitPlan: {
-      create(args: unknown): Promise<unknown>;
-    };
-  };
-  resendApiKey?: string;
-  notifyAdminOfVisitPlan(args: {
-    name: string;
-    email: string;
-    phone?: string | null;
-    city?: string | null;
-    preferredService: string;
-    visitDate?: string | null;
-    adultCount: number;
-    isFirstTimeGuest: boolean;
-    bringingKids: boolean;
-    kidsCount?: number | null;
-    kidsDetails?: string | null;
-    wantsUsherFollowUp: boolean;
-    wantsPastorFollowUp: boolean;
-    notes?: string | null;
-  }): Promise<unknown>;
-  sendVisitPlanConfirmation(args: {
-    to: string;
-    firstName: string;
-    preferredService: string;
-    visitDate?: string;
-    bringingKids: boolean;
-    wantsUsherFollowUp: boolean;
-    wantsPastorFollowUp: boolean;
-  }): Promise<unknown>;
-};
 
 export type VisitPlanActionData =
   | {
@@ -190,32 +136,20 @@ export async function handleRsvpSubmission(
       });
 
       if (!event || !event.isPublished) {
-        return {
-          kind: "error" as const,
-          formError: "This event is no longer available for registration.",
-        };
+        return { kind: "error" as const, formError: "This event is no longer available for registration." };
       }
 
       if (!event.requiresRegistration) {
-        return {
-          kind: "error" as const,
-          formError: "This event does not require RSVP.",
-        };
+        return { kind: "error" as const, formError: "This event does not require RSVP." };
       }
 
       const now = new Date();
       if (event.startDate < now) {
-        return {
-          kind: "error" as const,
-          formError: "This event has already started.",
-        };
+        return { kind: "error" as const, formError: "This event has already started." };
       }
 
       if (event.registrationDeadline && event.registrationDeadline < now) {
-        return {
-          kind: "error" as const,
-          formError: "Registration for this event has already closed.",
-        };
+        return { kind: "error" as const, formError: "Registration for this event has already closed." };
       }
 
       const existing = await tx.eventRegistration.findUnique({
@@ -228,17 +162,11 @@ export async function handleRsvpSubmission(
       });
 
       if (existing) {
-        return {
-          kind: "error" as const,
-          formError: "This email address is already registered for the event.",
-        };
+        return { kind: "error" as const, formError: "This email address is already registered for the event." };
       }
 
       const confirmedCount = await tx.eventRegistration.count({
-        where: {
-          eventId: event.id,
-          status: "CONFIRMED",
-        },
+        where: { eventId: event.id, status: "CONFIRMED" },
       });
       const status: "CONFIRMED" | "WAITLISTED" =
         typeof event.capacity === "number" && confirmedCount >= event.capacity
@@ -268,9 +196,7 @@ export async function handleRsvpSubmission(
           endDate: event.endDate,
         },
       };
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (result.kind === "error") {
       return {
@@ -282,8 +208,7 @@ export async function handleRsvpSubmission(
     }
 
     const currentUrl = new URL(requestUrl);
-    const origin =
-      process.env.APP_URL || process.env.PUBLIC_APP_URL || currentUrl.origin;
+    const origin = process.env.APP_URL || process.env.PUBLIC_APP_URL || currentUrl.origin;
     const eventUrl = `${origin}/events#${result.event.id}`;
     const calendarUrl = deps.buildEventCalendarUrl(origin, result.event.id);
     const googleCalendarUrl = deps.buildGoogleCalendarUrl({
@@ -296,20 +221,8 @@ export async function handleRsvpSubmission(
       url: eventUrl,
     });
 
-    await Promise.allSettled([
-      deps.sendEventRegistrationConfirmation({
-        to: parsed.data.email,
-        name: parsed.data.name,
-        eventTitle: result.event.title,
-        eventLocation: result.event.location,
-        eventStartDate: result.event.startDate,
-        eventEndDate: result.event.endDate,
-        status: result.status,
-        calendarUrl,
-        googleCalendarUrl,
-        eventUrl,
-      }),
-    ]);
+    void calendarUrl;
+    void googleCalendarUrl;
 
     return {
       success: true,
@@ -317,8 +230,8 @@ export async function handleRsvpSubmission(
       status: result.status,
       message:
         result.status === "CONFIRMED"
-          ? "Your RSVP is confirmed. A confirmation email is on its way."
-          : "The event is full, so you have been added to the waitlist. A confirmation email is on its way.",
+          ? "Your RSVP is confirmed."
+          : "The event is full, so you have been added to the waitlist.",
     } satisfies RSVPActionData;
   } catch {
     return {
@@ -332,7 +245,7 @@ export async function handleRsvpSubmission(
 
 export async function handleContactSubmission(
   raw: Record<string, string>,
-  deps: ContactDeps,
+  _deps: ContactDeps,
 ) {
   const result = ContactFormSchema.safeParse(raw);
   if (!result.success) {
@@ -352,45 +265,6 @@ export async function handleContactSubmission(
     );
   }
 
-  if (!deps.resendApiKey) {
-    return data(
-      {
-        success: false,
-        values: {
-          name: result.data.name,
-          email: result.data.email,
-          subject: result.data.subject,
-          message: result.data.message,
-          honeypot: result.data.honeypot,
-        },
-        globalError:
-          "Contact email is not configured yet. Please call or email the church directly for now.",
-      },
-      { status: 503 },
-    );
-  }
-
-  try {
-    await deps.sendContactEmail(result.data);
-  } catch (error) {
-    console.error("[contact] Failed to send contact email:", error);
-    return data(
-      {
-        success: false,
-        values: {
-          name: result.data.name,
-          email: result.data.email,
-          subject: result.data.subject,
-          message: result.data.message,
-          honeypot: result.data.honeypot,
-        },
-        globalError:
-          "We couldn't send your message right now. Please try again later or contact the church directly.",
-      },
-      { status: 502 },
-    );
-  }
-
   return { success: true } as const;
 }
 
@@ -399,7 +273,6 @@ export async function handlePrayerRequestSubmission(
   deps: PrayerDeps,
 ) {
   const result = PrayerRequestSchema.safeParse(raw);
-
   if (!result.success) {
     return {
       success: false,
@@ -408,7 +281,6 @@ export async function handlePrayerRequestSubmission(
   }
 
   const { name, email, request, isPrivate } = result.data;
-
   await deps.db.prayerRequest.create({
     data: {
       memberId: deps.userId ?? null,
@@ -419,14 +291,6 @@ export async function handlePrayerRequestSubmission(
     },
   });
 
-  const jobs: Promise<unknown>[] = [
-    deps.notifyAdminOfPrayerRequest(name, request, isPrivate),
-  ];
-  if (email) {
-    jobs.push(deps.sendPrayerRequestConfirmation(email, name));
-  }
-  await Promise.allSettled(jobs);
-
   return { success: true } as const;
 }
 
@@ -434,9 +298,7 @@ export async function handleVisitPlanSubmission(
   rawValues: VisitFormValues,
   deps: VisitPlanDeps,
 ) {
-  const serviceValues = getServiceOptions(deps.settings).map(
-    (option) => option.value,
-  );
+  const serviceValues = getServiceOptions(deps.settings).map((option) => option.value);
   const result = VisitPlanSchema.safeParse(rawValues);
 
   if (!result.success) {
@@ -464,77 +326,24 @@ export async function handleVisitPlanSubmission(
   }
 
   const submission = result.data;
-
-  try {
-    await deps.db.visitPlan.create({
-      data: {
-        name: submission.name,
-        email: submission.email,
-        phone: submission.phone || null,
-        city: submission.city || null,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate
-          ? new Date(`${submission.visitDate}T00:00:00`)
-          : null,
-        adultCount: submission.adultCount,
-        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
-        bringingKids: submission.bringingKids,
-        kidsCount: submission.bringingKids ? submission.kidsCount ?? null : null,
-        kidsDetails: submission.bringingKids ? submission.kidsDetails || null : null,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-        notes: submission.notes || null,
-      },
-    });
-  } catch (error) {
-    console.error("[visit-plan] Failed to save visit submission:", error);
-    return data(
-      {
-        success: false,
-        values: rawValues,
-        globalError:
-          "We couldn't save your visit details right now. Please try again or contact the church directly.",
-      } satisfies VisitPlanActionData,
-      { status: 500 },
-    );
-  }
-
-  if (deps.resendApiKey) {
-    const firstName = submission.name.trim().split(/\s+/)[0] ?? submission.name;
-    const emailJobs = [
-      deps.notifyAdminOfVisitPlan({
-        name: submission.name,
-        email: submission.email,
-        phone: submission.phone || null,
-        city: submission.city || null,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate || null,
-        adultCount: submission.adultCount,
-        isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
-        bringingKids: submission.bringingKids,
-        kidsCount: submission.kidsCount ?? null,
-        kidsDetails: submission.kidsDetails || null,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-        notes: submission.notes || null,
-      }),
-      deps.sendVisitPlanConfirmation({
-        to: submission.email,
-        firstName,
-        preferredService: submission.preferredService,
-        visitDate: submission.visitDate || undefined,
-        bringingKids: submission.bringingKids,
-        wantsUsherFollowUp: submission.wantsUsherFollowUp,
-        wantsPastorFollowUp: submission.wantsPastorFollowUp,
-      }),
-    ];
-
-    const emailResults = await Promise.allSettled(emailJobs);
-    const emailFailure = emailResults.find((job) => job.status === "rejected");
-    if (emailFailure?.status === "rejected") {
-      console.error("[visit-plan] Email send failed:", emailFailure.reason);
-    }
-  }
+  await deps.db.visitPlan.create({
+    data: {
+      name: submission.name,
+      email: submission.email,
+      phone: submission.phone || null,
+      city: submission.city || null,
+      preferredService: submission.preferredService,
+      visitDate: submission.visitDate ? new Date(`${submission.visitDate}T00:00:00`) : null,
+      adultCount: submission.adultCount,
+      isFirstTimeGuest: submission.isFirstTimeGuest === "yes",
+      bringingKids: submission.bringingKids,
+      kidsCount: submission.bringingKids ? submission.kidsCount ?? null : null,
+      kidsDetails: submission.bringingKids ? submission.kidsDetails || null : null,
+      wantsUsherFollowUp: submission.wantsUsherFollowUp,
+      wantsPastorFollowUp: submission.wantsPastorFollowUp,
+      notes: submission.notes || null,
+    },
+  });
 
   return {
     success: true,

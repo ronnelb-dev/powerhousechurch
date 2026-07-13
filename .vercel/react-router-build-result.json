@@ -28,12 +28,13 @@
       "routes/gallery": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sermons/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sermons/$sermonId": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sermon-redirect": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/blog/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/blog/$slug": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/blog/rss[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/register": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/auth/verify-email": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/forgot-password": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/reset-password": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -184,7 +185,7 @@
         "id": "routes/sermons/_index",
         "parentId": "routes/_public",
         "file": "app/routes/sermons/_index.tsx",
-        "path": "sermons",
+        "path": "preaching",
         "index": true,
         "config": {}
       },
@@ -192,6 +193,20 @@
         "id": "routes/sermons/$sermonId",
         "parentId": "routes/_public",
         "file": "app/routes/sermons/$sermonId.tsx",
+        "path": "preaching/:preachingId",
+        "config": {}
+      },
+      "routes/sermons": {
+        "id": "routes/sermons",
+        "parentId": "routes/_public",
+        "file": "app/routes/sermons.tsx",
+        "path": "sermons",
+        "config": {}
+      },
+      "routes/sermon-redirect": {
+        "id": "routes/sermon-redirect",
+        "parentId": "routes/_public",
+        "file": "app/routes/sermon-redirect.tsx",
         "path": "sermons/:sermonId",
         "config": {}
       },
@@ -229,13 +244,6 @@
         "parentId": "root",
         "file": "app/routes/auth/register.tsx",
         "path": "auth/register",
-        "config": {}
-      },
-      "routes/auth/verify-email": {
-        "id": "routes/auth/verify-email",
-        "parentId": "root",
-        "file": "app/routes/auth/verify-email.tsx",
-        "path": "auth/verify-email",
         "config": {}
       },
       "routes/auth/forgot-password": {
@@ -430,9 +438,9 @@
     }
   },
   "reactRouterConfig": {
-    "appDirectory": "C:/work/powerhousechurch/app",
+    "appDirectory": "/Users/ronnelbarashari/projects/powerhousechurch/app",
     "basename": "/",
-    "buildDirectory": "C:/work/powerhousechurch/build",
+    "buildDirectory": "/Users/ronnelbarashari/projects/powerhousechurch/build",
     "future": {
       "unstable_optimizeDeps": false,
       "unstable_passThroughRequests": false,
@@ -548,13 +556,25 @@
         "id": "routes/sermons/_index",
         "parentId": "routes/_public",
         "file": "routes/sermons/_index.tsx",
-        "path": "sermons",
+        "path": "preaching",
         "index": true
       },
       "routes/sermons/$sermonId": {
         "id": "routes/sermons/$sermonId",
         "parentId": "routes/_public",
         "file": "routes/sermons/$sermonId.tsx",
+        "path": "preaching/:preachingId"
+      },
+      "routes/sermons": {
+        "id": "routes/sermons",
+        "parentId": "routes/_public",
+        "file": "routes/sermons.tsx",
+        "path": "sermons"
+      },
+      "routes/sermon-redirect": {
+        "id": "routes/sermon-redirect",
+        "parentId": "routes/_public",
+        "file": "routes/sermon-redirect.tsx",
         "path": "sermons/:sermonId"
       },
       "routes/blog/_index": {
@@ -587,12 +607,6 @@
         "parentId": "root",
         "file": "routes/auth/register.tsx",
         "path": "auth/register"
-      },
-      "routes/auth/verify-email": {
-        "id": "routes/auth/verify-email",
-        "parentId": "root",
-        "file": "routes/auth/verify-email.tsx",
-        "path": "auth/verify-email"
       },
       "routes/auth/forgot-password": {
         "id": "routes/auth/forgot-password",
@@ -837,10 +851,18 @@
               {
                 "file": "routes/sermons/_index.tsx",
                 "index": true,
-                "path": "sermons"
+                "path": "preaching"
               },
               {
                 "file": "routes/sermons/$sermonId.tsx",
+                "path": "preaching/:preachingId"
+              },
+              {
+                "file": "routes/sermons.tsx",
+                "path": "sermons"
+              },
+              {
+                "file": "routes/sermon-redirect.tsx",
                 "path": "sermons/:sermonId"
               },
               {
@@ -865,10 +887,6 @@
           {
             "file": "routes/auth/register.tsx",
             "path": "auth/register"
-          },
-          {
-            "file": "routes/auth/verify-email.tsx",
-            "path": "auth/verify-email"
           },
           {
             "file": "routes/auth/forgot-password.tsx",

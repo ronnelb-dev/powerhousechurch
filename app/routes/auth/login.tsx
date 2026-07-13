@@ -22,11 +22,7 @@ export const meta: MetaFunction = () => [
 export async function loader({ request }: { request: Request }) {
   const { user } = await getSession(request);
   if (user) {
-    throw redirect(
-      user.isEmailVerified
-        ? "/portal/dashboard"
-        : `/auth/verify-email?email=${encodeURIComponent(user.email ?? "")}`,
-    );
+    throw redirect("/portal/dashboard");
   }
   return null;
 }
@@ -104,14 +100,6 @@ export default function LoginPage() {
                            rounded-lg text-sm font-sans text-red-700"
               >
                 <p>{actionData.error}</p>
-                {actionData.needsVerification && (
-                  <Link
-                    to={`/auth/verify-email?email=${encodeURIComponent(actionData.email)}`}
-                    className="mt-2 inline-flex font-bold text-red-800 hover:text-red-900"
-                  >
-                    Open email verification
-                  </Link>
-                )}
               </div>
             )}
 

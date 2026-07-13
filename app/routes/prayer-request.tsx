@@ -11,7 +11,6 @@ import {
 import type { MetaFunction } from "react-router";
 import { useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { db } from "~/lib/db.server";
-import { sendPrayerRequestConfirmation, notifyAdminOfPrayerRequest } from "~/lib/email.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { getSession } from "~/lib/auth.server";
@@ -62,8 +61,6 @@ export async function action({ request }: ActionFunctionArgs) {
   return handlePrayerRequestSubmission(raw, {
     userId: user?.id,
     db,
-    notifyAdminOfPrayerRequest,
-    sendPrayerRequestConfirmation,
   });
 }
 

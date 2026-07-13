@@ -63,22 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   return handleContactSubmission(raw, {
-    resendApiKey: process.env.RESEND_API_KEY,
-    sendContactEmail: async ({ name, email, subject, message }) => {
-      const { Resend } = await import("resend");
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
-        to: process.env.CHURCH_EMAIL ?? "info@powerhousechurch.ph",
-        subject: `Contact Form: ${subject}`,
-        html: `
-          <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
-          <p><strong>Subject:</strong> ${subject}</p>
-          <hr/>
-          <p>${message.replace(/\n/g, "<br/>")}</p>
-        `,
-      });
-    },
+    
   });
 }
 

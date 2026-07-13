@@ -1,5 +1,5 @@
 // app/components/church/SermonCard.tsx
-// Used in sermon archive grid and home page "Latest Message" section.
+// Used in preaching archive grid and home page "Latest Message" section.
 // Entire card is a link for maximum tap area on mobile.
 // Thumbnail has an aspect-ratio wrapper to prevent layout shift.
 // Tags display max 3, extras truncated.
@@ -53,7 +53,7 @@ export function SermonCard({
   const gradientIndex =
     id.charCodeAt(id.length - 1) % SERIES_GRADIENTS.length;
   const gradient = SERIES_GRADIENTS[gradientIndex];
-  const cardLabel = `Listen to sermon: ${title} by ${speaker}, ${formattedDate}`;
+  const cardLabel = `Listen to preaching: ${title} by ${speaker}, ${formattedDate}`;
   const cardContent = (
     <Card className="overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]">
       <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
@@ -132,7 +132,7 @@ export function SermonCard({
         </a>
       ) : (
         <Link
-          to={`/sermons/${id}`}
+          to={`/preaching/${id}`}
           className="block rounded-[var(--radius)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           aria-label={cardLabel}
         >

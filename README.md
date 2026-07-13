@@ -10,7 +10,6 @@ Powerhouse Church is a full-stack React Router app for the church’s public web
 - Prisma + PostgreSQL/Neon
 - Lucia auth
 - Vitest
-- Resend for transactional email
 - Vercel deployment target
 
 ## Key Areas
@@ -18,7 +17,7 @@ Powerhouse Church is a full-stack React Router app for the church’s public web
 - Public site: home, about, ministries, events, sermons, gallery, giving, contact, prayer request, and plan-your-visit flows
 - Members portal: dashboard, profile, directory, engagement, community, attendance
 - Admin tools: events, sermons, communications, members, prayers, reports, settings, visit plans
-- Operational workflows: email verification, password reset, RSVP confirmations, prayer follow-up, and visit-plan follow-up
+- Operational workflows: password reset, RSVP handling, prayer follow-up, and visit-plan follow-up
 
 ## Local Setup
 
@@ -35,14 +34,12 @@ DATABASE_URL=
 DATABASE_URL_UNPOOLED=
 ```
 
-3. Optional but recommended for full local behavior:
+3. Optional environment variables:
 
 ```bash
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-CHURCH_EMAIL=
 APP_URL=http://localhost:5173
 PUBLIC_APP_URL=http://localhost:5173
+CHURCH_EMAIL=
 ```
 
 4. Generate Prisma client and apply schema changes:
@@ -106,7 +103,7 @@ This is a practical first layer for spam reduction and abuse control. Because it
 ## Deployment Notes
 
 - Production is configured for Neon/PostgreSQL through Prisma.
-- Email-dependent flows degrade gracefully when `RESEND_API_KEY` is missing.
+- The app no longer sends outbound email; visitor workflows still save records locally.
 - Public form submissions rely on request IP headers such as `x-forwarded-for` in production.
 
 ## Known Baseline Issues

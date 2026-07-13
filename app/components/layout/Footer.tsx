@@ -121,7 +121,7 @@ export function Footer({ settings }: FooterProps) {
             <ul className="mt-5 space-y-3" role="list">
               {[
                 { to: "/about",       label: "About Us"   },
-                { to: "/sermons",     label: "Sermons"  },
+                { to: "/preaching",   label: "Preaching"  },
                 { to: "/events",      label: "Events"     },
                 { to: "/ministries",  label: "Ministries" },
                 { to: "/contact",     label: "Contact"    },

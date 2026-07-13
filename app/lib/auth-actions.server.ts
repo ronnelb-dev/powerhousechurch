@@ -60,7 +60,6 @@ type UserRecord = {
   age: number;
   gender: string;
   birthday: Date;
-  isEmailVerified: boolean;
 };
 
 export type RegisterActionData =
@@ -69,8 +68,7 @@ export type RegisterActionData =
   | null;
 
 export type LoginActionData =
-  | { error: string; needsVerification?: false }
-  | { error: string; needsVerification: true; email: string }
+  | { error: string }
   | null;
 
 type RegisterDeps = {
@@ -82,10 +80,6 @@ type RegisterDeps = {
     };
   };
   hashPassword?: PasswordHashFunction;
-  sendVerificationEmailForUser: (
-    user: { id: string; email: string; firstName: string },
-    origin: string,
-  ) => Promise<unknown>;
 };
 
 type LoginDeps = {
@@ -103,7 +97,6 @@ type LoginDeps = {
 
 export async function handleRegisterSubmission(
   raw: RegisterFields,
-  requestUrl: string,
   deps: RegisterDeps,
 ) {
   const result = registerSchema.safeParse(raw);
@@ -133,7 +126,7 @@ export async function handleRegisterSubmission(
 
   const passwordHash = await (deps.hashPassword ?? hashPassword)(password);
 
-  const user = await deps.db.user.create({
+  await deps.db.user.create({
     data: {
       firstName,
       lastName,
@@ -144,29 +137,10 @@ export async function handleRegisterSubmission(
       gender,
       birthday: new Date(birthday),
       role: "MEMBER",
-      isEmailVerified: false,
-      emailVerifiedAt: null,
     },
   });
 
-  try {
-    await deps.sendVerificationEmailForUser(
-      { id: user.id, email: user.email!, firstName: user.firstName },
-      new URL(requestUrl).origin,
-    );
-  } catch (error) {
-    await deps.db.user.delete({ where: { id: user.id } });
-    console.error("[auth.register] Failed to send verification email:", error);
-    return {
-      success: false,
-      globalError:
-        "We could not send the verification email right now. Please try again.",
-    } satisfies RegisterActionData;
-  }
-
-  return redirect(
-    `/auth/verify-email?email=${encodeURIComponent(email)}&sent=1`,
-  );
+  return redirect("/portal/dashboard");
 }
 
 export async function handleLoginSubmission(
@@ -197,14 +171,6 @@ export async function handleLoginSubmission(
 
   if (!validPassword) {
     return { error: "Invalid credentials. Please try again." } satisfies LoginActionData;
-  }
-
-  if (!user.isEmailVerified) {
-    return {
-      error: "Please verify your email before accessing the portal.",
-      needsVerification: true,
-      email: user.email ?? "",
-    } satisfies LoginActionData;
   }
 
   const session = await deps.createSession(user.id);

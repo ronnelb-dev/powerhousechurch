@@ -11,10 +11,8 @@ import type { MetaFunction } from "react-router";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { handleRegisterSubmission } from "~/lib/auth-actions.server";
-import { getTrustedAppOrigin } from "~/lib/app-url.server";
 import { getSession } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
-import { sendVerificationEmailForUser } from "~/lib/email-verification.server";
 import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
 
 export const meta: MetaFunction = () => [
@@ -24,11 +22,7 @@ export const meta: MetaFunction = () => [
 export async function loader({ request }: { request: Request }) {
   const { user } = await getSession(request);
   if (user) {
-    throw redirect(
-      user.isEmailVerified
-        ? "/portal/dashboard"
-        : `/auth/verify-email?email=${encodeURIComponent(user.email ?? "")}`,
-    );
+    throw redirect("/portal/dashboard");
   }
   return null;
 }
@@ -62,10 +56,8 @@ export async function action({ request }: ActionFunctionArgs) {
       gender: (formData.get("gender") as string) ?? "",
       birthday: (formData.get("birthday") as string) ?? "",
     },
-    getTrustedAppOrigin(request.url),
     {
       db,
-      sendVerificationEmailForUser,
     },
   );
 }
@@ -128,7 +120,7 @@ export default function RegisterPage() {
             Create Your Account
           </h1>
           <p className="text-sm text-gray-500 font-sans">
-            Register with your real email. Portal access starts after verification.
+            Register with your real email to create your portal account.
           </p>
         </div>
 

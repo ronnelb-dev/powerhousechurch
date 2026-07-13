@@ -27,11 +27,15 @@ export default [
     route("prayer-request", "routes/prayer-request.tsx"),
     route("gallery", "routes/gallery.tsx"),
 
-    // Sermons
-    ...prefix("sermons", [
+    // Preaching
+    ...prefix("preaching", [
       index("routes/sermons/_index.tsx"),
-      route(":sermonId", "routes/sermons/$sermonId.tsx"),
+      route(":preachingId", "routes/sermons/$sermonId.tsx"),
     ]),
+
+    // Legacy Sermons URLs redirect to the new preaching routes
+    route("sermons", "routes/sermons.tsx"),
+    route("sermons/:sermonId", "routes/sermon-redirect.tsx"),
 
     // Blog
     ...prefix("blog", [
@@ -45,7 +49,6 @@ export default [
   ...prefix("auth", [
     route("login", "routes/auth/login.tsx"),
     route("register", "routes/auth/register.tsx"),
-    route("verify-email", "routes/auth/verify-email.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
     route("reset-password", "routes/auth/reset-password.tsx"),
     route("logout", "routes/auth/logout.tsx"),

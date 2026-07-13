@@ -8,11 +8,6 @@ import {
 import type { MetaFunction } from "react-router";
 import { PendingButton } from "~/components/ui/PendingButton";
 
-import { getTrustedAppOrigin } from "~/lib/app-url.server";
-import { db } from "~/lib/db.server";
-import { sendPasswordResetForUser } from "~/lib/password-reset.server";
-import { authRateLimiter, getClientIpAddress } from "~/lib/rate-limit.server";
-
 export const meta: MetaFunction = () => [
   { title: "Forgot Password — Powerhouse Church Members Portal" },
 ];
@@ -28,57 +23,10 @@ type ActionData =
     }
   | null;
 
-export async function action({ request }: ActionFunctionArgs) {
-  const formData = await request.formData();
-  const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
-
-  if (!email) {
-    return {
-      success: false,
-      message: "Enter the email address tied to your account.",
-    } satisfies ActionData;
-  }
-
-  const limit = authRateLimiter.consume({
-    bucket: "auth:forgot-password",
-    key: `${getClientIpAddress(request)}:${email}`,
-    limit: 4,
-    windowMs: 30 * 60 * 1000,
-  });
-
-  if (!limit.ok) {
-    return {
-      success: false,
-      message: `Too many reset requests from this connection. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
-    } satisfies ActionData;
-  }
-
-  const user = await db.user.findFirst({
-    where: {
-      email,
-      isActive: true,
-    },
-  });
-
-  if (user?.email) {
-    try {
-      await sendPasswordResetForUser(
-        { id: user.id, email: user.email, firstName: user.firstName },
-        getTrustedAppOrigin(request.url),
-      );
-    } catch (error) {
-      console.error("[auth.forgot-password] Failed to send reset email:", error);
-      return {
-        success: false,
-        message: "We could not send the reset email right now. Please try again.",
-      } satisfies ActionData;
-    }
-  }
-
+export async function action(_args: ActionFunctionArgs) {
   return {
-    success: true,
-    message:
-      "If an active account with that email exists, a password reset link has been sent.",
+    success: false,
+    message: "Password reset by email is currently unavailable.",
   } satisfies ActionData;
 }
 
@@ -102,7 +50,7 @@ export default function ForgotPasswordPage() {
             Forgot Your Password?
           </h1>
           <p className="text-sm text-gray-500 font-sans">
-            Enter your email and we will send a secure reset link.
+            Password reset by email is currently unavailable.
           </p>
         </div>
 
@@ -141,10 +89,10 @@ export default function ForgotPasswordPage() {
             <PendingButton
               type="submit"
               isPending={isSubmitting}
-              pendingText="Sending reset link..."
+              pendingText="Working..."
               className="w-full rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60"
             >
-              Send Reset Link
+              Continue
             </PendingButton>
           </Form>
         </div>

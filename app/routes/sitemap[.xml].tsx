@@ -8,7 +8,7 @@ import { db } from "../lib/db.server";
 const STATIC_ROUTES = [
   { path: "/",               priority: "1.0", changefreq: "weekly"  },
   { path: "/about",          priority: "0.8", changefreq: "monthly" },
-  { path: "/sermons",        priority: "0.9", changefreq: "weekly"  },
+  { path: "/preaching",      priority: "0.9", changefreq: "weekly"  },
   { path: "/events",         priority: "0.8", changefreq: "weekly"  },
   { path: "/ministries",     priority: "0.7", changefreq: "monthly" },
   { path: "/give",           priority: "0.7", changefreq: "monthly" },
@@ -52,14 +52,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   </url>`);
   }
 
-  // Sermon pages
+  // Preaching pages
   for (const sermon of sermons) {
     const lastmod = sermon.updatedAt instanceof Date
       ? sermon.updatedAt.toISOString().slice(0, 10)
       : String(sermon.updatedAt).slice(0, 10);
     urls.push(`
   <url>
-    <loc>${escapeXml(`${host}/sermons/${sermon.id}`)}</loc>
+    <loc>${escapeXml(`${host}/preaching/${sermon.id}`)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>

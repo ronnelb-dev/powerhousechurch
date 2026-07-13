@@ -610,7 +610,7 @@ export default function EngagementPage() {
             </p>
           </div>
           <Link
-            to="/sermons"
+            to="/preaching"
             className="rounded-full border border-gray-200 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-gray-600 hover:border-red-300 hover:text-red-700"
           >
             Browse all sermons
@@ -672,7 +672,7 @@ export default function EngagementPage() {
                 />
                 <FieldError errors={sermonErrors.note} id={`sermon-note-${sermon.id}-error`} />
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <Link to={`/sermons/${sermon.id}`} className="text-sm font-bold text-red-700 hover:text-red-900">
+                  <Link to={`/preaching/${sermon.id}`} className="text-sm font-bold text-red-700 hover:text-red-900">
                     Open sermon →
                   </Link>
                   <PendingButton

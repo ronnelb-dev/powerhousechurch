@@ -465,7 +465,7 @@ export default function DashboardPage() {
               </p>
               {latestSermon ? (
                 <Link
-                  to={`/sermons/${latestSermon.id}`}
+                  to={`/preaching/${latestSermon.id}`}
                   className="mt-3 inline-flex text-sm font-sans font-bold text-gray-700 transition-colors hover:text-gray-950"
                 >
                   Open latest sermon →
@@ -555,7 +555,7 @@ export default function DashboardPage() {
 
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    to={`/sermons/${latestSermon.id}`}
+                    to={`/preaching/${latestSermon.id}`}
                     className={portalButtonClasses()}
                   >
                     Watch Message
@@ -604,7 +604,7 @@ export default function DashboardPage() {
               </PortalPanel>
               <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                  Sermons
+                  Preaching
                 </p>
                 <p className="mt-1.5 font-sans text-xl font-bold text-gray-900">
                   {engagementSummary.savedSermonCount}

@@ -5,7 +5,7 @@
 //   Server (loader):
 //     1. Calls getLiveStream() → checks YouTube API for an active broadcast
 //     2. If not live, calls getLatestVideo() → fetches most recent upload
-//     3. Falls back to DB sermon record if YouTube API is unavailable
+//     3. Falls back to DB preaching record if YouTube API is unavailable
 //
 //   Client (component):
 //     1. Renders immediately with server-detected state (no flicker)
@@ -75,7 +75,7 @@ export async function loader() {
     initialIsLive  = false;
     initialTitle   = latestYouTubeVideo.title;
   } else if (latestSermon?.videoUrl) {
-    // YouTube API unavailable — fall back to DB sermon record
+    // YouTube API unavailable — fall back to DB preaching record
     const parsed = parseVideoId(latestSermon.videoUrl);
     if (parsed) {
       initialVideoId = parsed;
@@ -318,11 +318,11 @@ export default function LivePage() {
               All past sermons are available in our archive.
             </p>
             <a
-              href="/sermons"
+              href="/preaching"
               className="inline-flex items-center min-h-[44px] text-base font-bold
                          text-red-400 hover:text-red-300 transition-colors"
             >
-              Browse sermons →
+              Browse preaching →
             </a>
           </InfoCard>
         </div>

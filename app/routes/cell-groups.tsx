@@ -72,37 +72,6 @@ export async function action({ request }: ActionFunctionArgs) {
     } satisfies ActionData;
   }
 
-  // Find cell leader and email them
-  const group = await db.cellGroup.findUnique({
-    where: { id: result.data.cellGroupId },
-    select: { name: true, leaderId: true },
-  });
-
-  if (group) {
-    const leader = await db.user.findUnique({
-      where: { id: group.leaderId },
-      select: { email: true, firstName: true },
-    });
-
-    if (leader?.email) {
-      const { Resend } = await import("resend");
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from:    process.env.RESEND_FROM_EMAIL ?? "noreply@powerhousechurch.ph",
-        to:      leader.email,
-        subject: `New Cell Group Join Request — ${group.name}`,
-        html: `
-          <p>Hi ${leader.firstName},</p>
-          <p>Someone wants to join your cell group <strong>${group.name}</strong>.</p>
-          <p><strong>Name:</strong> ${result.data.name}</p>
-          <p><strong>Phone:</strong> ${result.data.phone}</p>
-          ${result.data.message ? `<p><strong>Message:</strong> ${result.data.message}</p>` : ""}
-          <p>Please reach out to welcome them!</p>
-        `,
-      }).catch(() => {}); // fire-and-forget
-    }
-  }
-
   return { success: true } satisfies ActionData;
 }
 

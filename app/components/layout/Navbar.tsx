@@ -7,7 +7,7 @@ import { cn } from "~/lib/utils";
 
 const NAV_LINKS = [
   { to: "/",           label: "Home"       },
-  { to: "/sermons",    label: "Sermons"    },
+  { to: "/preaching",  label: "Preaching"  },
   { to: "/events",     label: "Events"     },
   { to: "/ministries", label: "Ministries" },
   { to: "/about",      label: "About"      },

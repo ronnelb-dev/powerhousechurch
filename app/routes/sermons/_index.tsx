@@ -20,11 +20,11 @@ import { Input } from "~/components/ui/input";
 import { buttonVariants } from "~/components/ui/Button";
 
 export const meta: MetaFunction = () => [
-  { title: "Sermons — Powerhouse Church" },
+  { title: "Preaching — Powerhouse Church" },
   {
     name: "description",
     content:
-      "Browse sermon messages from Powerhouse Church with playlist filters and keyword search.",
+      "Browse preaching messages from Powerhouse Church with playlist filters and keyword search.",
   },
 ];
 
@@ -167,7 +167,7 @@ export default function SermonsPage() {
   return (
     <>
       <PageHero
-        title="Sermon Archive"
+        title="Preaching Archive"
         subtitle="Every word preached is a seed planted. Browse, search, and revisit messages from the church."
         scripture="Faith comes from hearing, and hearing through the word of Christ. — Romans 10:17"
       />
@@ -186,7 +186,7 @@ export default function SermonsPage() {
                   name="q"
                   defaultValue={filters.q}
                   placeholder="Search titles, descriptions, speakers..."
-                  aria-label="Search sermons"
+                  aria-label="Search preaching"
                 />
 
                 {source === "youtube" && (
@@ -256,8 +256,8 @@ export default function SermonsPage() {
 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 {(filters.q || filters.playlist || filters.speaker) && (
-                  <Link
-                    to="/sermons"
+                <Link
+                    to="/preaching"
                     className="inline-flex items-center text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]"
                   >
                     Clear filters ×
@@ -265,7 +265,7 @@ export default function SermonsPage() {
                 )}
 
                 <p className="text-sm uppercase tracking-[0.12em] text-[var(--muted-foreground)] lg:ml-auto">
-                  {total} {total === 1 ? "sermon" : "sermons"}
+                  {total} {total === 1 ? "preaching message" : "preaching messages"}
                   {filters.q || filters.playlist || filters.speaker
                     ? " found"
                     : " total"}
@@ -295,20 +295,20 @@ export default function SermonsPage() {
         ) : (
           <EmptyState
             icon="sermons"
-            title="No sermons found"
+            title="No preaching found"
             message="Try a broader keyword or switch to a different playlist filter."
-            action={{ label: "View all sermons", to: "/sermons" }}
+            action={{ label: "View all preaching", to: "/preaching" }}
           />
         )}
 
         {totalPages > 1 && (
           <nav
             className="mt-12 flex flex-wrap items-center justify-center gap-3"
-            aria-label="Sermon pagination"
+            aria-label="Preaching pagination"
           >
             {page > 1 && (
               <Link
-                to={`/sermons?${new URLSearchParams({
+                to={`/preaching?${new URLSearchParams({
                   ...(filters.q ? { q: filters.q } : {}),
                   ...(filters.playlist ? { playlist: filters.playlist } : {}),
                   ...(filters.speaker ? { speaker: filters.speaker } : {}),
@@ -324,7 +324,7 @@ export default function SermonsPage() {
             </span>
             {page < totalPages && (
               <Link
-                to={`/sermons?${new URLSearchParams({
+                to={`/preaching?${new URLSearchParams({
                   ...(filters.q ? { q: filters.q } : {}),
                   ...(filters.playlist ? { playlist: filters.playlist } : {}),
                   ...(filters.speaker ? { speaker: filters.speaker } : {}),
@@ -347,7 +347,7 @@ export function ErrorBoundary() {
   return (
     <EmptyState
       icon="sermons"
-      title="Could not load sermons"
+      title="Could not load preaching"
       message={
         isRouteErrorResponse(error)
           ? error.data

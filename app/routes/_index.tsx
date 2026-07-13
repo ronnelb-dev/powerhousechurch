@@ -76,7 +76,7 @@ export default function HomePage() {
     {
       label: "Sunday Service",
       time: settings["service.sunday2"] ?? "9:00 AM",
-      detail: "Second Service",
+      detail: "Youth Service",
     },
     {
       label: "Midweek Service",
@@ -94,9 +94,7 @@ export default function HomePage() {
         <div className="absolute -right-10 bottom-8 h-64 w-64 rounded-full bg-[rgba(214,162,76,0.16)] blur-3xl" aria-hidden="true" />
 
         <div className="shell relative">
-          <Badge className="border-white/10 bg-white/10 text-white">
-            {settings["church.name"] ?? "Powerhouse Church Christian Fellowship Intl."}
-          </Badge>
+          
           <div className="mt-6 grid items-end gap-8 sm:mt-8 sm:gap-10 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="max-w-3xl">
               <h1 id="hero-heading" className="text-balance font-serif text-[clamp(3.4rem,15vw,6rem)] font-semibold leading-[0.92] text-white sm:text-[clamp(4.6rem,11vw,7rem)] lg:text-[5.4rem]">
@@ -151,7 +149,7 @@ export default function HomePage() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-[#f1d2a4]">This week</p>
                     <p className="mt-1 text-lg font-semibold text-white">
-                      {settings["service.sunday2"] ?? settings["service.sunday1"] ?? "Sunday 9:00 AM"}
+                     { settings["service.sunday1"] ?? "9:00 AM"}
                     </p>
                   </div>
                   <Link to="/contact" className="text-sm font-semibold uppercase tracking-[0.12em] text-[#f7e3bf]">
@@ -171,8 +169,8 @@ export default function HomePage() {
       <section className="shell section-gap">
         <SectionHeader
           eyebrow="From the Pulpit"
-          title="Latest Message"
-          subtitle="Watch the newest message from Powerhouse Cell Celebration and carry the Word with you into the week ahead."
+          title="Latest Preaching"
+          subtitle="Watch the newest preaching from Powerhouse Cell Celebration and carry the Word with you into the week ahead."
         />
         {latestCellCelebrationMessage ? (
           <div className="mt-10">
@@ -207,8 +205,8 @@ export default function HomePage() {
           </p>
         )}
         <div className="mt-8">
-          <Link to="/sermons" className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
-            Browse all sermons →
+          <Link to="/preaching" className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
+            Browse all preaching →
           </Link>
         </div>
       </section>
