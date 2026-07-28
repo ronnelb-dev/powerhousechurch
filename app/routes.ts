@@ -12,6 +12,9 @@ export default [
   route("sitemap.xml", "routes/sitemap[.xml].tsx"),
   route("events/:eventId/calendar.ics", "routes/events.$eventId.calendar.ts"),
 
+  // Standalone social hub
+  route("linktree", "routes/linktree.tsx"),
+
   // Public Site Layout
   layout("routes/_public.tsx", [
     index("routes/_index.tsx"),

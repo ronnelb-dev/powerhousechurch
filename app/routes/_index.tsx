@@ -8,7 +8,6 @@ import { SectionHeader } from "~/components/ui/SectionHeader";
 import { SermonCard } from "~/components/church/SermonCard";
 import { EventCard } from "~/components/church/EventCard";
 import { ServiceTimesBar } from "~/components/ui/ServiceTimesBar";
-import { Badge } from "~/components/ui/badge";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
 import { getMidweekServices } from "~/lib/service-times";

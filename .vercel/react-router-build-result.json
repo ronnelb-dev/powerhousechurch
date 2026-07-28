@@ -14,6 +14,7 @@
       "routes/robots[.txt]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sitemap[.xml]": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/events.$eventId.calendar": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/linktree": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/about": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/ministries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -89,6 +90,13 @@
         "parentId": "root",
         "file": "app/routes/events.$eventId.calendar.ts",
         "path": "events/:eventId/calendar.ics",
+        "config": {}
+      },
+      "routes/linktree": {
+        "id": "routes/linktree",
+        "parentId": "root",
+        "file": "app/routes/linktree.tsx",
+        "path": "linktree",
         "config": {}
       },
       "routes/_public": {
@@ -475,6 +483,12 @@
         "file": "routes/events.$eventId.calendar.ts",
         "path": "events/:eventId/calendar.ics"
       },
+      "routes/linktree": {
+        "id": "routes/linktree",
+        "parentId": "root",
+        "file": "routes/linktree.tsx",
+        "path": "linktree"
+      },
       "routes/_public": {
         "id": "routes/_public",
         "parentId": "root",
@@ -796,6 +810,10 @@
           {
             "file": "routes/events.$eventId.calendar.ts",
             "path": "events/:eventId/calendar.ics"
+          },
+          {
+            "file": "routes/linktree.tsx",
+            "path": "linktree"
           },
           {
             "file": "routes/_public.tsx",

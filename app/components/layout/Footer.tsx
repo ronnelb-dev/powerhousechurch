@@ -14,6 +14,7 @@ import {
 
 import { buttonVariants } from "~/components/ui/Button";
 import { getMidweekServices } from "~/lib/service-times";
+import { getSocialLink } from "~/lib/social-links";
 import { cn } from "~/lib/utils";
 
 interface FooterProps {
@@ -37,29 +38,25 @@ export function Footer({ settings }: FooterProps) {
       key: "social.facebook",
       icon: faFacebookF,
       label: "Facebook",
-      href:
-        settings["social.facebook"] ??
-        "https://www.facebook.com/PowerhouseChurchInternational",
+      href: getSocialLink(settings, "social.facebook"),
     },
     {
       key: "social.instagram",
       icon: faInstagram,
       label: "Instagram",
-      href:
-        settings["social.instagram"] ??
-        "https://www.instagram.com/_powerhouseintl/",
+      href: getSocialLink(settings, "social.instagram"),
     },
     {
       key: "social.youtube",
       icon: faYoutube,
       label: "YouTube",
-      href: settings["social.youtube"] ?? "https://www.youtube.com/@pcf_intl",
+      href: getSocialLink(settings, "social.youtube"),
     },
     {
       key: "social.tiktok",
       icon: faTiktok,
       label: "TikTok",
-      href: settings["social.tiktok"] ?? "https://www.tiktok.com/@pcf_intl",
+      href: getSocialLink(settings, "social.tiktok"),
     },
   ];
 
