@@ -23,6 +23,11 @@
   --secondary-foreground: #f5ede2;
   --accent: #d6a24c;
   --accent-foreground: #2f2113;
+  --surface-inverse: #231715;
+  --inverse: #fff8f1;
+  --inverse-muted: #d6ccc4;
+  --inverse-subtle: #bcaea2;
+  --inverse-accent: #e7c07d;
   --radius: 1.5rem;
   --shadow-card: 0 24px 70px -38px rgba(53, 25, 16, 0.38);
   --shadow-soft: 0 20px 50px -30px rgba(38, 20, 15, 0.28);
@@ -139,6 +144,21 @@
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

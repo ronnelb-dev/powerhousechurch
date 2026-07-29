@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 
 import { Button, buttonVariants } from "~/components/ui/Button";
-import { Sheet, SheetContent } from "~/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
 
 const NAV_LINKS = [
@@ -18,6 +18,7 @@ export function Navbar() {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const mobileMenuTitleId = useId();
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
@@ -134,12 +135,16 @@ export function Navbar() {
       </header>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent id="mobile-menu" className="lg:hidden">
+        <SheetContent
+          id="mobile-menu"
+          labelledBy={mobileMenuTitleId}
+          className="lg:hidden"
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-serif text-xl font-semibold text-[var(--foreground)] sm:text-2xl">
+              <SheetTitle id={mobileMenuTitleId}>
                 Powerhouse Church
-              </p>
+              </SheetTitle>
               <p className="mt-1 text-xs uppercase tracking-[0.26em] text-[var(--muted-foreground)]">
                 Christian Fellowship Intl.
               </p>
@@ -150,6 +155,7 @@ export function Navbar() {
               className="rounded-full"
               onClick={() => setMenuOpen(false)}
               aria-label="Close menu"
+              data-sheet-autofocus
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -159,7 +165,7 @@ export function Navbar() {
           </div>
 
           <div className="mt-6 rounded-[var(--radius)] border border-white/50 bg-white/60 p-3 shadow-[var(--shadow-soft)]">
-            <ul className="space-y-1" role="list">
+            <ul className="flex flex-col gap-1" role="list">
               {NAV_LINKS.map(({ to, label }) => (
                 <li key={to}>
                   <Link
@@ -179,7 +185,7 @@ export function Navbar() {
             </ul>
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 flex flex-col gap-3">
             <Link to="/new-here" className="block">
               <span className={buttonVariants({ variant: "secondary", className: "flex w-full" })}>
                 Plan a Visit

@@ -10,7 +10,7 @@ import { EventCard } from "~/components/church/EventCard";
 import { ServiceTimesBar } from "~/components/ui/ServiceTimesBar";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
-import { getMidweekServices } from "~/lib/service-times";
+import { getServiceSchedule } from "~/lib/service-times";
 
 export const meta: MetaFunction = () => [
   { title: "Powerhouse Church Christian Fellowship Intl. — Where Faith Meets Community" },
@@ -64,28 +64,19 @@ export async function loader() {
 
 export default function HomePage() {
   const { latestCellCelebrationMessage, latestSermon, upcomingEvents, settings } = useLoaderData<typeof loader>();
-  const midweekServices = getMidweekServices(settings);
+  const serviceSchedule = getServiceSchedule(settings);
 
   const serviceTimes = [
-    {
-      label: "Sunday Service",
-      time: settings["service.sunday1"] ?? "7:00 AM",
-      detail: "First Service",
-    },
-    {
-      label: "Sunday Service",
-      time: settings["service.sunday2"] ?? "9:00 AM",
-      detail: "Youth Service",
-    },
+    ...serviceSchedule.sunday,
     {
       label: "Midweek Service",
-      lines: midweekServices,
+      lines: serviceSchedule.midweek,
     },
   ];
 
   return (
     <>
-      <section className="relative overflow-hidden pb-20 pt-28 sm:pb-28 sm:pt-32 lg:pt-36" aria-labelledby="hero-heading">
+      <section className="relative overflow-hidden pb-16 pt-24 sm:pb-24 sm:pt-28 lg:pb-28 lg:pt-32" aria-labelledby="hero-heading">
         <div className="absolute inset-0 bg-[linear-gradient(145deg,#241816_0%,#572527_42%,#8a3a36_100%)]" aria-hidden="true" />
         <div className="hero-glow absolute inset-0 opacity-90" aria-hidden="true" />
         <div className="warm-grid absolute inset-0 opacity-10" aria-hidden="true" />
@@ -93,66 +84,78 @@ export default function HomePage() {
         <div className="absolute -right-10 bottom-8 h-64 w-64 rounded-full bg-[rgba(214,162,76,0.16)] blur-3xl" aria-hidden="true" />
 
         <div className="shell relative">
-          
-          <div className="mt-6 grid items-end gap-8 sm:mt-8 sm:gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="mt-4 grid items-center gap-8 sm:mt-6 sm:gap-10 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="max-w-3xl">
-              <h1 id="hero-heading" className="text-balance font-serif text-[clamp(3.4rem,15vw,6rem)] font-semibold leading-[0.92] text-white sm:text-[clamp(4.6rem,11vw,7rem)] lg:text-[5.4rem]">
+              <h1 id="hero-heading" className="text-balance font-serif text-[clamp(2.8rem,13vw,4rem)] font-semibold leading-[0.94] text-[var(--inverse)] sm:text-[clamp(4rem,9vw,6rem)] lg:text-[5rem]">
                 A church home with warmth, conviction, and room to grow.
-          </h1>
-              <p className="mt-5 max-w-2xl text-balance text-base leading-7 text-[#f1ddd4] sm:mt-6 sm:text-xl sm:leading-8">
-                Join a Spirit-filled community rooted in Scripture, alive in worship, and committed to walking with people through every season of life.
+              </h1>
+              <p className="mt-4 max-w-2xl text-balance text-base leading-7 text-[var(--inverse-muted)] sm:mt-6 sm:text-xl sm:leading-8">
+                Find a church family rooted in Scripture, alive in worship, and ready to walk with you through every season.
               </p>
-              <p className="mt-4 max-w-2xl font-serif text-xl leading-8 italic text-[#f1d2a4] sm:mt-5 sm:text-2xl">
-            "You are no longer strangers and foreigners, but fellow citizens with
-            the saints…" — Ephesians 2:19
-          </p>
-              <div className="mt-8 flex flex-wrap gap-3 sm:mt-10 sm:gap-4">
-            <Link
-              to="/new-here"
-                  className={buttonVariants({ size: "lg", variant: "secondary" })}
-            >
+              <p className="mt-5 hidden max-w-2xl font-serif text-2xl leading-8 italic text-[var(--inverse-accent)] sm:block">
+                "You are no longer strangers and foreigners, but fellow citizens
+                with the saints…" — Ephesians 2:19
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-4">
+                <Link
+                  to="/new-here"
+                  className={buttonVariants({
+                    size: "lg",
+                    variant: "secondary",
+                    className: "w-full sm:w-auto",
+                  })}
+                >
                   Plan Your Sunday
-            </Link>
-            <Link
-              to="/live"
+                </Link>
+                <Link
+                  to="/live"
                   className={buttonVariants({
                     size: "lg",
                     variant: "outline",
-                    className: "border-white/20 bg-white/10 text-white hover:bg-white/15",
+                    className: "w-full border-white/20 bg-white/10 text-white hover:bg-white/15 sm:w-auto",
                   })}
-            >
-              Watch Live
-            </Link>
+                >
+                  Watch Live
+                </Link>
               </div>
             </div>
 
-            <Card className="border-white/10 bg-white/8 text-white shadow-[0_30px_80px_-40px_rgba(10,5,5,0.75)]">
-              <CardContent className="p-5 sm:p-6">
-                <p className="text-xs uppercase tracking-[0.28em] text-[#f1d2a4]">Sunday Experience</p>
-                <h2 className="mt-4 font-serif text-3xl font-semibold text-white sm:text-4xl">
-                  Come expectant. Leave strengthened.
-                </h2>
-                <div className="mt-6 grid gap-4 sm:mt-8">
-                  {[
-                    "Passionate worship and practical preaching",
-                    "Prayer support and meaningful community",
-                    "Clear next steps for kids, youth, and families",
-                  ].map((item) => (
-                    <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
-                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[#f1d2a4]" />
-                      <p className="text-sm leading-6 text-[#f7ebe4]">{item}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:mt-8 sm:flex-row sm:items-center sm:justify-between">
+            <Card className="relative overflow-hidden border-white/15 bg-[var(--surface-inverse)] shadow-[0_30px_80px_-40px_rgba(10,5,5,0.75)]">
+              <div className="relative aspect-[16/10] min-h-52 w-full lg:aspect-auto lg:h-[34rem]">
+                <img
+                  src="/bg-img.jpg"
+                  alt="Powerhouse Church congregation worshipping together"
+                  className="absolute inset-0 size-full object-cover object-center"
+                  loading="eager"
+                  fetchPriority="high"
+                />
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-[#1b100f] via-[#1b100f]/10 to-transparent"
+                  aria-hidden="true"
+                />
+              </div>
+              <CardContent className="absolute inset-x-0 bottom-0 p-3 sm:p-5">
+                <div className="flex items-end justify-between gap-2 rounded-2xl border border-white/15 bg-[#1b100f]/80 p-3 backdrop-blur-md sm:gap-3 sm:p-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-[#f1d2a4]">This week</p>
-                    <p className="mt-1 text-lg font-semibold text-white">
-                     { settings["service.sunday1"] ?? "9:00 AM"}
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--inverse-accent)] sm:text-xs sm:tracking-[0.22em]">
+                      <span className="sm:hidden">Sunday</span>
+                      <span className="hidden sm:inline">Join us Sunday</span>
+                    </p>
+                    <h2 className="mt-1 whitespace-nowrap font-serif text-lg font-semibold text-[var(--inverse)] sm:text-3xl">
+                      {serviceSchedule.sunday
+                        .map((service) => service.time)
+                        .join(" · ")}
+                    </h2>
+                    <p className="mt-1 hidden text-sm text-[var(--inverse-muted)] sm:block">
+                      Worship, practical preaching, and a place to belong.
                     </p>
                   </div>
-                  <Link to="/contact" className="text-sm font-semibold uppercase tracking-[0.12em] text-[#f7e3bf]">
-                    Get Directions
+                  <Link
+                    to="/contact"
+                    className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap text-xs font-semibold uppercase tracking-[0.08em] text-[var(--inverse-accent)] sm:text-sm sm:tracking-[0.12em]"
+                  >
+                    <span className="sm:hidden">Directions →</span>
+                    <span className="hidden sm:inline">Get Directions</span>
                   </Link>
                 </div>
               </CardContent>
@@ -172,7 +175,7 @@ export default function HomePage() {
           subtitle="Watch the newest preaching from Powerhouse Cell Celebration and carry the Word with you into the week ahead."
         />
         {latestCellCelebrationMessage ? (
-          <div className="mt-10">
+          <div className="mx-auto mt-10 max-w-6xl">
             <SermonCard
               id={latestCellCelebrationMessage.id}
               title={latestCellCelebrationMessage.title}
@@ -182,10 +185,11 @@ export default function HomePage() {
               thumbnail={latestCellCelebrationMessage.thumbnail}
               href={latestCellCelebrationMessage.url}
               external
+              featured
             />
           </div>
         ) : latestSermon ? (
-          <div className="mt-10">
+          <div className="mx-auto mt-10 max-w-6xl">
             <SermonCard
               id={latestSermon.id}
               title={latestSermon.title}
@@ -196,6 +200,7 @@ export default function HomePage() {
                 : latestSermon.date}
               thumbnail={latestSermon.thumbnail}
               tags={latestSermon.tags}
+              featured
             />
           </div>
         ) : (

@@ -7,7 +7,8 @@
 import { Link } from "react-router";
 
 import { Badge } from "~/components/ui/badge";
-import { Card } from "~/components/ui/card";
+import { Card, CardContent } from "~/components/ui/card";
+import { cn } from "~/lib/utils";
 
 interface SermonCardProps {
   id:         string;
@@ -19,6 +20,7 @@ interface SermonCardProps {
   tags?:      string; // comma-separated
   href?:      string;
   external?:  boolean;
+  featured?:  boolean;
 }
 
 const SERIES_GRADIENTS = [
@@ -38,6 +40,7 @@ export function SermonCard({
   tags,
   href,
   external = false,
+  featured = false,
 }: SermonCardProps) {
   const tagList = tags
     ? tags.split(",").map((t) => t.trim()).filter(Boolean)
@@ -55,8 +58,19 @@ export function SermonCard({
   const gradient = SERIES_GRADIENTS[gradientIndex];
   const cardLabel = `Listen to preaching: ${title} by ${speaker}, ${formattedDate}`;
   const cardContent = (
-    <Card className="overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]">
-      <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+    <Card
+      className={cn(
+        "overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_28px_70px_-38px_rgba(53,25,16,0.5)]",
+        featured &&
+          "lg:grid lg:min-h-[28rem] lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]",
+      )}
+    >
+      <div
+        className={cn(
+          "relative aspect-video w-full",
+          featured && "lg:aspect-auto lg:min-h-[28rem]",
+        )}
+      >
         {thumbnail ? (
           <img
             src={thumbnail}
@@ -96,8 +110,23 @@ export function SermonCard({
         </div>
       </div>
 
-      <div className="p-5">
-        <h3 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-[var(--primary)]">
+      <CardContent
+        className={cn(
+          "p-5",
+          featured && "flex flex-col justify-center sm:p-8 lg:p-10",
+        )}
+      >
+        {featured ? (
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--primary)]">
+            Latest message
+          </p>
+        ) : null}
+        <h3
+          className={cn(
+            "line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-[var(--primary)]",
+            featured && "sm:text-4xl",
+          )}
+        >
           {title}
         </h3>
 
@@ -114,7 +143,13 @@ export function SermonCard({
             ))}
           </div>
         )}
-      </div>
+        {featured ? (
+          <span className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
+            Watch message
+            <span className="ml-2" aria-hidden="true">→</span>
+          </span>
+        ) : null}
+      </CardContent>
     </Card>
   );
 
