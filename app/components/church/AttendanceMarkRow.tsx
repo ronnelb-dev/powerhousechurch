@@ -6,8 +6,8 @@
 
 import { useFetcher } from "react-router";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 
 interface AttendanceMarkRowProps {
   userId: string;
@@ -33,50 +33,69 @@ export function AttendanceMarkRow({
   onToggleSelect,
 }: AttendanceMarkRowProps) {
   const fetcher = useFetcher();
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const seenResultsRef = useRef(new WeakSet<object>());
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const isPending = fetcher.state !== "idle";
 
   // Optimistic status — show the value the user just submitted immediately
-  const optimisticStatus: "PRESENT" | "ABSENT" | null = fetcher.formData
-    ? (fetcher.formData.get("status") as "PRESENT" | "ABSENT")
-    : currentStatus;
+  const pendingIntent = String(fetcher.formData?.get("intent") ?? "");
+  const pendingStatus = String(fetcher.formData?.get("status") ?? "");
+  const optimisticStatus: "PRESENT" | "ABSENT" | null =
+    pendingIntent === "clearAttendance"
+      ? null
+      : pendingStatus === "PRESENT" || pendingStatus === "ABSENT"
+        ? pendingStatus
+        : currentStatus;
 
   const initials = (firstName[0] ?? "") + (lastName[0] ?? "");
 
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+    if (fetcher.state !== "idle") {
+      if (fetcher.data && typeof fetcher.data === "object") {
+        seenResultsRef.current.delete(fetcher.data);
+      }
+      return;
+    }
+    if (!fetcher.data || typeof fetcher.data !== "object") {
       return;
     }
 
     const data = fetcher.data as {
+      ok?: boolean;
       error?: string;
-      success?: string | boolean;
-      status?: "PRESENT" | "ABSENT";
+      message?: string;
+      status?: "PRESENT" | "ABSENT" | null;
+      affectedIds?: string[];
     };
     const message =
       data.error ??
-      (data.status
+      (data.ok && data.status
         ? `${firstName} ${lastName} marked ${data.status === "PRESENT" ? "present" : "absent"}.`
-        : typeof data.success === "string"
-          ? data.success
+        : data.ok && data.status === null && data.affectedIds?.includes(userId)
+          ? `${firstName} ${lastName} returned to unmarked.`
+          : data.message
+            ? data.message
           : null);
 
-    if (!message || lastToastRef.current === message) {
+    if (!message || seenResultsRef.current.has(fetcher.data)) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: data.error ? "error" : "success",
-      message,
-    });
-
-    if (!data.error && data.status) {
-      setSavedMessage(`Saved ${data.status === "PRESENT" ? "present" : "absent"}`);
+    seenResultsRef.current.add(fetcher.data);
+    if (data.ok) {
+      toast.success(message, { role: "status" });
+    } else {
+      toast.error(message, { autoClose: 6000, role: "alert" });
     }
-  }, [fetcher.data, fetcher.state, firstName, lastName, showToast]);
+
+    if (data.ok) {
+      setSavedMessage(
+        data.status
+          ? `Saved ${data.status === "PRESENT" ? "present" : "absent"}`
+          : "Saved unmarked",
+      );
+    }
+  }, [fetcher.data, fetcher.state, firstName, lastName, userId]);
 
   useEffect(() => {
     if (!savedMessage) return;
@@ -87,7 +106,7 @@ export function AttendanceMarkRow({
   return (
     <li className="border-b border-gray-100 px-3 py-3 transition-colors last:border-b-0 hover:bg-gray-50 sm:px-4 sm:py-3.5">
       <div className="flex items-start gap-3">
-        <label className="mt-1 shrink-0 cursor-pointer">
+        <label className="-ml-2 -mt-1 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-start justify-center pt-2">
           <input
             type="checkbox"
             checked={selected}
@@ -110,13 +129,29 @@ export function AttendanceMarkRow({
             {firstName} {lastName}
           </p>
           {optimisticStatus && (
-            <p
-              className={`mt-1 font-sans text-[11px] font-bold uppercase tracking-[0.08em] sm:text-xs ${
-                optimisticStatus === "PRESENT" ? "text-green-600" : "text-red-500"
-              }`}
-            >
-              {optimisticStatus === "PRESENT" ? "Present" : "Absent"}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p
+                className={`font-sans text-[11px] font-bold uppercase tracking-[0.08em] sm:text-xs ${
+                  optimisticStatus === "PRESENT" ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                {optimisticStatus === "PRESENT" ? "Present" : "Absent"}
+              </p>
+              <fetcher.Form method="post" action="/portal/attendance">
+                <input type="hidden" name="intent" value="clearAttendance" />
+                <input type="hidden" name="userId" value={userId} />
+                <input type="hidden" name="date" value={date} />
+                <input type="hidden" name="type" value={type} />
+                <button
+                  type="submit"
+                  disabled={disabled || isPending}
+                  className="min-h-11 rounded-md px-2 text-[11px] font-sans font-bold text-gray-500 underline decoration-gray-300 underline-offset-2 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={`Return ${firstName} ${lastName} to unmarked`}
+                >
+                  {pendingIntent === "clearAttendance" ? "Clearing…" : "Undo mark"}
+                </button>
+              </fetcher.Form>
+            </div>
           )}
           {savedMessage ? (
             <p
@@ -143,7 +178,7 @@ export function AttendanceMarkRow({
           type="submit"
           name="status"
           value="PRESENT"
-          disabled={disabled}
+          disabled={disabled || isPending}
           isPending={isPending && optimisticStatus === "PRESENT"}
           pendingText="Saving"
           aria-pressed={optimisticStatus === "PRESENT"}
@@ -166,7 +201,7 @@ export function AttendanceMarkRow({
           type="submit"
           name="status"
           value="ABSENT"
-          disabled={disabled}
+          disabled={disabled || isPending}
           isPending={isPending && optimisticStatus === "ABSENT"}
           pendingText="Saving"
           aria-pressed={optimisticStatus === "ABSENT"}

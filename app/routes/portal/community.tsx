@@ -25,8 +25,8 @@ import {
   portalButtonClasses,
 } from "~/components/ui/Portal";
 import { Sheet } from "~/components/ui/sheet";
-import { useToast } from "~/components/ui/ToastProvider";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 
 export const meta: MetaFunction = () => [
   { title: "Community — Powerhouse Church Portal" },
@@ -220,8 +220,7 @@ export default function CommunityPage() {
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const lastActionDataRef = useRef<object | null>(null);
   const [showComposer, setShowComposer] = useState(false);
   const isPosting  = navigation.state === "submitting" &&
     navigation.formData?.get("intent") === "createPost";
@@ -233,11 +232,25 @@ export default function CommunityPage() {
     : [];
 
   useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastActionDataRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
     if (!actionData || typeof actionData !== "object") {
       return;
     }
 
-    if (("error" in actionData && actionData.error) || isPosting) {
+    if (isPosting) {
+      setShowComposer(true);
+    }
+
+    if (navigation.state !== "idle") {
+      return;
+    }
+
+    if ("error" in actionData && actionData.error) {
       setShowComposer(true);
     }
 
@@ -252,16 +265,17 @@ export default function CommunityPage() {
         ? actionData.success
         : null;
 
-    if (!message || lastToastRef.current === message) {
+    if (!message || lastActionDataRef.current === actionData) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: "error" in actionData && actionData.error ? "error" : "success",
-      message,
-    });
-  }, [actionData, showToast]);
+    lastActionDataRef.current = actionData;
+    if ("error" in actionData && actionData.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [actionData, isPosting, navigation.state]);
 
   return (
     <PortalPage className="max-w-2xl">

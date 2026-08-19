@@ -9,7 +9,9 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { db } from "~/lib/db.server";
 import { requireUser } from "~/lib/auth.server";
 import {
@@ -624,6 +626,44 @@ export default function CareQueuePage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const lastFeedbackRef = useRef<object | null>(null);
+  const feedback =
+    actionData && typeof actionData === "object" && ("success" in actionData || "error" in actionData)
+      ? actionData
+      : null;
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastFeedbackRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !feedback ||
+      lastFeedbackRef.current === feedback
+    ) {
+      return;
+    }
+
+    const message =
+      "error" in feedback && feedback.error
+        ? feedback.error
+        : "success" in feedback
+          ? feedback.success
+          : null;
+    if (!message) {
+      return;
+    }
+
+    lastFeedbackRef.current = feedback;
+    if ("error" in feedback && feedback.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [feedback, navigation.state]);
 
   const clearParams = new URLSearchParams();
   if (user.role === "ADMIN" && filters.bucket === "archive") {
@@ -751,23 +791,6 @@ export default function CareQueuePage() {
           </div>
         </div>
       </Form>
-
-      {actionData && typeof actionData === "object" && ("success" in actionData || "error" in actionData) ? (
-        <div
-          role="status"
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm font-sans ${
-            "error" in actionData && actionData.error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
-          }`}
-        >
-          {"error" in actionData && actionData.error
-            ? actionData.error
-            : "success" in actionData
-            ? actionData.success
-            : null}
-        </div>
-      ) : null}
 
       {isSubmitting ? (
         <p className="mb-4 text-sm font-sans text-gray-400">Saving changes…</p>

@@ -21,6 +21,13 @@ import {
   PortalSectionHeading,
   portalButtonClasses,
 } from "~/components/ui/Portal";
+import {
+  calendarDateToUtc,
+  getChurchCalendarDate,
+  getMostRecentSundayDate,
+  getRecentSundayDates,
+  utcDateToCalendarDate,
+} from "~/lib/calendar-date";
 
 export const meta: MetaFunction = () => [
   { title: "Dashboard — Powerhouse Church Portal" },
@@ -34,10 +41,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let attendanceSummary = null;
   let needsCare: Awaited<ReturnType<typeof getMembersNeedingCare>> = [];
   let recentAttendance: HeatmapCell[] = [];
-  const last12 = user.cellGroupId ? getLast12Sundays() : [];
+  const churchToday = getChurchCalendarDate();
+  const last12 = user.cellGroupId
+    ? getRecentSundayDates(12, churchToday)
+        .reverse()
+        .map(calendarDateToUtc)
+    : [];
   const thisSunday =
     user.cellGroupId && (user.role === "CELL_LEADER" || user.role === "ADMIN")
-      ? getMostRecentSunday()
+      ? calendarDateToUtc(getMostRecentSundayDate(churchToday))
       : null;
 
   const [
@@ -130,16 +142,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const recordMap = new Map(
       recentAttendanceRecords.map((r) => [
         r.date instanceof Date
-          ? r.date.toISOString().slice(0, 10)
+          ? utcDateToCalendarDate(r.date)
           : String(r.date).slice(0, 10),
         r.status,
       ])
     );
-    const now = new Date();
     recentAttendance = last12.map((date) => {
-      const key = date.toISOString().slice(0, 10);
+      const key = utcDateToCalendarDate(date);
       const status = recordMap.get(key);
-      const isFuture = date > now;
+      const isFuture = key > churchToday;
       return {
         date: key,
         status: isFuture
@@ -164,6 +175,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     attendanceSummary,
     needsCare,
     recentAttendance,
+    churchToday,
     engagementSummary: {
       prayerRequestCount,
       savedSermonCount,
@@ -178,25 +190,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       : null,
   };
-}
-
-function getMostRecentSunday(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay()); // 0 = Sunday
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function getLast12Sundays(): Date[] {
-  const sundays: Date[] = [];
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  d.setHours(0, 0, 0, 0);
-  for (let i = 0; i < 12; i++) {
-    sundays.unshift(new Date(d));
-    d.setDate(d.getDate() - 7);
-  }
-  return sundays;
 }
 
 function MetricCard({
@@ -281,7 +274,7 @@ function QuickActionCard({
 export default function DashboardPage() {
   const {
     user, cellGroup, memberCount, attendanceSummary,
-    needsCare, recentAttendance, latestSermon, engagementSummary,
+    needsCare, recentAttendance, latestSermon, engagementSummary, churchToday,
   } = useLoaderData<typeof loader>();
 
   const isCellLeaderOrAdmin = user.role === "CELL_LEADER" || user.role === "ADMIN";
@@ -333,8 +326,12 @@ export default function DashboardPage() {
             ? `${memberCount} members connected in your current group.`
             : "Once assigned, your group updates and attendance rhythms will appear here.",
         };
-  const today = new Date().toLocaleDateString("en-PH", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  const today = calendarDateToUtc(churchToday).toLocaleDateString("en-PH", {
+    timeZone: "UTC",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
   const sermonHasGuide = Boolean(
     latestSermon?.weeklyGuide || latestSermon?.reflectionPrompts,

@@ -8,7 +8,9 @@ import {
   useRouteError,
   type ActionFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { db } from "~/lib/db.server";
 import { PageHero } from "~/components/ui/PageHero";
@@ -85,6 +87,28 @@ export default function CellGroupsPage() {
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const lastSuccessRef = useRef<object | null>(null);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastSuccessRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData?.success ||
+      lastSuccessRef.current === actionData
+    ) {
+      return;
+    }
+
+    lastSuccessRef.current = actionData;
+    toast.success("Request sent! Your cell leader will reach out soon.", {
+      role: "status",
+    });
+  }, [actionData, navigation.state]);
 
   return (
     <>
@@ -132,49 +156,42 @@ export default function CellGroupsPage() {
                   </p>
                 </div>
 
-                {actionData?.success ? (
-                  <p className="text-xs font-sans font-bold text-green-600"
-                     aria-live="polite">
-                    ✓ Request sent! Your cell leader will reach out soon.
-                  </p>
-                ) : (
-                  <details className="group">
-                    <summary
-                      className="text-xs font-sans font-bold text-red-700
-                                 cursor-pointer hover:text-red-900 transition-colors
-                                 focus:outline-none focus:underline list-none"
-                    >
-                      Request to join →
-                    </summary>
-                    <div className="mt-4 space-y-3">
-                      <Form method="post">
-                        <input type="hidden" name="cellGroupId" value={group.id} />
-                        <input
-                          type="text" name="name" placeholder="Your name"
-                          required className={`${inputClass} mb-2`}
-                        />
-                        <input
-                          type="tel" name="phone" placeholder="Your phone number"
-                          required className={`${inputClass} mb-2`}
-                        />
-                        <textarea
-                          name="message" placeholder="Anything you'd like them to know (optional)"
-                          rows={2} maxLength={500}
-                          className={`${inputClass} resize-none mb-3`}
-                        />
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="w-full py-2.5 bg-red-700 text-white font-sans
-                                     font-bold text-xs rounded-lg hover:bg-red-800
-                                     disabled:opacity-60 transition-all"
-                        >
-                          {isSubmitting ? "Sending…" : "Send Request"}
-                        </button>
-                      </Form>
-                    </div>
-                  </details>
-                )}
+                <details className="group">
+                  <summary
+                    className="text-xs font-sans font-bold text-red-700
+                               cursor-pointer hover:text-red-900 transition-colors
+                               focus:outline-none focus:underline list-none"
+                  >
+                    Request to join →
+                  </summary>
+                  <div className="mt-4 space-y-3">
+                    <Form method="post">
+                      <input type="hidden" name="cellGroupId" value={group.id} />
+                      <input
+                        type="text" name="name" placeholder="Your name"
+                        required className={`${inputClass} mb-2`}
+                      />
+                      <input
+                        type="tel" name="phone" placeholder="Your phone number"
+                        required className={`${inputClass} mb-2`}
+                      />
+                      <textarea
+                        name="message" placeholder="Anything you'd like them to know (optional)"
+                        rows={2} maxLength={500}
+                        className={`${inputClass} resize-none mb-3`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-2.5 bg-red-700 text-white font-sans
+                                   font-bold text-xs rounded-lg hover:bg-red-800
+                                   disabled:opacity-60 transition-all"
+                      >
+                        {isSubmitting ? "Sending…" : "Send Request"}
+                      </button>
+                    </Form>
+                  </div>
+                </details>
               </div>
             ))}
           </div>

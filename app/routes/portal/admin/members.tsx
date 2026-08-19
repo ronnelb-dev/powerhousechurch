@@ -2,6 +2,7 @@
 // Admin member management with bulk reassignment, attendance marking, and CSV export.
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import {
   useLoaderData,
   useFetcher,
@@ -17,10 +18,16 @@ import {
 import type { MetaFunction } from "react-router";
 import type { Prisma } from "@prisma/client";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { getChurchCalendarDate } from "~/lib/calendar-date";
+import {
+  resolveAttendanceMembers,
+  updateAttendanceRecords,
+} from "~/lib/attendance.server";
+import { BulkMarkAttendanceSchema } from "~/lib/schemas.server";
+import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Manage Members — Admin" },
@@ -126,6 +133,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       cellGroupId,
       activeStatus,
     },
+    churchToday: getChurchCalendarDate(),
   };
 }
 
@@ -185,63 +193,56 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (intent === "bulkMarkPresent") {
-    const selectedUserIds = getSelectedUserIds(formData);
-    const date = String(formData.get("attendanceDate") ?? "");
-    const type = String(formData.get("attendanceType") ?? "SUNDAY_SERVICE");
-
-    if (selectedUserIds.length === 0) {
-      return { error: "Select at least one member first." };
+    const parsed = BulkMarkAttendanceSchema.safeParse({
+      intent,
+      date: String(formData.get("attendanceDate") ?? ""),
+      type: String(formData.get("attendanceType") ?? ""),
+      userIds: formData.getAll("selectedUserIds").map(String),
+    });
+    if (!parsed.success) {
+      return {
+        error: parsed.error.issues[0]?.message ?? "Invalid attendance request.",
+      };
     }
-
-    if (!["SUNDAY_SERVICE", "CELL_GROUP"].includes(type)) {
-      return { error: "Invalid attendance type." };
-    }
-
-    const selectedDate = new Date(`${date}T00:00:00`);
-    if (!date || Number.isNaN(selectedDate.getTime())) {
-      return { error: "Choose a valid attendance date." };
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate > today) {
+    if (parsed.data.date > getChurchCalendarDate()) {
       return { error: "Cannot mark attendance for a future date." };
     }
 
-    const members = await db.user.findMany({
-      where: { id: { in: selectedUserIds } },
-      select: { id: true, cellGroupId: true },
+    const members = await resolveAttendanceMembers({
+      actor: user,
+      userIds: parsed.data.userIds,
+      adminMembersOnly: false,
     });
-
-    if (members.length !== selectedUserIds.length) {
-      return { error: "Some selected members could not be found." };
+    if (!members) {
+      return { error: "Some selected members are unavailable or inactive." };
     }
 
-    await db.$transaction(
-      members.map((member) =>
-        db.attendance.upsert({
-          where: {
-            userId_type_date: {
-              userId: member.id,
-              type,
-              date: selectedDate,
-            },
-          },
-          update: {
-            status: "PRESENT",
-            markedById: user.id,
-          },
-          create: {
-            userId: member.id,
-            type,
-            status: "PRESENT",
-            date: selectedDate,
-            markedById: user.id,
-            cellGroupId: member.cellGroupId ?? undefined,
-          },
-        }),
-      ),
-    );
+    const result = await updateAttendanceRecords({
+      actorId: user.id,
+      members,
+      date: parsed.data.date,
+      type: parsed.data.type,
+      status: "PRESENT",
+      atomic: true,
+    });
+
+    await recordAdminAuditEvent({
+      request,
+      actorId: user.id,
+      actorRole: user.role,
+      action: "attendance.mark.bulk",
+      entityType: "attendance",
+      entityId: `${parsed.data.type}:${parsed.data.date}:admin-members`,
+      summary: `Marked ${members.length} members present for ${parsed.data.date}`,
+      details: {
+        memberIds: result.affectedIds,
+        attendanceType: parsed.data.type,
+        date: parsed.data.date,
+        previousStatuses: result.previousStatuses,
+        nextStatus: "PRESENT",
+        source: "admin-members",
+      },
+    });
 
     return {
       success: `Marked ${members.length} member${members.length === 1 ? "" : "s"} present.`,
@@ -324,11 +325,16 @@ function MemberRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   const fetcher = useFetcher();
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const seenResultsRef = useRef(new WeakSet<object>());
 
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+    if (fetcher.state !== "idle") {
+      if (fetcher.data && typeof fetcher.data === "object") {
+        seenResultsRef.current.delete(fetcher.data);
+      }
+      return;
+    }
+    if (!fetcher.data || typeof fetcher.data !== "object") {
       return;
     }
 
@@ -339,16 +345,17 @@ function MemberRow({
         ? fetcher.data.success
         : null;
 
-    if (!message || lastToastRef.current === message) {
+    if (!message || seenResultsRef.current.has(fetcher.data)) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
-      message,
-    });
-  }, [fetcher.data, fetcher.state, showToast]);
+    seenResultsRef.current.add(fetcher.data);
+    if ("error" in fetcher.data && fetcher.data.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [fetcher.data, fetcher.state]);
 
   return (
     <tr
@@ -493,11 +500,16 @@ function MemberMobileCard({
   onCheckedChange: (checked: boolean) => void;
 }) {
   const fetcher = useFetcher();
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const seenResultsRef = useRef(new WeakSet<object>());
 
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+    if (fetcher.state !== "idle") {
+      if (fetcher.data && typeof fetcher.data === "object") {
+        seenResultsRef.current.delete(fetcher.data);
+      }
+      return;
+    }
+    if (!fetcher.data || typeof fetcher.data !== "object") {
       return;
     }
 
@@ -508,16 +520,17 @@ function MemberMobileCard({
         ? fetcher.data.success
         : null;
 
-    if (!message || lastToastRef.current === message) {
+    if (!message || seenResultsRef.current.has(fetcher.data)) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
-      message,
-    });
-  }, [fetcher.data, fetcher.state, showToast]);
+    seenResultsRef.current.add(fetcher.data);
+    if ("error" in fetcher.data && fetcher.data.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [fetcher.data, fetcher.state]);
 
   return (
     <article
@@ -669,7 +682,7 @@ function MemberMobileCard({
 }
 
 export default function AdminMembersPage() {
-  const { members, total, page, totalPages, cellGroups, filters } =
+  const { members, total, page, totalPages, cellGroups, filters, churchToday } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -678,14 +691,13 @@ export default function AdminMembersPage() {
     actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
       ? actionData
       : null;
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const lastFeedbackRef = useRef<object | null>(null);
 
   const isSubmitting = navigation.state === "submitting";
   const allOnPageSelected =
     members.length > 0 && members.every((member) => selectedIds.includes(member.id));
   const selectedCount = selectedIds.length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = churchToday;
 
   const query = new URLSearchParams();
   if (filters.search) query.set("search", filters.search);
@@ -703,17 +715,28 @@ export default function AdminMembersPage() {
   }
 
   useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastFeedbackRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
     const message = feedback?.error ?? feedback?.success ?? null;
-    if (!message || lastToastRef.current === message) {
+    if (
+      navigation.state !== "idle" ||
+      !message ||
+      lastFeedbackRef.current === feedback
+    ) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: feedback?.error ? "error" : "success",
-      message,
-    });
-  }, [feedback, showToast]);
+    lastFeedbackRef.current = feedback;
+    if (feedback?.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [feedback, navigation.state]);
 
   return (
     <div>

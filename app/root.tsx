@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ToastContainer } from "react-toastify";
 import {
   isRouteErrorResponse,
   Links,
@@ -14,8 +15,8 @@ import {
 import type { Route } from "./+types/root";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { RouteLoadingSkeleton } from "./components/ui/RouteLoadingSkeleton";
-import { ToastProvider } from "./components/ui/ToastProvider";
 import { getSettings } from "./lib/settings.server";
+import "react-toastify/dist/ReactToastify.css";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -122,7 +123,7 @@ export default function App() {
   }, [isLoading]);
 
   return (
-    <ToastProvider>
+    <>
       <Outlet />
       <RouteLoadingSkeleton
         isLoading={isLoading && shouldShowSkeleton}
@@ -130,7 +131,29 @@ export default function App() {
         label={isContentNavigation ? "Loading page" : "Loading content"}
       />
       <LoadingSpinner isLoading={isLoading && shouldShowSpinner} label="Processing" />
-    </ToastProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar
+        newestOnTop
+        closeOnClick={false}
+        pauseOnFocusLoss
+        pauseOnHover
+        draggable="touch"
+        limit={3}
+        theme="light"
+        aria-label="Notifications"
+        closeButton={({ closeToast }) => (
+          <button
+            type="button"
+            onClick={closeToast}
+            aria-label="Dismiss notification"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        )}
+      />
+    </>
   );
 }
 

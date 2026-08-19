@@ -9,7 +9,9 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
@@ -366,16 +368,11 @@ function SectionMessage({
   intent: string;
 }) {
   if (!actionData || actionData.intent !== intent) return null;
-
-  const tone = actionData.success
-    ? "border-green-200 bg-green-50 text-green-700"
-    : "border-red-200 bg-red-50 text-red-700";
+  if (actionData.success) return null;
 
   return (
-    <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-sans ${tone}`}>
-      {actionData.success
-        ? actionData.message
-        : actionData.message ?? "Please review the form and try again."}
+    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-sans text-red-700">
+      {actionData.message ?? "Please review the form and try again."}
     </div>
   );
 }
@@ -406,6 +403,26 @@ export default function EngagementPage() {
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const lastSuccessRef = useRef<object | null>(null);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastSuccessRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData?.success ||
+      lastSuccessRef.current === actionData
+    ) {
+      return;
+    }
+
+    lastSuccessRef.current = actionData;
+    toast.success(actionData.message, { role: "status" });
+  }, [actionData, navigation.state]);
 
   const prayerErrors: Record<string, string[] | undefined> =
     actionData?.success === false && actionData.intent === "submitPrayerRequest"

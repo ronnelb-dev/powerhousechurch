@@ -9,11 +9,11 @@ import {
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
@@ -516,18 +516,17 @@ function EventFormModal({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const fetcher = useFetcher<EventActionData>();
-  const { showToast } = useToast();
   const isSubmitting = fetcher.state !== "idle";
   const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
       if (fetcher.data.message) {
-        showToast({ tone: "success", message: fetcher.data.message });
+        toast.success(fetcher.data.message, { role: "status" });
       }
       onClose();
     }
-  }, [fetcher.state, fetcher.data, onClose, showToast]);
+  }, [fetcher.state, fetcher.data, onClose]);
 
   useFocusFirstInvalidField({
     formRef,
@@ -860,7 +859,7 @@ function AdminEventCard({
   const deleteFetcher = useFetcher<EventActionData>();
   const toggleFetcher = useFetcher<EventActionData>();
   const reminderFetcher = useFetcher<EventActionData>();
-  const { showToast } = useToast();
+  const seenResultsRef = useRef(new WeakSet<object>());
   const isPast = new Date(event.startDate) < new Date();
   const seatsLeft =
     typeof event.capacity === "number"
@@ -873,15 +872,22 @@ function AdminEventCard({
   useEffect(() => {
     const fetchers = [deleteFetcher, toggleFetcher, reminderFetcher];
     for (const fetcher of fetchers) {
-      if (fetcher.state !== "idle" || !fetcher.data) continue;
+      if (fetcher.state !== "idle") {
+        if (fetcher.data) seenResultsRef.current.delete(fetcher.data);
+        continue;
+      }
+      if (!fetcher.data) continue;
+      if (seenResultsRef.current.has(fetcher.data)) continue;
+      seenResultsRef.current.add(fetcher.data);
       const message = fetcher.data.message ?? fetcher.data.formError;
       if (!message) continue;
-      showToast({
-        tone: fetcher.data.success ? "success" : "error",
-        message,
-      });
+      if (fetcher.data.success) {
+        toast.success(message, { role: "status" });
+      } else {
+        toast.error(message, { autoClose: 6000, role: "alert" });
+      }
     }
-  }, [deleteFetcher, toggleFetcher, reminderFetcher, showToast]);
+  }, [deleteFetcher, toggleFetcher, reminderFetcher]);
 
   return (
     <div
@@ -1046,7 +1052,7 @@ function RegistrationRow({
   registration: AdminRegistration;
 }) {
   const actionFetcher = useFetcher<EventActionData>();
-  const { showToast } = useToast();
+  const seenResultRef = useRef<object | null>(null);
   const isSubmitting = actionFetcher.state !== "idle";
   const checkedInAt = registration.checkedInAt
     ? new Date(registration.checkedInAt).toLocaleString("en-PH", {
@@ -1058,7 +1064,11 @@ function RegistrationRow({
     : null;
 
   useEffect(() => {
-    if (actionFetcher.state !== "idle" || !actionFetcher.data) {
+    if (actionFetcher.state !== "idle") {
+      seenResultRef.current = null;
+      return;
+    }
+    if (!actionFetcher.data) {
       return;
     }
 
@@ -1067,11 +1077,17 @@ function RegistrationRow({
       return;
     }
 
-    showToast({
-      tone: actionFetcher.data.success ? "success" : "error",
-      message,
-    });
-  }, [actionFetcher.data, actionFetcher.state, showToast]);
+    if (seenResultRef.current === actionFetcher.data) {
+      return;
+    }
+    seenResultRef.current = actionFetcher.data;
+
+    if (actionFetcher.data.success) {
+      toast.success(message, { role: "status" });
+    } else {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    }
+  }, [actionFetcher.data, actionFetcher.state]);
 
   return (
     <div className="px-4 py-4">

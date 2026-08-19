@@ -3,6 +3,7 @@
 // Changes take effect immediately — no restart required.
 
 import { useEffect, useRef } from "react";
+import { toast } from "react-toastify";
 import {
   useLoaderData,
   Form,
@@ -13,7 +14,6 @@ import {
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
@@ -178,25 +178,33 @@ export default function AdminSettingsPage() {
   const actionData   = useActionData<typeof action>();
   const navigation   = useNavigation();
   const isSaving     = navigation.state === "submitting";
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const lastActionDataRef = useRef<object | null>(null);
 
   useEffect(() => {
-    if (!actionData?.success || !actionData.message) {
+    if (navigation.state === "submitting") {
+      lastActionDataRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData?.success ||
+      !actionData.message
+    ) {
       return;
     }
 
-    if (lastToastRef.current === actionData.message) {
+    if (lastActionDataRef.current === actionData) {
       return;
     }
 
-    lastToastRef.current = actionData.message;
-    showToast({
-      tone: "success",
-      title: "Settings updated",
-      message: actionData.message,
+    lastActionDataRef.current = actionData;
+    toast.success(actionData.message, {
+      ariaLabel: "Settings updated",
+      role: "status",
     });
-  }, [actionData, showToast]);
+  }, [actionData, navigation.state]);
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-2xl">

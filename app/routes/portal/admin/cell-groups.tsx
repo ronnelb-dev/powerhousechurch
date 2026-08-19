@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
@@ -290,6 +291,7 @@ function CellGroupEditor({
 }) {
   const updateFetcher = useFetcher<CellGroupActionData>();
   const deleteFetcher = useFetcher<CellGroupActionData>();
+  const seenResultsRef = useRef(new WeakSet<object>());
 
   const updateErrors =
     updateFetcher.data &&
@@ -302,6 +304,26 @@ function CellGroupEditor({
   const isSaving = updateFetcher.state !== "idle";
   const isDeleting = deleteFetcher.state !== "idle";
   const isMobile = layout === "mobile";
+
+  useEffect(() => {
+    for (const fetcher of [updateFetcher, deleteFetcher]) {
+      if (fetcher.state !== "idle") {
+        if (fetcher.data) seenResultsRef.current.delete(fetcher.data);
+        continue;
+      }
+      if (!fetcher.data?.ok || seenResultsRef.current.has(fetcher.data)) {
+        continue;
+      }
+
+      seenResultsRef.current.add(fetcher.data);
+      toast.success(
+        fetcher.data.intent === "delete"
+          ? "Cell group deleted."
+          : "Cell group updated.",
+        { role: "status" },
+      );
+    }
+  }, [deleteFetcher, updateFetcher]);
 
   return (
     <div className="space-y-3">
@@ -417,9 +439,6 @@ function CellGroupEditor({
 
         {updateFetcher.data && !updateFetcher.data.ok && updateFetcher.data.formError ? (
           <p className="text-xs font-sans text-red-600">{updateFetcher.data.formError}</p>
-        ) : null}
-        {updateFetcher.data?.ok && updateFetcher.data.cellGroupId === cellGroup.id ? (
-          <p className="text-xs font-sans text-green-600">Cell group updated.</p>
         ) : null}
         {deleteFetcher.data && !deleteFetcher.data.ok && deleteFetcher.data.formError ? (
           <p className="text-xs font-sans text-red-600">{deleteFetcher.data.formError}</p>
@@ -539,14 +558,26 @@ export default function AdminCellGroupsPage() {
   const { cellGroups, leaders } = useLoaderData<typeof loader>();
   const createFetcher = useFetcher<CellGroupActionData>();
   const createFormRef = useRef<HTMLFormElement>(null);
+  const seenCreateResultRef = useRef<object | null>(null);
   const createErrors =
     createFetcher.data && !createFetcher.data.ok && createFetcher.data.intent === "create"
       ? createFetcher.data.errors
       : undefined;
 
   useEffect(() => {
-    if (createFetcher.state === "idle" && createFetcher.data?.ok && createFetcher.data.intent === "create") {
+    if (createFetcher.state !== "idle") {
+      seenCreateResultRef.current = null;
+      return;
+    }
+    if (
+      createFetcher.state === "idle" &&
+      createFetcher.data?.ok &&
+      createFetcher.data.intent === "create" &&
+      seenCreateResultRef.current !== createFetcher.data
+    ) {
+      seenCreateResultRef.current = createFetcher.data;
       createFormRef.current?.reset();
+      toast.success("Cell group created.", { role: "status" });
     }
   }, [createFetcher.state, createFetcher.data]);
 
@@ -675,9 +706,6 @@ export default function AdminCellGroupsPage() {
               >
                 {createFetcher.state !== "idle" ? "Creating..." : "Add Cell Group"}
               </button>
-              {createFetcher.data?.ok ? (
-                <p className="text-sm font-sans text-green-600">Cell group created.</p>
-              ) : null}
               {createFetcher.data && !createFetcher.data.ok && createFetcher.data.formError ? (
                 <p className="text-sm font-sans text-red-600">{createFetcher.data.formError}</p>
               ) : null}

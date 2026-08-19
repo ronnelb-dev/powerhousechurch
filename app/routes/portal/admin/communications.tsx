@@ -8,8 +8,10 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import { z } from "zod";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { EmptyState } from "~/components/ui/EmptyState";
 import {
   COMMUNICATION_AUDIENCE_TYPES,
@@ -184,6 +186,35 @@ export default function AdminCommunicationsPage() {
   const actionData = useActionData() as CommunicationsActionData | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const lastFeedbackRef = useRef<object | null>(null);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastFeedbackRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData ||
+      lastFeedbackRef.current === actionData
+    ) {
+      return;
+    }
+
+    const message = actionData.ok ? actionData.message : actionData.formError;
+    if (!message) {
+      return;
+    }
+
+    lastFeedbackRef.current = actionData;
+    if (actionData.ok) {
+      toast.success(message, { role: "status" });
+    } else {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    }
+  }, [actionData, navigation.state]);
 
   const selectedEvent = options.events.find(
     (event) => event.id === selectedAudience.audienceId,
@@ -373,18 +404,6 @@ export default function AdminCommunicationsPage() {
             Each recipient gets an individual email, so addresses stay private.
           </p>
         </div>
-
-        {actionData && typeof actionData === "object" ? (
-          actionData.ok ? (
-            <div className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {actionData.message}
-            </div>
-          ) : actionData.formError ? (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {actionData.formError}
-            </div>
-          ) : null
-        ) : null}
 
         <Form method="post" className="space-y-4">
           <input type="hidden" name="intent" value="send" />

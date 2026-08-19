@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
@@ -16,7 +17,6 @@ import { ensureSampleMinistries } from "~/lib/ministries.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Manage Ministries — Admin" }];
 
@@ -228,7 +228,7 @@ function MinistryRow({
 }) {
   const updateFetcher = useFetcher<MinistryActionData>();
   const deleteFetcher = useFetcher<MinistryActionData>();
-  const { showToast } = useToast();
+  const seenResultsRef = useRef(new WeakSet<object>());
 
   const updateErrors =
     updateFetcher.data &&
@@ -242,13 +242,31 @@ function MinistryRow({
   const isDeleting = deleteFetcher.state !== "idle";
 
   useEffect(() => {
-    if (updateFetcher.state === "idle" && updateFetcher.data?.ok && updateFetcher.data.ministryId === ministry.id) {
-      showToast({ tone: "success", message: "Ministry updated." });
+    if (updateFetcher.state !== "idle" && updateFetcher.data) {
+      seenResultsRef.current.delete(updateFetcher.data);
     }
-    if (deleteFetcher.state === "idle" && deleteFetcher.data?.ok && deleteFetcher.data.ministryId === ministry.id) {
-      showToast({ tone: "success", message: "Ministry deleted." });
+    if (deleteFetcher.state !== "idle" && deleteFetcher.data) {
+      seenResultsRef.current.delete(deleteFetcher.data);
     }
-  }, [deleteFetcher.data, deleteFetcher.state, ministry.id, showToast, updateFetcher.data, updateFetcher.state]);
+    if (
+      updateFetcher.state === "idle" &&
+      updateFetcher.data?.ok &&
+      updateFetcher.data.ministryId === ministry.id &&
+      !seenResultsRef.current.has(updateFetcher.data)
+    ) {
+      seenResultsRef.current.add(updateFetcher.data);
+      toast.success("Ministry updated.", { role: "status" });
+    }
+    if (
+      deleteFetcher.state === "idle" &&
+      deleteFetcher.data?.ok &&
+      deleteFetcher.data.ministryId === ministry.id &&
+      !seenResultsRef.current.has(deleteFetcher.data)
+    ) {
+      seenResultsRef.current.add(deleteFetcher.data);
+      toast.success("Ministry deleted.", { role: "status" });
+    }
+  }, [deleteFetcher.data, deleteFetcher.state, ministry.id, updateFetcher.data, updateFetcher.state]);
 
   return (
     <tr className="border-b border-gray-100 align-top">
@@ -435,7 +453,7 @@ export default function AdminMinistriesPage() {
   const { ministries } = useLoaderData<typeof loader>();
   const createFetcher = useFetcher<MinistryActionData>();
   const createFormRef = useRef<HTMLFormElement>(null);
-  const { showToast } = useToast();
+  const seenCreateResultRef = useRef<object | null>(null);
 
   const createErrors =
     createFetcher.data && !createFetcher.data.ok && createFetcher.data.intent === "create"
@@ -443,11 +461,21 @@ export default function AdminMinistriesPage() {
       : undefined;
 
   useEffect(() => {
-    if (createFetcher.state === "idle" && createFetcher.data?.ok && createFetcher.data.intent === "create") {
-      createFormRef.current?.reset();
-      showToast({ tone: "success", message: "Ministry created." });
+    if (createFetcher.state !== "idle") {
+      seenCreateResultRef.current = null;
+      return;
     }
-  }, [createFetcher.state, createFetcher.data, showToast]);
+    if (
+      createFetcher.state === "idle" &&
+      createFetcher.data?.ok &&
+      createFetcher.data.intent === "create" &&
+      seenCreateResultRef.current !== createFetcher.data
+    ) {
+      seenCreateResultRef.current = createFetcher.data;
+      createFormRef.current?.reset();
+      toast.success("Ministry created.", { role: "status" });
+    }
+  }, [createFetcher.state, createFetcher.data]);
 
   return (
     <div className="space-y-8">

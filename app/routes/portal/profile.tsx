@@ -9,8 +9,9 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { requireUser } from "~/lib/auth.server";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
@@ -198,6 +199,7 @@ export default function ProfilePage() {
   const navigation   = useNavigation();
   const profileFormRef = useRef<HTMLFormElement>(null);
   const passwordFormRef = useRef<HTMLFormElement>(null);
+  const lastSuccessRef = useRef<object | null>(null);
   const pendingIntent =
     navigation.state === "submitting"
       ? String(navigation.formData?.get("intent") ?? "")
@@ -213,6 +215,25 @@ export default function ProfilePage() {
     : {};
   const globalPasswordError = actionData?.success === false && "globalError" in actionData && actionData.intent === "changePassword"
     ? actionData.globalError : null;
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastSuccessRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData?.success ||
+      lastSuccessRef.current === actionData
+    ) {
+      return;
+    }
+
+    lastSuccessRef.current = actionData;
+    toast.success(actionData.message, { role: "status" });
+  }, [actionData, navigation.state]);
 
   const initials = (user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "");
   const joinDate = new Date(user.createdAt).toLocaleDateString("en-PH", {
@@ -271,18 +292,6 @@ export default function ProfilePage() {
           </p>
         </div>
       </PortalPanel>
-
-      {/* Success banner */}
-      {actionData?.success && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-6 px-5 py-3 bg-green-50 border border-green-200 rounded-xl
-                     text-sm font-sans font-bold text-green-700"
-        >
-          ✓ {actionData.message}
-        </div>
-      )}
 
       {/* Profile form */}
       <PortalSection className="mb-5">

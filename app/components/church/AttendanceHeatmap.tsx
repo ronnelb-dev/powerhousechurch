@@ -49,9 +49,9 @@ export function AttendanceHeatmap({ cells, label }: AttendanceHeatmapProps) {
       >
         {cells.map((cell) => {
           const { bg, label: statusLabel } = STATUS[cell.status];
-          const dateFormatted = new Date(cell.date + "T00:00:00").toLocaleDateString(
+          const dateFormatted = new Date(`${cell.date}T00:00:00.000Z`).toLocaleDateString(
             "en-PH",
-            { month: "short", day: "numeric" }
+            { timeZone: "UTC", month: "short", day: "numeric" }
           );
           return (
             <div

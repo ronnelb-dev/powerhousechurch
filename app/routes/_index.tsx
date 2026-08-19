@@ -12,6 +12,24 @@ import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
 import { getServiceSchedule } from "~/lib/service-times";
 
+const MISSION_STEPS = [
+  {
+    number: "01",
+    title: "Know Jesus",
+    body: "Encounter Christ through Scripture, worship, and prayer.",
+  },
+  {
+    number: "02",
+    title: "Find Family",
+    body: "Move from attending services to belonging in community.",
+  },
+  {
+    number: "03",
+    title: "Live Sent",
+    body: "Serve your city with compassion, courage, and conviction.",
+  },
+] as const;
+
 export const meta: MetaFunction = () => [
   { title: "Powerhouse Church Christian Fellowship Intl. — Where Faith Meets Community" },
   {
@@ -217,7 +235,7 @@ export default function HomePage() {
 
       <section className="shell pb-10" aria-labelledby="mission-heading">
         <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">
-          <CardContent className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-12">
+          <CardContent className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d6a24c]">
             Our Mission
@@ -237,18 +255,29 @@ export default function HomePage() {
                 Learn More
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                ["Know Jesus", "Encounter Christ through Scripture, worship, and prayer."],
-                ["Find Family", "Move from attending services to belonging in community."],
-                ["Live Sent", "Serve your city with compassion, courage, and conviction."],
-              ].map(([title, body]) => (
-                <div key={title} className="rounded-[1.4rem] border border-white/10 bg-white/7 p-5">
-                  <h3 className="font-serif text-2xl font-semibold text-white">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-[#d8ded7]">{body}</p>
-                </div>
+            <ol className="grid gap-3" aria-label="How we live our mission">
+              {MISSION_STEPS.map((step) => (
+                <li
+                  key={step.number}
+                  className="grid grid-cols-[auto_1fr] items-start gap-4 rounded-[1.4rem] border border-white/10 bg-white/7 p-4"
+                >
+                  <span
+                    className="font-serif text-2xl font-semibold leading-none text-[#d6a24c]"
+                    aria-hidden="true"
+                  >
+                    {step.number}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-serif text-2xl font-semibold leading-tight text-white">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-5 text-[#d8ded7]">
+                      {step.body}
+                    </p>
+                  </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </CardContent>
         </Card>
       </section>

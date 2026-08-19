@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { toast } from "react-toastify";
 import {
   Form,
   Link,
@@ -15,7 +16,6 @@ import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
-import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Visit Plans — Admin" }];
 
@@ -487,8 +487,13 @@ export default function AdminVisitPlansPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const lastActionDataRef = useRef<object | null>(null);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastActionDataRef.current = null;
+    }
+  }, [navigation.state]);
 
   const openCount =
     Object.entries(stats)
@@ -502,7 +507,11 @@ export default function AdminVisitPlansPage() {
   const familyCount = visitPlans.filter((plan) => plan.bringingKids).length;
 
   useEffect(() => {
-    if (!actionData || typeof actionData !== "object") {
+    if (
+      navigation.state !== "idle" ||
+      !actionData ||
+      typeof actionData !== "object"
+    ) {
       return;
     }
 
@@ -513,16 +522,17 @@ export default function AdminVisitPlansPage() {
         ? actionData.success
         : null;
 
-    if (!message || lastToastRef.current === message) {
+    if (!message || lastActionDataRef.current === actionData) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: "error" in actionData && actionData.error ? "error" : "success",
-      message,
-    });
-  }, [actionData, showToast]);
+    lastActionDataRef.current = actionData;
+    if ("error" in actionData && actionData.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [actionData, navigation.state]);
 
   return (
     <div>

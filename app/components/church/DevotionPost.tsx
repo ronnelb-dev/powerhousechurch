@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "react";
 import { useFetcher } from "react-router";
-import { useToast } from "~/components/ui/ToastProvider";
+import { toast } from "react-toastify";
 
 export interface DevotionPostData {
   id:           string;
@@ -56,8 +56,7 @@ function DoveIcon({ className }: { className?: string }) {
 export function DevotionPost({ post }: DevotionPostProps) {
   const likeFetcher    = useFetcher();
   const commentFetcher = useFetcher();
-  const { showToast } = useToast();
-  const lastCommentToastRef = useRef<string | null>(null);
+  const seenCommentResultsRef = useRef(new WeakSet<object>());
 
   // Optimistic like state
   const isLiked: boolean = likeFetcher.formData
@@ -77,11 +76,13 @@ export function DevotionPost({ post }: DevotionPostProps) {
   });
 
   useEffect(() => {
-    if (
-      commentFetcher.state !== "idle" ||
-      !commentFetcher.data ||
-      typeof commentFetcher.data !== "object"
-    ) {
+    if (commentFetcher.state !== "idle") {
+      if (commentFetcher.data && typeof commentFetcher.data === "object") {
+        seenCommentResultsRef.current.delete(commentFetcher.data);
+      }
+      return;
+    }
+    if (!commentFetcher.data || typeof commentFetcher.data !== "object") {
       return;
     }
 
@@ -92,19 +93,17 @@ export function DevotionPost({ post }: DevotionPostProps) {
         ? commentFetcher.data.success
         : null;
 
-    if (!message || lastCommentToastRef.current === message) {
+    if (!message || seenCommentResultsRef.current.has(commentFetcher.data)) {
       return;
     }
 
-    lastCommentToastRef.current = message;
-    showToast({
-      tone:
-        "error" in commentFetcher.data && commentFetcher.data.error
-          ? "error"
-          : "success",
-      message,
-    });
-  }, [commentFetcher.data, commentFetcher.state, showToast]);
+    seenCommentResultsRef.current.add(commentFetcher.data);
+    if ("error" in commentFetcher.data && commentFetcher.data.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [commentFetcher.data, commentFetcher.state]);
 
   return (
     <article

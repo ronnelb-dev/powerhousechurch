@@ -3,6 +3,7 @@ import {
   useLoaderData,
   Form,
   useActionData,
+  useFetchers,
   useLocation,
   useNavigation,
   isRouteErrorResponse,
@@ -11,15 +12,43 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { useEffect, useRef, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "react-toastify";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { AttendanceMarkRow } from "~/components/church/AttendanceMarkRow";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { PortalHeader, PortalPage, PortalSection } from "~/components/ui/Portal";
-import { useToast } from "~/components/ui/ToastProvider";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
+import {
+  assertAttendanceRole,
+  resolveAttendanceMembers,
+  updateAttendanceRecords,
+  type AttendanceStatus,
+  type AttendanceType,
+} from "~/lib/attendance.server";
+import {
+  AttendanceActionSchema,
+  AttendanceLoaderFiltersSchema,
+} from "~/lib/schemas.server";
+import {
+  getChurchCalendarDate,
+  isCalendarDate,
+  calendarDateToUtc,
+} from "~/lib/calendar-date";
+import {
+  filterAttendanceMembers,
+  projectAttendanceMap,
+  pruneSelectedIds,
+  type AttendanceStatusFilter,
+} from "~/lib/attendance-ui";
 
 export const meta: MetaFunction = () => [
   { title: "Attendance — Powerhouse Church Portal" },
@@ -27,29 +56,66 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
+  assertAttendanceRole(user);
 
-  // Only CELL_LEADER and ADMIN can mark attendance
-  if (user.role === "MEMBER") {
-    throw new Response("Forbidden", { status: 403 });
+  const url = new URL(request.url);
+  const churchToday = getChurchCalendarDate();
+  const requestedDate = url.searchParams.get("date");
+  const requestedType = url.searchParams.get("type");
+  const requestedCellGroupId = url.searchParams.get("cellGroupId");
+  const parsedFilters = AttendanceLoaderFiltersSchema.safeParse({
+    date: requestedDate || undefined,
+    type: requestedType || undefined,
+    cellGroupId: requestedCellGroupId || undefined,
+  });
+  const notices: string[] = [];
+  const date =
+    requestedDate && isCalendarDate(requestedDate) ? requestedDate : churchToday;
+  const type: AttendanceType =
+    requestedType === "SUNDAY_SERVICE" || requestedType === "CELL_GROUP"
+      ? requestedType
+      : "SUNDAY_SERVICE";
+
+  if (!parsedFilters.success && requestedDate && !isCalendarDate(requestedDate)) {
+    notices.push("The selected date was invalid, so attendance was reset to today.");
+  }
+  if (
+    requestedType &&
+    requestedType !== "SUNDAY_SERVICE" &&
+    requestedType !== "CELL_GROUP"
+  ) {
+    notices.push("The attendance type was invalid, so Sunday Service was selected.");
   }
 
-  const url  = new URL(request.url);
-  const type = (url.searchParams.get("type") ?? "SUNDAY_SERVICE") as
-    "SUNDAY_SERVICE" | "CELL_GROUP";
-
-  // Default date = today formatted as YYYY-MM-DD
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const defaultDate = today.toISOString().slice(0, 10);
-  const dateParam   = url.searchParams.get("date") ?? defaultDate;
-  const selectedDate = new Date(dateParam + "T00:00:00");
-  const isFuture = selectedDate > today;
+  const selectedDate = calendarDateToUtc(date);
+  const isFuture = date > churchToday;
 
   // Determine which cell group to show
   // ADMIN sees all members (or can filter); CELL_LEADER sees own group
   let members: { id: string; firstName: string; lastName: string }[] = [];
+  const cellGroups =
+    user.role === "ADMIN"
+      ? await db.cellGroup.findMany({
+          where: { isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
+  const validCellGroupIds = new Set(cellGroups.map((group) => group.id));
   const selectedCellGroupId =
-    user.role === "ADMIN" ? (url.searchParams.get("cellGroupId") ?? "") : "";
+    user.role === "ADMIN" &&
+    requestedCellGroupId &&
+    validCellGroupIds.has(requestedCellGroupId)
+      ? requestedCellGroupId
+      : "";
+
+  if (
+    user.role === "ADMIN" &&
+    requestedCellGroupId &&
+    !validCellGroupIds.has(requestedCellGroupId)
+  ) {
+    notices.push("The selected cell group is unavailable, so all groups are shown.");
+  }
 
   if (user.role === "ADMIN") {
     members = await db.user.findMany({
@@ -67,9 +133,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return {
         members: [],
         attendanceMap: {},
-        date: dateParam,
+        date,
         type,
         isFuture,
+        churchToday,
+        filterNotice: notices.join(" "),
         cellGroups: [],
         selectedCellGroupId,
       };
@@ -94,22 +162,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     records.map((r) => [r.userId, r.status as "PRESENT" | "ABSENT"])
   );
 
-  // For admin dropdown
-  const cellGroups =
-    user.role === "ADMIN"
-      ? await db.cellGroup.findMany({
-          where: { isActive: true },
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        })
-      : [];
-
   return {
     members,
     attendanceMap,
-    date: dateParam,
+    date,
     type,
     isFuture,
+    churchToday,
+    filterNotice: notices.join(" "),
     cellGroups,
     selectedCellGroupId,
   };
@@ -117,167 +177,106 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const { user } = await requireUser(request);
-  if (user.role === "MEMBER") throw new Response("Forbidden", { status: 403 });
+  assertAttendanceRole(user);
 
   const formData = await request.formData();
-  const intent = formData.get("intent") as string;
-  const date   = formData.get("date") as string;
-  const type   = formData.get("type") as "SUNDAY_SERVICE" | "CELL_GROUP";
-
-  // Prevent marking future dates
-  const selectedDate = new Date(date + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (selectedDate > today) {
-    return { error: "Cannot mark attendance for a future date." };
+  const intent = String(formData.get("intent") ?? "");
+  const rawInput = {
+    intent,
+    date: String(formData.get("date") ?? ""),
+    type: String(formData.get("type") ?? ""),
+    ...(intent.startsWith("bulk")
+      ? { userIds: formData.getAll("userIds").map(String) }
+      : {
+          userId: String(formData.get("userId") ?? ""),
+          ...(intent === "markAttendance"
+            ? { status: String(formData.get("status") ?? "") }
+            : {}),
+        }),
+  };
+  const parsed = AttendanceActionSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Invalid attendance request.",
+    };
   }
 
-  const assertLeaderAccess = async (userIds: string[]) => {
-    if (user.role !== "CELL_LEADER") return;
-    const allowedMembers = await db.user.findMany({
-      where: {
-        id: { in: userIds },
-        cellGroupId: user.cellGroupId ?? "__no_group__",
-      },
-      select: { id: true },
-    });
-    if (allowedMembers.length !== userIds.length) {
-      throw new Response("Forbidden", { status: 403 });
-    }
-  };
+  const input = parsed.data;
+  if (input.date > getChurchCalendarDate()) {
+    return {
+      ok: false as const,
+      error: "Cannot mark attendance for a future date.",
+    };
+  }
 
-  const getSelectedMemberCellGroups = async (userIds: string[]) => {
-    const members = await db.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, cellGroupId: true },
-    });
+  const userIds =
+    "userIds" in input ? input.userIds : [input.userId];
+  const members = await resolveAttendanceMembers({ actor: user, userIds });
+  if (!members) {
+    return {
+      ok: false as const,
+      error: "Some selected members are unavailable or inactive.",
+    };
+  }
 
-    if (members.length !== userIds.length) {
-      return null;
-    }
+  const status: AttendanceStatus | null =
+    input.intent === "markAttendance"
+      ? input.status
+      : input.intent === "bulkMarkPresent"
+        ? "PRESENT"
+        : input.intent === "bulkMarkAbsent"
+          ? "ABSENT"
+          : null;
+  const isBulk = input.intent.startsWith("bulk");
+  const result = await updateAttendanceRecords({
+    actorId: user.id,
+    members,
+    date: input.date,
+    type: input.type,
+    status,
+    atomic: isBulk,
+  });
 
-    return new Map(members.map((member) => [member.id, member.cellGroupId]));
-  };
-
-  if (intent === "bulkMarkPresent" || intent === "bulkMarkAbsent") {
-    const nextStatus = intent === "bulkMarkPresent" ? "PRESENT" : "ABSENT";
-    const userIds = formData
-      .getAll("userIds")
-      .map((value) => String(value))
-      .filter(Boolean);
-
-    if (userIds.length === 0) {
-      return { error: "Select at least one member first." };
-    }
-
-    await assertLeaderAccess(userIds);
-    const memberCellGroupMap = await getSelectedMemberCellGroups(userIds);
-    if (!memberCellGroupMap) {
-      return { error: "Some selected members could not be found." };
-    }
-
-    const existingRecords = await db.attendance.findMany({
-      where: {
-        userId: { in: userIds },
-        type,
-        date: selectedDate,
-      },
-      select: { userId: true, status: true },
-    });
-    const previousStatuses = new Map(
-      existingRecords.map((record) => [record.userId, record.status]),
-    );
-
-    await Promise.all(
-      userIds.map((userId) =>
-        db.attendance.upsert({
-          where: { userId_type_date: { userId, type, date: selectedDate } },
-          update: {
-            status: nextStatus,
-            markedById: user.id,
-            cellGroupId: memberCellGroupMap.get(userId) ?? null,
-          },
-          create: {
-            userId,
-            type,
-            status: nextStatus,
-            date: selectedDate,
-            markedById: user.id,
-            cellGroupId: memberCellGroupMap.get(userId) ?? null,
-          },
-        }),
-      ),
-    );
-
+  if (status || result.affectedIds.length > 0) {
     await recordAdminAuditEvent({
       request,
       actorId: user.id,
       actorRole: user.role,
-      action: "attendance.mark.bulk",
+      action: status
+        ? isBulk
+          ? "attendance.mark.bulk"
+          : "attendance.mark"
+        : isBulk
+          ? "attendance.clear.bulk"
+          : "attendance.clear",
       entityType: "attendance",
-      entityId: `${type}:${date}:bulk-${nextStatus.toLowerCase()}`,
-      summary: `Marked ${userIds.length} members ${nextStatus.toLowerCase()} for ${date}`,
+      entityId: isBulk
+        ? `${input.type}:${input.date}:bulk`
+        : `${userIds[0]}:${input.type}:${input.date}`,
+      summary: status
+        ? `Marked ${userIds.length} member${userIds.length === 1 ? "" : "s"} ${status.toLowerCase()} for ${input.date}`
+        : `Cleared attendance for ${result.affectedIds.length} member${result.affectedIds.length === 1 ? "" : "s"} on ${input.date}`,
       details: {
         memberIds: userIds,
-        attendanceType: type,
-        date,
-        previousStatuses: Object.fromEntries(previousStatuses),
-        nextStatus,
+        attendanceType: input.type,
+        date: input.date,
+        previousStatuses: result.previousStatuses,
+        nextStatus: status,
       },
     });
-
-    return {
-      success: `Marked ${userIds.length} member${userIds.length === 1 ? "" : "s"} ${nextStatus === "PRESENT" ? "present" : "absent"}.`,
-    };
   }
 
-  const userId = formData.get("userId") as string;
-  const status = formData.get("status") as "PRESENT" | "ABSENT";
-
-  await assertLeaderAccess([userId]);
-  const memberCellGroupMap = await getSelectedMemberCellGroups([userId]);
-  const memberCellGroupId = memberCellGroupMap?.get(userId);
-  if (!memberCellGroupMap) {
-    return { error: "Selected member could not be found." };
-  }
-
-  const previousRecord = await db.attendance.findUnique({
-    where: { userId_type_date: { userId, type, date: selectedDate } },
-    select: { status: true },
-  });
-
-  await db.attendance.upsert({
-    where: { userId_type_date: { userId, type, date: selectedDate } },
-    update: { status, markedById: user.id, cellGroupId: memberCellGroupId ?? null },
-    create: {
-      userId,
-      type,
-      status,
-      date: selectedDate,
-      markedById: user.id,
-      cellGroupId: memberCellGroupId ?? null,
-    },
-  });
-
-  await recordAdminAuditEvent({
-    request,
-    actorId: user.id,
-    actorRole: user.role,
-    action: "attendance.mark",
-    entityType: "attendance",
-    entityId: `${userId}:${type}:${date}`,
-    summary: `${previousRecord ? "Updated" : "Created"} ${type.toLowerCase()} attendance for ${date}`,
-    details: {
-      memberId: userId,
-      attendanceType: type,
-      date,
-      previousStatus: previousRecord?.status ?? null,
-      nextStatus: status,
-    },
-  });
+  const message = status
+    ? `Marked ${userIds.length === 1 ? "member" : `${userIds.length} members`} ${status === "PRESENT" ? "present" : "absent"}.`
+    : result.affectedIds.length > 0
+      ? `Cleared attendance for ${result.affectedIds.length === 1 ? "member" : `${result.affectedIds.length} members`}.`
+      : "The selected member was already unmarked.";
 
   return {
-    success: `Marked member ${status === "PRESENT" ? "present" : "absent"}.`,
+    ok: true as const,
+    message,
+    affectedIds: result.affectedIds,
     status,
   };
 }
@@ -289,33 +288,66 @@ export default function AttendancePage() {
     date,
     type,
     isFuture,
+    churchToday,
+    filterNotice,
     cellGroups,
     selectedCellGroupId,
   } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const fetchers = useFetchers();
   const navigation = useNavigation();
   const location = useLocation();
-  const { showToast } = useToast();
   const lastToastRef = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const feedback =
-    actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
-      ? actionData
-      : null;
-
-  const presentCount = Object.values(attendanceMap).filter((s) => s === "PRESENT").length;
-  const absentCount  = Object.values(attendanceMap).filter((s) => s === "ABSENT").length;
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [statusFilter, setStatusFilter] =
+    useState<AttendanceStatusFilter>("ALL");
+  const projectedAttendanceMap = useMemo(
+    () =>
+      projectAttendanceMap(attendanceMap, [
+        ...(navigation.formData ? [{ formData: navigation.formData }] : []),
+        ...fetchers
+          .filter((fetcher) => fetcher.state !== "idle" && fetcher.formData)
+          .map((fetcher) => ({ formData: fetcher.formData })),
+      ]),
+    [attendanceMap, fetchers, navigation.formData],
+  );
+  const effectiveSearch = members.length > 100 ? deferredSearch : search;
+  const visibleMembers = useMemo(
+    () =>
+      filterAttendanceMembers(
+        members,
+        projectedAttendanceMap,
+        effectiveSearch,
+        statusFilter,
+      ),
+    [effectiveSearch, members, projectedAttendanceMap, statusFilter],
+  );
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const presentCount = Object.values(projectedAttendanceMap).filter(
+    (status) => status === "PRESENT",
+  ).length;
+  const absentCount = Object.values(projectedAttendanceMap).filter(
+    (status) => status === "ABSENT",
+  ).length;
+  const unmarkedCount = members.length - presentCount - absentCount;
   const pendingIntent =
-    navigation.state === "submitting"
+    navigation.state !== "idle"
       ? String(navigation.formData?.get("intent") ?? "")
       : "";
   const presentBulkPending = pendingIntent === "bulkMarkPresent";
   const absentBulkPending = pendingIntent === "bulkMarkAbsent";
-  const bulkPending = presentBulkPending || absentBulkPending;
+  const clearBulkPending = pendingIntent === "bulkClearAttendance";
+  const bulkPending =
+    presentBulkPending || absentBulkPending || clearBulkPending;
   const isRefreshing =
     navigation.state === "loading" &&
     navigation.location?.pathname === location.pathname;
+  const visibleUnmarkedIds = visibleMembers
+    .filter((member) => !projectedAttendanceMap[member.id])
+    .map((member) => member.id);
 
   const toggleSelected = (userId: string) => {
     setSelectedIds((current) =>
@@ -326,56 +358,105 @@ export default function AttendancePage() {
   };
 
   useEffect(() => {
-    const message =
-      feedback && "error" in feedback && feedback.error
-        ? feedback.error
-        : feedback && "success" in feedback && feedback.success
-          ? feedback.success
-          : null;
+    setSelectedIds([]);
+  }, [date, selectedCellGroupId, type]);
+
+  useEffect(() => {
+    if (bulkPending) return;
+    setSelectedIds((current) => {
+      const next = pruneSelectedIds(current, visibleMembers);
+      return next.length === current.length ? current : next;
+    });
+  }, [bulkPending, visibleMembers]);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastToastRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (navigation.state !== "idle") {
+      return;
+    }
+
+    const message = actionData?.ok ? actionData.message : actionData?.error;
 
     if (!message || lastToastRef.current === message) {
       return;
     }
 
     lastToastRef.current = message;
-    showToast({
-      tone: feedback && "error" in feedback && feedback.error ? "error" : "success",
-      message: String(message),
-    });
+    if (actionData?.ok) {
+      toast.success(message, { role: "status" });
+    } else {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    }
 
-    if (feedback && "success" in feedback && feedback.success) {
+    if (actionData?.ok) {
       setSelectedIds([]);
     }
-  }, [feedback, showToast]);
+  }, [actionData, navigation.state]);
+
+  const statusTabs: Array<{
+    value: AttendanceStatusFilter;
+    label: string;
+    count: number;
+  }> = [
+    { value: "ALL", label: "All", count: members.length },
+    { value: "PRESENT", label: "Present", count: presentCount },
+    { value: "ABSENT", label: "Absent", count: absentCount },
+    { value: "UNMARKED", label: "Unmarked", count: unmarkedCount },
+  ];
 
   return (
-    <PortalPage className="max-w-3xl">
+    <PortalPage
+      className={`max-w-3xl ${selectedIds.length > 0 ? "pb-36 md:pb-6" : ""}`}
+      style={{ maxWidth: "48rem" }}
+    >
       <PortalHeader
         eyebrow="Members Portal"
         title="Attendance"
-        subtitle="Mark attendance with a single tap. Records save instantly."
+        subtitle="Mark attendance quickly, correct mistakes, and keep every church day accurate."
       />
 
-      {/* Controls */}
-      <Form method="get" className="mb-5 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
-        {/* Date picker */}
-        <div className="w-full">
-          <label htmlFor="date" className="sr-only">Select date</label>
+      {filterNotice ? (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-sans text-amber-800"
+        >
+          {filterNotice}
+        </div>
+      ) : null}
+
+      <Form
+        method="get"
+        className="mb-4 grid gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:grid-cols-2 sm:p-4"
+        aria-label="Attendance context"
+      >
+        <div>
+          <label
+            htmlFor="date"
+            className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+          >
+            Church date
+          </label>
           <input
             id="date"
             type="date"
             name="date"
             defaultValue={date}
-            max={new Date().toISOString().slice(0, 10)}
+            max={churchToday}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="w-full cursor-pointer rounded-lg border border-gray-200
-                       bg-white px-4 py-2.5 text-sm font-sans text-gray-700
-                       focus:outline-none focus:ring-2 focus:ring-red-300"
+            className="min-h-11 w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
           />
         </div>
 
-        {/* Type toggle */}
-        <fieldset className="grid grid-cols-2 gap-2" aria-label="Attendance type">
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-sans font-bold text-gray-600">
+            Gathering
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
           {(["SUNDAY_SERVICE", "CELL_GROUP"] as const).map((t) => (
             <label key={t} className="cursor-pointer">
               <input
@@ -399,30 +480,38 @@ export default function AttendancePage() {
               </span>
             </label>
           ))}
+          </div>
         </fieldset>
 
-        {/* Cell group selector (admin only) */}
         {cellGroups.length > 0 && (
-          <select
-            name="cellGroupId"
-            defaultValue={selectedCellGroupId}
-            onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="w-full cursor-pointer rounded-lg border border-gray-200
-                       bg-white px-4 py-2.5 text-sm font-sans text-gray-700
-                       focus:outline-none focus:ring-2 focus:ring-red-300"
-            aria-label="Filter by cell group"
-          >
-            <option value="">All Groups</option>
-            {cellGroups.map((cg) => (
-              <option key={cg.id} value={cg.id}>{cg.name}</option>
-            ))}
-          </select>
+          <div className="sm:col-span-2">
+            <label
+              htmlFor="cellGroupId"
+              className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+            >
+              Cell group
+            </label>
+            <select
+              id="cellGroupId"
+              name="cellGroupId"
+              defaultValue={selectedCellGroupId}
+              onChange={(e) => e.currentTarget.form?.requestSubmit()}
+              className="min-h-11 w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+            >
+              <option value="">All Groups</option>
+              {cellGroups.map((cg) => (
+                <option key={cg.id} value={cg.id}>{cg.name}</option>
+              ))}
+            </select>
+          </div>
         )}
       </Form>
 
-      {/* Summary strip */}
       {members.length > 0 && (
-        <div className="mb-5 grid grid-cols-3 gap-2 text-center font-sans text-xs sm:mb-6 sm:text-sm">
+        <div
+          className="mb-4 grid grid-cols-3 gap-2 text-center font-sans text-xs sm:text-sm"
+          aria-live="polite"
+        >
           <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2.5">
             <p className="font-bold text-green-700">{presentCount}</p>
             <p className="mt-0.5 text-green-600">Present</p>
@@ -432,70 +521,160 @@ export default function AttendancePage() {
             <p className="mt-0.5 text-red-600">Absent</p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-            <p className="font-bold text-gray-700">{members.length - presentCount - absentCount}</p>
+            <p className="font-bold text-gray-700">{unmarkedCount}</p>
             <p className="mt-0.5 text-gray-500">Unmarked</p>
           </div>
         </div>
       )}
 
       {members.length > 0 && (
-        <Form
-          method="post"
-          className="mb-5 rounded-lg border border-gray-200 bg-white p-4"
-        >
-          <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="type" value={type} />
-          {selectedIds.map((userId) => (
-            <input key={userId} type="hidden" name="userIds" value={userId} />
-          ))}
+        <>
+          <section className="mb-4 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
+            <label
+              htmlFor="attendance-search"
+              className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+            >
+              Find a member
+            </label>
+            <input
+              id="attendance-search"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.currentTarget.value)}
+              placeholder="Search first or last name"
+              className="min-h-11 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-sans text-sm font-bold text-gray-900">
-                {selectedIds.length} selected
-              </p>
-              <p className="mt-1 font-sans text-xs text-gray-500">
-                Choose members below, then mark them present or absent in one step.
-              </p>
+            <div
+              className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"
+              role="group"
+              aria-label="Filter members by attendance status"
+            >
+              {statusTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  aria-pressed={statusFilter === tab.value}
+                  onClick={() => setStatusFilter(tab.value)}
+                  className={[
+                    "min-h-11 rounded-lg border px-3 py-2 text-xs font-sans font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-red-300",
+                    statusFilter === tab.value
+                      ? "border-red-700 bg-red-700 text-white"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-red-200 hover:text-red-700",
+                  ].join(" ")}
+                >
+                  {tab.label} <span aria-hidden="true">({tab.count})</span>
+                </button>
+              ))}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedIds(visibleMembers.map((member) => member.id))
+                }
+                disabled={visibleMembers.length === 0 || bulkPending}
+                className="min-h-11 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Select all visible
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(visibleUnmarkedIds)}
+                disabled={visibleUnmarkedIds.length === 0 || bulkPending}
+                className="min-h-11 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Select all unmarked
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
                 disabled={selectedIds.length === 0 || bulkPending}
-                className="min-h-10 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-lg px-3 py-2 text-xs font-sans font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Clear
+                Clear selection
               </button>
-              <PendingButton
-                type="submit"
-                name="intent"
-                value="bulkMarkAbsent"
-                isPending={absentBulkPending}
-                pendingText="Saving..."
-                disabled={selectedIds.length === 0 || isFuture || bulkPending}
-                className="min-h-10 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Mark Absent
-              </PendingButton>
-              <PendingButton
-                type="submit"
-                name="intent"
-                value="bulkMarkPresent"
-                isPending={presentBulkPending}
-                pendingText="Saving..."
-                disabled={selectedIds.length === 0 || isFuture || bulkPending}
-                className="min-h-10 rounded-lg bg-red-700 px-4 py-2 text-sm font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Mark Present
-              </PendingButton>
+              <p className="ml-auto text-xs font-sans font-bold text-gray-500" aria-live="polite">
+                {selectedIds.length} selected
+              </p>
             </div>
-          </div>
-        </Form>
+          </section>
+
+          {selectedIds.length > 0 ? (
+            <Form
+              method="post"
+              className="fixed inset-x-3 bottom-3 z-40 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-2xl backdrop-blur md:static md:mb-4 md:rounded-lg md:p-4 md:shadow-sm"
+              aria-label="Bulk attendance actions"
+            >
+              <input type="hidden" name="date" value={date} />
+              <input type="hidden" name="type" value={type} />
+              {selectedIds.map((userId) => (
+                <input key={userId} type="hidden" name="userIds" value={userId} />
+              ))}
+
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="font-sans text-sm font-bold text-gray-900">
+                  {selectedIds.length} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  disabled={bulkPending}
+                  className="min-h-11 px-2 text-xs font-sans font-bold text-gray-500 hover:text-gray-800 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <PendingButton
+                  type="submit"
+                  name="intent"
+                  value="bulkMarkAbsent"
+                  isPending={absentBulkPending}
+                  pendingText="Saving..."
+                  disabled={isFuture || bulkPending}
+                  className="min-h-11 rounded-lg border border-gray-300 bg-white px-2 py-2 text-xs font-sans font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:text-sm"
+                >
+                  Absent
+                </PendingButton>
+                <PendingButton
+                  type="submit"
+                  name="intent"
+                  value="bulkClearAttendance"
+                  isPending={clearBulkPending}
+                  pendingText="Clearing..."
+                  disabled={isFuture || bulkPending}
+                  onClick={(event) => {
+                    if (
+                      !window.confirm(
+                        `Clear attendance for ${selectedIds.length} selected member${selectedIds.length === 1 ? "" : "s"} on ${date}?`,
+                      )
+                    ) {
+                      event.preventDefault();
+                    }
+                  }}
+                  className="min-h-11 rounded-lg border border-amber-200 bg-white px-2 py-2 text-xs font-sans font-bold text-amber-800 transition-colors hover:bg-amber-50 disabled:opacity-50 sm:text-sm"
+                >
+                  Unmark
+                </PendingButton>
+                <PendingButton
+                  type="submit"
+                  name="intent"
+                  value="bulkMarkPresent"
+                  isPending={presentBulkPending}
+                  pendingText="Saving..."
+                  disabled={isFuture || bulkPending}
+                  className="min-h-11 rounded-lg bg-red-700 px-2 py-2 text-xs font-sans font-bold text-white transition-colors hover:bg-red-800 disabled:opacity-50 sm:text-sm"
+                >
+                  Present
+                </PendingButton>
+              </div>
+            </Form>
+          ) : null}
+        </>
       )}
 
-      {/* Future date warning */}
       {isFuture && (
         <div
           role="alert"
@@ -508,6 +687,7 @@ export default function AttendancePage() {
 
       {/* Member list */}
       {members.length > 0 ? (
+        visibleMembers.length > 0 ? (
         <PortalSection className="relative overflow-hidden p-0">
           {isRefreshing ? <AttendanceListSkeleton /> : null}
           <ul
@@ -515,22 +695,29 @@ export default function AttendancePage() {
             aria-label="Members attendance list"
             className={isRefreshing ? "pointer-events-none opacity-40" : undefined}
           >
-            {members.map((member) => (
+            {visibleMembers.map((member) => (
               <AttendanceMarkRow
                 key={member.id}
                 userId={member.id}
                 firstName={member.firstName}
                 lastName={member.lastName}
-                currentStatus={attendanceMap[member.id] ?? null}
+                currentStatus={projectedAttendanceMap[member.id] ?? null}
                 date={date}
                 type={type}
                 disabled={isFuture}
-                selected={selectedIds.includes(member.id)}
+                selected={selectedSet.has(member.id)}
                 onToggleSelect={toggleSelected}
               />
             ))}
           </ul>
         </PortalSection>
+        ) : (
+          <EmptyState
+            icon="attendance"
+            title="No matching members"
+            message="Try a different name or attendance status filter."
+          />
+        )
       ) : (
         <EmptyState
           icon="members"

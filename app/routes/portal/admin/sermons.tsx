@@ -11,13 +11,13 @@ import {
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { z } from "zod";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 
 export const meta: MetaFunction = () => [{ title: "Manage Sermons — Admin" }];
 
@@ -193,18 +193,17 @@ function SermonForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const fetcher = useFetcher<SermonActionData>();
-  const { showToast } = useToast();
   const isSubmitting = fetcher.state !== "idle";
   const errors = fetcher.data?.success === false ? fetcher.data.errors ?? {} : {};
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
       if (fetcher.data.message) {
-        showToast({ tone: "success", message: fetcher.data.message });
+        toast.success(fetcher.data.message, { role: "status" });
       }
       onClose();
     }
-  }, [fetcher.state, fetcher.data, onClose, showToast]);
+  }, [fetcher.state, fetcher.data, onClose]);
 
   useFocusFirstInvalidField({
     formRef,
@@ -449,22 +448,29 @@ function SermonRow({
 }) {
   const deleteFetcher = useFetcher<SermonActionData>();
   const toggleFetcher = useFetcher<SermonActionData>();
-  const { showToast } = useToast();
+  const seenResultsRef = useRef(new WeakSet<object>());
   const isDeleting = deleteFetcher.state !== "idle";
   const isToggling = toggleFetcher.state !== "idle";
 
   useEffect(() => {
     const fetchers = [deleteFetcher, toggleFetcher];
     for (const fetcher of fetchers) {
-      if (fetcher.state !== "idle" || !fetcher.data) continue;
+      if (fetcher.state !== "idle") {
+        if (fetcher.data) seenResultsRef.current.delete(fetcher.data);
+        continue;
+      }
+      if (!fetcher.data) continue;
+      if (seenResultsRef.current.has(fetcher.data)) continue;
+      seenResultsRef.current.add(fetcher.data);
       const message = fetcher.data.message ?? fetcher.data.formError;
       if (!message) continue;
-      showToast({
-        tone: fetcher.data.success ? "success" : "error",
-        message,
-      });
+      if (fetcher.data.success) {
+        toast.success(message, { role: "status" });
+      } else {
+        toast.error(message, { autoClose: 6000, role: "alert" });
+      }
     }
-  }, [deleteFetcher, toggleFetcher, showToast]);
+  }, [deleteFetcher, toggleFetcher]);
 
   return (
     <tr className="border-b border-gray-50 hover:bg-gray-50 transition-colors">

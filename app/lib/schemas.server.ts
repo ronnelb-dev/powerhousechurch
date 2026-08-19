@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalendarDate } from "./calendar-date";
 
 // ── Auth ───────────────────────────────────────────────────
 export const RegisterSchema = z.object({
@@ -93,12 +94,69 @@ export const VisitPlanSchema = z.object({
 });
 
 // ── Attendance ─────────────────────────────────────────────
-export const MarkAttendanceSchema = z.object({
-  userId:  z.string().cuid(),
-  date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  type:    z.enum(["SUNDAY_SERVICE", "CELL_GROUP"]),
-  status:  z.enum(["PRESENT", "ABSENT"]),
+export const AttendanceTypeSchema = z.enum(["SUNDAY_SERVICE", "CELL_GROUP"]);
+export const AttendanceStatusSchema = z.enum(["PRESENT", "ABSENT"]);
+export const AttendanceIntentSchema = z.enum([
+  "markAttendance",
+  "clearAttendance",
+  "bulkMarkPresent",
+  "bulkMarkAbsent",
+  "bulkClearAttendance",
+]);
+export const CalendarDateSchema = z
+  .string()
+  .refine(isCalendarDate, "Choose a valid attendance date.");
+
+export const AttendanceLoaderFiltersSchema = z.object({
+  date: CalendarDateSchema.optional(),
+  type: AttendanceTypeSchema.optional(),
+  cellGroupId: z.string().trim().min(1).max(100).optional(),
 });
+
+const AttendanceActionBaseSchema = z.object({
+  date: CalendarDateSchema,
+  type: AttendanceTypeSchema,
+});
+
+export const MarkAttendanceSchema = AttendanceActionBaseSchema.extend({
+  intent: z.literal("markAttendance"),
+  userId: z.string().trim().min(1).max(100),
+  status: AttendanceStatusSchema,
+});
+
+export const ClearAttendanceSchema = AttendanceActionBaseSchema.extend({
+  intent: z.literal("clearAttendance"),
+  userId: z.string().trim().min(1).max(100),
+});
+
+const BulkAttendanceBaseSchema = AttendanceActionBaseSchema.extend({
+  userIds: z
+    .array(z.string().trim().min(1).max(100))
+    .min(1, "Select at least one member first.")
+    .superRefine((ids, context) => {
+      if (new Set(ids).size !== ids.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Duplicate members were selected.",
+        });
+      }
+    }),
+});
+
+export const BulkMarkAttendanceSchema = BulkAttendanceBaseSchema.extend({
+  intent: z.enum(["bulkMarkPresent", "bulkMarkAbsent"]),
+});
+
+export const BulkClearAttendanceSchema = BulkAttendanceBaseSchema.extend({
+  intent: z.literal("bulkClearAttendance"),
+});
+
+export const AttendanceActionSchema = z.discriminatedUnion("intent", [
+  MarkAttendanceSchema,
+  ClearAttendanceSchema,
+  BulkMarkAttendanceSchema,
+  BulkClearAttendanceSchema,
+]);
 
 // ── Devotion Post ──────────────────────────────────────────
 export const CreatePostSchema = z.object({
@@ -145,5 +203,6 @@ export type PrayerRequestInput = z.infer<typeof PrayerRequestSchema>;
 export type VisitPlanInput    = z.infer<typeof VisitPlanSchema>;
 export type CreatePostInput   = z.infer<typeof CreatePostSchema>;
 export type MarkAttendanceInput = z.infer<typeof MarkAttendanceSchema>;
+export type AttendanceActionInput = z.infer<typeof AttendanceActionSchema>;
 export type SermonInput       = z.infer<typeof SermonSchema>;
 export type GivingInput       = z.infer<typeof GivingSchema>;

@@ -11,6 +11,15 @@ import type { MetaFunction } from "react-router";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
+import {
+  addCalendarDays,
+  calendarDateToUtc,
+  getChurchCalendarDate,
+  getMostRecentSundayDate,
+  getRecentSundayDates,
+  isCalendarDate,
+  utcDateToCalendarDate,
+} from "~/lib/calendar-date";
 
 type AttendanceTrendPoint = {
   dateKey: string;
@@ -67,10 +76,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }).adminAuditLog;
 
-  const sundaySeries = getLastNSundays(12);
+  const churchToday = getChurchCalendarDate();
+  const sundaySeries = getLastNSundays(12, churchToday);
   const monthSeries = getLastNMonths(12);
   const firstSunday = sundaySeries[0] ?? getMostRecentSunday();
   const lastSunday = sundaySeries[sundaySeries.length - 1] ?? firstSunday;
+  const dayAfterLastSunday = calendarDateToUtc(
+    addCalendarDays(utcDateToCalendarDate(lastSunday), 1),
+  );
 
   const [
     cellGroups,
@@ -105,7 +118,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     db.attendance.findMany({
       where: {
         type: "SUNDAY_SERVICE",
-        date: { gte: firstSunday, lte: endOfDay(lastSunday) },
+        date: { gte: firstSunday, lt: dayAfterLastSunday },
       },
       select: {
         date: true,
@@ -167,22 +180,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
         ? `${entry.actor.firstName} ${entry.actor.lastName}`.trim()
         : "System",
     })),
+    churchToday,
   };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   const { user } = await requireAdmin(request);
   const formData = await request.formData();
-  const startDate = new Date(`${String(formData.get("startDate") ?? "")}T00:00:00`);
-  const endDate = new Date(`${String(formData.get("endDate") ?? "")}T23:59:59`);
+  const startDateKey = String(formData.get("startDate") ?? "");
+  const endDateKey = String(formData.get("endDate") ?? "");
   const audience = ((formData.get("audience") as string) || "adults") as
     | "adults"
     | "kids";
+  const startDate = new Date(`${startDateKey}T00:00:00`);
+  const endDate = new Date(`${endDateKey}T23:59:59`);
   const cellGroupId = (formData.get("cellGroupId") as string) || undefined;
   const classroom = (formData.get("classroom") as string) || undefined;
   const type = (formData.get("type") as string) || "SUNDAY_SERVICE";
 
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+  if (
+    !isCalendarDate(startDateKey) ||
+    !isCalendarDate(endDateKey) ||
+    startDateKey > endDateKey
+  ) {
     return new Response("Invalid date range", { status: 400 });
   }
 
@@ -264,9 +284,11 @@ export async function action({ request }: ActionFunctionArgs) {
     });
   }
 
+  const adultStartDate = calendarDateToUtc(startDateKey);
+  const adultEndDateExclusive = calendarDateToUtc(addCalendarDays(endDateKey, 1));
   const records = await db.attendance.findMany({
     where: {
-      date: { gte: startDate, lte: endDate },
+      date: { gte: adultStartDate, lt: adultEndDateExclusive },
       type,
       ...(cellGroupId ? { cellGroupId } : {}),
     },
@@ -283,11 +305,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const rows = records.map((record) => {
     const date =
       record.date instanceof Date
-        ? record.date.toLocaleDateString("en-PH", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          })
+        ? utcDateToCalendarDate(record.date)
         : String(record.date).slice(0, 10);
     return [
       date,
@@ -304,9 +322,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   const csv = [header, ...rows].join("\n");
-  const filename = `attendance-${type.toLowerCase().replace("_", "-")}-${startDate
-    .toISOString()
-    .slice(0, 10)}-to-${endDate.toISOString().slice(0, 10)}.csv`;
+  const filename = `attendance-${type.toLowerCase().replace("_", "-")}-${startDateKey}-to-${endDateKey}.csv`;
 
   await recordAdminAuditEvent({
     request,
@@ -319,8 +335,8 @@ export async function action({ request }: ActionFunctionArgs) {
       audience,
       type,
       cellGroupId: cellGroupId ?? null,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: startDateKey,
+      endDate: endDateKey,
       rowCount: records.length,
     },
   });
@@ -441,23 +457,14 @@ function buildMemberGrowth(args: {
   });
 }
 
-function getMostRecentSunday(reference = new Date()) {
-  const date = new Date(reference);
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - date.getDay());
-  return date;
+function getMostRecentSunday(referenceDate = getChurchCalendarDate()) {
+  return calendarDateToUtc(getMostRecentSundayDate(referenceDate));
 }
 
-function getLastNSundays(count: number) {
-  const sundays: Date[] = [];
-  const cursor = getMostRecentSunday();
-
-  for (let index = 0; index < count; index += 1) {
-    sundays.unshift(new Date(cursor));
-    cursor.setDate(cursor.getDate() - 7);
-  }
-
-  return sundays;
+function getLastNSundays(count: number, referenceDate = getChurchCalendarDate()) {
+  return getRecentSundayDates(count, referenceDate)
+    .reverse()
+    .map(calendarDateToUtc);
 }
 
 function getLastNMonths(count: number) {
@@ -477,23 +484,8 @@ function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
 }
 
-function endOfDay(date: Date) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999,
-  );
-}
-
 function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return utcDateToCalendarDate(date);
 }
 
 function toMonthKey(date: Date) {
@@ -527,14 +519,13 @@ export default function AdminReportsPage() {
     attendanceTrend,
     memberGrowth,
     recentAuditLogs,
+    churchToday,
   } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isGenerating = navigation.state === "submitting";
 
-  const today = new Date().toISOString().slice(0, 10);
-  const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const today = churchToday;
+  const thirtyAgo = addCalendarDays(churchToday, -30);
 
   const latestAttendance = attendanceTrend[attendanceTrend.length - 1] ?? null;
   const averageAttendance =

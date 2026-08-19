@@ -12,13 +12,19 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
 export const meta: MetaFunction = () => [{ title: "Community Moderation — Admin" }];
+
+type PostActionData =
+  | { success: true; message: string }
+  | { success: false; error: string };
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
@@ -83,7 +89,7 @@ export async function action({ request }: ActionFunctionArgs) {
         preview: existingPost?.content.slice(0, 140) ?? null,
       },
     });
-    return { success: true };
+    return { success: true, message: "Post approved." } satisfies PostActionData;
   }
   if (intent === "reject") {
     await db.post.delete({ where: { id } });
@@ -100,14 +106,33 @@ export async function action({ request }: ActionFunctionArgs) {
         preview: existingPost?.content.slice(0, 140) ?? null,
       },
     });
-    return { success: true };
+    return { success: true, message: "Post removed." } satisfies PostActionData;
   }
-  return { error: "Unknown intent." };
+  return { success: false, error: "Unknown action." } satisfies PostActionData;
 }
 
 export default function AdminPostsPage() {
   const { posts, showingApproved } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<PostActionData>();
+  const seenResultRef = useRef<object | null>(null);
+  const isSubmitting = fetcher.state !== "idle";
+
+  useEffect(() => {
+    if (fetcher.state !== "idle") {
+      seenResultRef.current = null;
+      return;
+    }
+    if (!fetcher.data || seenResultRef.current === fetcher.data) {
+      return;
+    }
+
+    seenResultRef.current = fetcher.data;
+    if (fetcher.data.success) {
+      toast.success(fetcher.data.message, { role: "status" });
+    } else {
+      toast.error(fetcher.data.error, { autoClose: 6000, role: "alert" });
+    }
+  }, [fetcher.data, fetcher.state]);
 
   return (
     <div>
@@ -199,9 +224,11 @@ export default function AdminPostsPage() {
                       <input type="hidden" name="id"     value={post.id} />
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         className="px-4 py-2 bg-green-600 text-white text-xs font-bold
                                    font-sans rounded-lg hover:bg-green-700 transition-colors
-                                   focus:outline-none focus:ring-2 focus:ring-green-400"
+                                   focus:outline-none focus:ring-2 focus:ring-green-400
+                                   disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Approve
                       </button>
@@ -211,9 +238,11 @@ export default function AdminPostsPage() {
                       <input type="hidden" name="id"     value={post.id} />
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         className="px-4 py-2 bg-red-100 text-red-700 text-xs font-bold
                                    font-sans rounded-lg hover:bg-red-200 transition-colors
-                                   focus:outline-none focus:ring-2 focus:ring-red-400"
+                                   focus:outline-none focus:ring-2 focus:ring-red-400
+                                   disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Reject
                       </button>
@@ -229,11 +258,13 @@ export default function AdminPostsPage() {
                       <input type="hidden" name="id"     value={post.id} />
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         onClick={(e) => {
                           if (!confirm("Remove this post from the feed?")) e.preventDefault();
                         }}
                         className="text-xs font-sans font-bold text-red-500 hover:text-red-700
-                                   underline underline-offset-2 transition-colors"
+                                   underline underline-offset-2 transition-colors
+                                   disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Remove
                       </button>

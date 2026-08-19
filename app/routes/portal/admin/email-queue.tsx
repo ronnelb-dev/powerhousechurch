@@ -8,7 +8,9 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useRef } from "react";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { processPendingOutboundEmails } from "~/lib/email-queue.server";
@@ -163,6 +165,30 @@ export default function AdminEmailQueuePage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const lastFeedbackRef = useRef<object | null>(null);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastFeedbackRef.current = null;
+    }
+  }, [navigation.state]);
+
+  useEffect(() => {
+    if (
+      navigation.state !== "idle" ||
+      !actionData ||
+      lastFeedbackRef.current === actionData
+    ) {
+      return;
+    }
+
+    lastFeedbackRef.current = actionData;
+    if (actionData.ok) {
+      toast.success(actionData.message, { role: "status" });
+    } else {
+      toast.error(actionData.message, { autoClose: 6000, role: "alert" });
+    }
+  }, [actionData, navigation.state]);
 
   return (
     <div className="space-y-8">
@@ -196,12 +222,6 @@ export default function AdminEmailQueuePage() {
           </Form>
         </div>
       </div>
-
-      {actionData ? (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${actionData.ok ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-          {actionData.message}
-        </div>
-      ) : null}
 
       <div className="grid gap-4 md:grid-cols-5">
         <StatCard label="Pending" value={stats.PENDING ?? 0} />

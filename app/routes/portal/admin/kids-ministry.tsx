@@ -11,11 +11,11 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
+import { toast } from "react-toastify";
 import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { useToast } from "~/components/ui/ToastProvider";
 import { useEffect, useRef } from "react";
 
 export const meta: MetaFunction = () => [{ title: "Kids Ministry — Admin" }];
@@ -198,7 +198,7 @@ function ChildAttendanceRow({
   disabled: boolean;
 }) {
   const fetcher = useFetcher();
-  const { showToast } = useToast();
+  const seenResultsRef = useRef(new WeakSet<object>());
   const primaryGuardian = guardians.find((guardian) => guardian.isPrimaryContact) ?? guardians[0] ?? null;
   const approvedGuardians = guardians.filter((guardian) => guardian.canPickup);
   const initials = displayName
@@ -221,7 +221,13 @@ function ChildAttendanceRow({
         : "Ready for check-in";
 
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data || typeof fetcher.data !== "object") {
+    if (fetcher.state !== "idle") {
+      if (fetcher.data && typeof fetcher.data === "object") {
+        seenResultsRef.current.delete(fetcher.data);
+      }
+      return;
+    }
+    if (!fetcher.data || typeof fetcher.data !== "object") {
       return;
     }
 
@@ -232,15 +238,17 @@ function ChildAttendanceRow({
         ? fetcher.data.success
         : null;
 
-    if (!message) {
+    if (!message || seenResultsRef.current.has(fetcher.data)) {
       return;
     }
 
-    showToast({
-      tone: "error" in fetcher.data && fetcher.data.error ? "error" : "success",
-      message,
-    });
-  }, [fetcher.data, fetcher.state, showToast]);
+    seenResultsRef.current.add(fetcher.data);
+    if ("error" in fetcher.data && fetcher.data.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [fetcher.data, fetcher.state]);
 
   return (
     <li className="flex flex-col gap-4 px-4 py-4">
@@ -1006,8 +1014,7 @@ export default function KidsMinistryPage() {
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { showToast } = useToast();
-  const lastToastRef = useRef<string | null>(null);
+  const lastFeedbackRef = useRef<object | null>(null);
   const isSubmitting = navigation.state === "submitting";
   const feedback =
     actionData && typeof actionData === "object" && ("error" in actionData || "success" in actionData)
@@ -1015,6 +1022,12 @@ export default function KidsMinistryPage() {
       : null;
   const today = new Date().toISOString().slice(0, 10);
   const guardianDefaults = editingChild?.guardians ?? [];
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      lastFeedbackRef.current = null;
+    }
+  }, [navigation.state]);
 
   useEffect(() => {
     const message =
@@ -1026,16 +1039,21 @@ export default function KidsMinistryPage() {
             : null)
         : null;
 
-    if (!message || lastToastRef.current === message) {
+    if (
+      navigation.state !== "idle" ||
+      !message ||
+      lastFeedbackRef.current === feedback
+    ) {
       return;
     }
 
-    lastToastRef.current = message;
-    showToast({
-      tone: feedback && "error" in feedback && feedback.error ? "error" : "success",
-      message,
-    });
-  }, [feedback, showToast]);
+    lastFeedbackRef.current = feedback;
+    if (feedback && "error" in feedback && feedback.error) {
+      toast.error(message, { autoClose: 6000, role: "alert" });
+    } else {
+      toast.success(message, { role: "status" });
+    }
+  }, [feedback, navigation.state]);
 
   return (
     <div>
