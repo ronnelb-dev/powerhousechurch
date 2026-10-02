@@ -103,7 +103,7 @@ async function getYouTubeConfig(): Promise<{ apiKey: string; channelId: string }
   if (!apiKey || !channelId) {
     console.warn(
       "[youtube.server] Missing YOUTUBE_API_KEY or YOUTUBE_CHANNEL_ID. " +
-      "Set them in .env or in the Admin Settings panel."
+      "Set them in .env or the corresponding Setting rows."
     );
     return null;
   }
@@ -126,7 +126,7 @@ async function getYouTubeApiKey(): Promise<string | null> {
   if (!apiKey) {
     console.warn(
       "[youtube.server] Missing YOUTUBE_API_KEY. " +
-      "Set it in .env or in the Admin Settings panel."
+      "Set it in .env or the corresponding Setting row."
     );
     return null;
   }

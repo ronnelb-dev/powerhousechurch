@@ -12,7 +12,7 @@ interface EmptyStateProps {
   title:   string;
   message: string;
   action?: { label: string; to: string };
-  icon?:   "members" | "sermons" | "events" | "devotion" | "attendance" | "generic";
+  icon?:   "members" | "sermons" | "events" | "devotion" | "generic";
 }
 
 const ICON_PATHS: Record<NonNullable<EmptyStateProps["icon"]>, React.ReactNode> = {
@@ -41,12 +41,6 @@ const ICON_PATHS: Record<NonNullable<EmptyStateProps["icon"]>, React.ReactNode> 
     <>
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    </>
-  ),
-  attendance: (
-    <>
-      <polyline points="9 11 12 14 22 4"/>
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
     </>
   ),
   generic: <circle cx="12" cy="12" r="10"/>,

@@ -100,12 +100,6 @@ export function Navbar() {
               >
                 New Here?
               </Link>
-              <Link
-                to="/portal/dashboard"
-                className={buttonVariants({ size: "sm" })}
-              >
-                Member Login
-              </Link>
             </div>
 
             <Button
@@ -190,9 +184,6 @@ export function Navbar() {
               <span className={buttonVariants({ variant: "secondary", className: "flex w-full" })}>
                 Plan a Visit
               </span>
-            </Link>
-            <Link to="/portal/dashboard" className="block">
-              <span className={buttonVariants({ className: "flex w-full" })}>Member Login</span>
             </Link>
           </div>
         </SheetContent>

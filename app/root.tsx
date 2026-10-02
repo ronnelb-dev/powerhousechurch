@@ -92,12 +92,6 @@ export default function App() {
   const shouldShowSpinner = isActionNavigation;
   const shouldShowOverlay = shouldShowSkeleton || shouldShowSpinner;
   const [isLoading, setIsLoading] = useState(false);
-  const loadingPath = navigation.location?.pathname ?? location.pathname;
-  const skeletonVariant = loadingPath.startsWith("/portal/admin")
-    ? "admin"
-    : loadingPath.startsWith("/portal")
-      ? "portal"
-      : "public";
 
   useEffect(() => {
     if (!shouldShowOverlay) {
@@ -127,7 +121,6 @@ export default function App() {
       <Outlet />
       <RouteLoadingSkeleton
         isLoading={isLoading && shouldShowSkeleton}
-        variant={skeletonVariant}
         label={isContentNavigation ? "Loading page" : "Loading content"}
       />
       <LoadingSpinner isLoading={isLoading && shouldShowSpinner} label="Processing" />

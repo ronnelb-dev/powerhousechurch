@@ -44,6 +44,13 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
+  // Disposable integration and browser suites use a standard PostgreSQL
+  // service. The Neon adapter speaks Neon's HTTP/WebSocket protocol and cannot
+  // connect to that server, so tests intentionally use Prisma's native driver.
+  if (process.env.NODE_ENV === "test") {
+    return new PrismaClient({ log: ["error"] });
+  }
+
   // The Neon adapter must be initialized with a Pool instance from @neondatabase/serverless
   const pool = new Pool({ connectionString });
   const adapter = new PrismaNeon(pool);

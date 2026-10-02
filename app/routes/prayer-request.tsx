@@ -13,7 +13,6 @@ import { useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/Fo
 import { db } from "~/lib/db.server";
 import { PageHero } from "~/components/ui/PageHero";
 import { PendingButton } from "~/components/ui/PendingButton";
-import { getSession } from "~/lib/auth.server";
 import { handlePrayerRequestSubmission } from "~/lib/public-submissions.server";
 import {
   getClientIpAddress,
@@ -31,7 +30,6 @@ type ActionData =
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
-  const { user } = await getSession(request);
 
   const raw = {
     name:      formData.get("name") as string,
@@ -59,7 +57,6 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   return handlePrayerRequestSubmission(raw, {
-    userId: user?.id,
     db,
   });
 }
