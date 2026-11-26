@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Form,
   Link,
@@ -201,6 +201,7 @@ export default function NewHerePage() {
     failureData
       ? { ...DEFAULT_VISIT_FORM_VALUES, ...failureData.values }
       : DEFAULT_VISIT_FORM_VALUES;
+  const [bringingKids, setBringingKids] = useState(values.bringingKids);
   const errors =
     failureData && "errors" in failureData && failureData.errors
       ? failureData.errors
@@ -390,7 +391,7 @@ export default function NewHerePage() {
                       Tell us about your visit
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-[#f7e6df]">
-                      Share the basics, choose a service, add kids information if needed, and opt into follow-up only if you want it.
+                      Name, email, preferred service, and adult count are required. If you’re bringing kids, add their headcount; notes and follow-up are optional.
                     </p>
                   </div>
 
@@ -525,6 +526,7 @@ export default function NewHerePage() {
                           id="adultCount"
                           name="adultCount"
                           type="number"
+                          required
                           min={1}
                           max={12}
                           defaultValue={values.adultCount}
@@ -564,7 +566,8 @@ export default function NewHerePage() {
                           id="bringingKids"
                           name="bringingKids"
                           type="checkbox"
-                          defaultChecked={values.bringingKids}
+                          checked={bringingKids}
+                          onChange={(event) => setBringingKids(event.currentTarget.checked)}
                           className="mt-1 h-4 w-4 rounded border-white/30 text-[#f3cf8e] focus:ring-[#f3cf8e]"
                         />
                         <div>
@@ -572,46 +575,52 @@ export default function NewHerePage() {
                             We’re bringing kids
                           </label>
                           <p className="mt-1 text-sm leading-6 text-[#f7e6df]">
-                            Add the headcount and any quick notes so our kids team can be ready.
+                            If you’re bringing kids, add the headcount and any quick notes so our team can be ready.
                           </p>
                         </div>
                       </div>
-                      <div className="mt-5 grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
-                        <div>
-                          <label htmlFor="kidsCount" className="mb-2 block text-sm font-semibold text-white">
-                            Number of kids
-                          </label>
-                          <input
-                            id="kidsCount"
-                            name="kidsCount"
-                            type="number"
-                            min={1}
-                            max={12}
-                            defaultValue={values.kidsCount}
-                            aria-invalid={!!errors.kidsCount}
-                            aria-describedby={describedBy(errors.kidsCount && "visit-kidsCount-error")}
-                            className={cn(fieldClass, errors.kidsCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
-                            placeholder="0"
-                          />
-                          <FieldError id="visit-kidsCount-error" errors={errors.kidsCount} />
+                      {bringingKids ? (
+                        <div className="mt-5 grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
+                          <div>
+                            <label htmlFor="kidsCount" className="mb-2 block text-sm font-semibold text-white">
+                              Number of kids <span className="text-[#f3cf8e]">*</span>
+                            </label>
+                            <input
+                              id="kidsCount"
+                              name="kidsCount"
+                              type="number"
+                              required={bringingKids}
+                              min={1}
+                              max={12}
+                              defaultValue={values.kidsCount}
+                              aria-invalid={!!errors.kidsCount}
+                              aria-describedby={describedBy(errors.kidsCount && "visit-kidsCount-error")}
+                              className={cn(fieldClass, errors.kidsCount ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                              placeholder="0"
+                            />
+                            <FieldError id="visit-kidsCount-error" errors={errors.kidsCount} />
+                          </div>
+                          <div>
+                            <label htmlFor="kidsDetails" className="mb-2 block text-sm font-semibold text-white">
+                              Kids notes <span className="font-normal text-[#f7e6df]">(optional)</span>
+                            </label>
+                            <textarea
+                              id="kidsDetails"
+                              name="kidsDetails"
+                              rows={3}
+                              defaultValue={values.kidsDetails}
+                              aria-invalid={!!errors.kidsDetails}
+                              aria-describedby={describedBy(errors.kidsDetails && "visit-kidsDetails-error", "kids-details-guidance")}
+                              className={cn(fieldClass, "min-h-[110px] resize-y", errors.kidsDetails ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
+                              placeholder="Ages or check-in notes (optional)"
+                            />
+                            <p id="kids-details-guidance" className="mt-2 text-xs leading-5 text-[#f7e6df]">
+                              Please share allergies or other health details directly with our Kids team when you arrive.
+                            </p>
+                            <FieldError id="visit-kidsDetails-error" errors={errors.kidsDetails} />
+                          </div>
                         </div>
-                        <div>
-                          <label htmlFor="kidsDetails" className="mb-2 block text-sm font-semibold text-white">
-                            Kids notes
-                          </label>
-                          <textarea
-                            id="kidsDetails"
-                            name="kidsDetails"
-                            rows={3}
-                            defaultValue={values.kidsDetails}
-                            aria-invalid={!!errors.kidsDetails}
-                            aria-describedby={describedBy(errors.kidsDetails && "visit-kidsDetails-error")}
-                            className={cn(fieldClass, "min-h-[110px] resize-y", errors.kidsDetails ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
-                            placeholder="Ages, allergies, or anything helpful for check-in"
-                          />
-                          <FieldError id="visit-kidsDetails-error" errors={errors.kidsDetails} />
-                        </div>
-                      </div>
+                      ) : null}
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">

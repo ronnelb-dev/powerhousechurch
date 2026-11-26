@@ -192,6 +192,7 @@ export default function EventsPage() {
         title="Events & Gatherings"
         subtitle="Come and be part of what God is doing in our community."
         scripture="Let us not give up meeting together — Hebrews 10:25"
+        compactOnSmallScreens
       />
 
       <div className="shell section-gap">

@@ -170,6 +170,7 @@ export default function SermonsPage() {
         title="Preaching Archive"
         subtitle="Every word preached is a seed planted. Browse, search, and revisit messages from the church."
         scripture="Faith comes from hearing, and hearing through the word of Christ. — Romans 10:17"
+        compactOnSmallScreens
       />
 
       <div className="shell section-gap !pt-12">

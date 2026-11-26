@@ -77,9 +77,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 const inputClass =
-  "w-full px-4 py-3 text-sm font-sans border border-gray-200 rounded-lg " +
-  "bg-white text-gray-800 placeholder-gray-400 " +
-  "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all";
+  "w-full rounded-xl border border-[var(--input)] bg-[var(--card)] px-4 py-3 text-sm font-sans text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] " +
+  "transition-all focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
 export default function CellGroupsPage() {
   const { cellGroups } = useLoaderData<typeof loader>();
@@ -129,23 +128,22 @@ export default function CellGroupsPage() {
             {cellGroups.map((group) => (
               <div
                 key={group.id}
-                className="bg-white border border-gray-100 rounded-2xl p-6
-                           hover:border-red-200 hover:shadow-sm transition-all"
+                className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 transition-all hover:border-[var(--primary)]/35 hover:shadow-[var(--shadow-soft)]"
               >
-                <h3 className="font-serif text-xl font-bold text-gray-900 mb-3">
+                <h3 className="mb-3 font-serif text-xl font-bold text-[var(--foreground)]">
                   {group.name}
                 </h3>
                 <div className="space-y-1.5 mb-5">
                   {group.meetingDay && (
-                    <p className="text-xs font-sans text-gray-500">
-                      <span className="font-bold text-gray-700">Day: </span>
+                    <p className="text-xs font-sans text-[var(--muted-foreground)]">
+                      <span className="font-bold text-[var(--foreground)]">Day: </span>
                       {group.meetingDay}
                       {group.meetingTime ? ` at ${group.meetingTime}` : ""}
                     </p>
                   )}
                   {group.barangay && (
-                    <p className="text-xs font-sans text-gray-500">
-                      <span className="font-bold text-gray-700">Area: </span>
+                    <p className="text-xs font-sans text-[var(--muted-foreground)]">
+                      <span className="font-bold text-[var(--foreground)]">Area: </span>
                       {group.barangay}
                     </p>
                   )}
@@ -153,34 +151,55 @@ export default function CellGroupsPage() {
 
                 <details className="group">
                   <summary
-                    className="text-xs font-sans font-bold text-red-700
-                               cursor-pointer hover:text-red-900 transition-colors
-                               focus:outline-none focus:underline list-none"
+                    className="list-none cursor-pointer text-xs font-sans font-bold text-[var(--primary)] transition-colors hover:brightness-75 focus-visible:rounded-sm focus-visible:underline"
                   >
                     Request to join →
                   </summary>
                   <div className="mt-4 space-y-3">
                     <Form method="post">
                       <input type="hidden" name="cellGroupId" value={group.id} />
-                      <input
-                        type="text" name="name" placeholder="Your name"
-                        required className={`${inputClass} mb-2`}
-                      />
-                      <input
-                        type="tel" name="phone" placeholder="Your phone number"
-                        required className={`${inputClass} mb-2`}
-                      />
-                      <textarea
-                        name="message" placeholder="Anything you'd like them to know (optional)"
-                        rows={2} maxLength={500}
-                        className={`${inputClass} resize-none mb-3`}
-                      />
+                      <div className="mb-3">
+                        <label htmlFor={`cell-group-name-${group.id}`} className="mb-1.5 block text-sm font-semibold text-[var(--foreground)]">
+                          Your name
+                        </label>
+                        <input
+                          id={`cell-group-name-${group.id}`}
+                          type="text"
+                          name="name"
+                          autoComplete="name"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label htmlFor={`cell-group-phone-${group.id}`} className="mb-1.5 block text-sm font-semibold text-[var(--foreground)]">
+                          Phone number
+                        </label>
+                        <input
+                          id={`cell-group-phone-${group.id}`}
+                          type="tel"
+                          name="phone"
+                          autoComplete="tel"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label htmlFor={`cell-group-message-${group.id}`} className="mb-1.5 block text-sm font-semibold text-[var(--foreground)]">
+                          Message <span className="font-normal text-[var(--muted-foreground)]">(optional)</span>
+                        </label>
+                        <textarea
+                          id={`cell-group-message-${group.id}`}
+                          name="message"
+                          rows={2}
+                          maxLength={500}
+                          className={`${inputClass} resize-none`}
+                        />
+                      </div>
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full py-2.5 bg-red-700 text-white font-sans
-                                   font-bold text-xs rounded-lg hover:bg-red-800
-                                   disabled:opacity-60 transition-all"
+                        className="min-h-11 w-full rounded-full bg-[var(--primary)] py-2.5 font-sans text-xs font-bold text-[var(--primary-foreground)] transition-all hover:brightness-110 disabled:opacity-60"
                       >
                         {isSubmitting ? "Sending…" : "Send Request"}
                       </button>

@@ -68,26 +68,24 @@ export default function SermonDetailPage() {
     <div className="pt-24 pb-20 max-w-4xl mx-auto px-6">
       {/* Breadcrumb */}
       <nav className="mb-8 text-sm font-sans" aria-label="Breadcrumb">
-        <ol className="flex items-center gap-2 text-gray-400">
-          <li><Link to="/preaching" className="hover:text-red-700 transition-colors">Preaching</Link></li>
+        <ol className="flex items-center gap-2 text-[var(--muted-foreground)]">
+          <li><Link to="/preaching" className="transition-colors hover:text-[var(--primary)]">Preaching</Link></li>
           <li aria-hidden="true">/</li>
-          <li className="text-gray-600 truncate max-w-xs">{sermon.title}</li>
+          <li className="max-w-xs truncate text-[var(--foreground)]">{sermon.title}</li>
         </ol>
       </nav>
 
       {/* Series + tags */}
       <div className="flex flex-wrap gap-2 mb-4">
         {sermon.series && (
-          <span className="text-xs font-sans font-bold tracking-widest uppercase
-                           text-red-600 bg-red-50 border border-red-100 px-3 py-1 rounded-full">
+          <span className="rounded-full border border-[var(--primary)]/20 bg-[var(--muted)] px-3 py-1 text-xs font-sans font-bold uppercase tracking-widest text-[var(--primary)]">
             {sermon.series}
           </span>
         )}
         {sermon.tags.map((tag) => (
           <span
             key={tag}
-            className="text-xs font-sans font-bold text-gray-500
-                       bg-gray-100 border border-gray-200 px-3 py-1 rounded-full"
+            className="rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-sans font-bold text-[var(--muted-foreground)]"
           >
             {tag.trim()}
           </span>
@@ -95,21 +93,20 @@ export default function SermonDetailPage() {
       </div>
 
       {/* Title */}
-      <h1 className="font-serif text-3xl md:text-4xl font-bold text-gray-900
+      <h1 className="font-serif text-3xl md:text-4xl font-bold text-[var(--foreground)]
                      leading-tight mb-4">
         {sermon.title}
       </h1>
 
       {/* Meta */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-full bg-red-700 flex items-center
-                        justify-center text-white font-bold font-sans text-sm"
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] font-sans text-sm font-bold text-[var(--primary-foreground)]"
              aria-hidden="true">
           {sermon.speaker.split(" ").pop()?.[0] ?? "P"}
         </div>
         <div>
-          <p className="text-sm font-sans font-bold text-gray-800">{sermon.speaker}</p>
-          <p className="text-xs text-gray-400 font-sans">{formattedDate}</p>
+          <p className="text-sm font-sans font-bold text-[var(--foreground)]">{sermon.speaker}</p>
+          <p className="text-xs font-sans text-[var(--muted-foreground)]">{formattedDate}</p>
         </div>
       </div>
 
@@ -130,8 +127,7 @@ export default function SermonDetailPage() {
         </div>
       ) : sermon.thumbnail ? (
         <div
-          className="rounded-2xl overflow-hidden bg-gradient-to-br from-red-700
-                     to-red-900 mb-8 flex items-center justify-center"
+          className="mb-8 flex items-center justify-center overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--surface-inverse))]"
           style={{ aspectRatio: "16/9" }}
         >
           <img
@@ -143,8 +139,7 @@ export default function SermonDetailPage() {
         </div>
       ) : (
         <div
-          className="rounded-2xl bg-gradient-to-br from-red-700 to-red-900
-                     mb-8 flex items-center justify-center"
+          className="mb-8 flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--surface-inverse))]"
           style={{ aspectRatio: "16/9" }}
           aria-hidden="true"
         >
@@ -154,9 +149,8 @@ export default function SermonDetailPage() {
 
       {/* Audio player */}
       {sermon.audioUrl && (
-        <div className="mb-8 p-5 bg-primary-50 border border-primary-200 rounded-xl">
-          <p className="text-xs font-sans font-bold tracking-widest uppercase
-                        text-red-600 mb-3">
+        <div className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--muted)] p-5">
+          <p className="mb-3 text-xs font-sans font-bold uppercase tracking-widest text-[var(--primary)]">
             Listen to the Preaching
           </p>
           <audio
@@ -174,13 +168,13 @@ export default function SermonDetailPage() {
       {sermon.notes && (
         <div className="rich-text max-w-none">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
-            <h2 className="font-serif text-xl font-bold text-gray-800 m-0">
+            <div className="h-0.5 w-8 rounded-full bg-[var(--primary)]" aria-hidden="true" />
+            <h2 className="m-0 font-serif text-xl font-bold text-[var(--foreground)]">
               Preaching Notes
             </h2>
           </div>
           <div
-            className="text-gray-700 font-sans text-base leading-relaxed
+            className="font-sans text-base leading-relaxed text-[var(--foreground)]
                        whitespace-pre-wrap"
           >
             {sermon.notes}
@@ -191,30 +185,30 @@ export default function SermonDetailPage() {
       {(sermon.weeklyGuide || reflectionPrompts.length > 0 || sermon.scriptureFocus) && (
         <section
           id="weekly-guide"
-          className="mt-10 rounded-3xl border border-red-100 bg-linear-to-br from-red-50 via-white to-amber-50 p-6 md:p-8"
+          className="mt-10 rounded-3xl border border-[var(--border)] bg-[linear-gradient(135deg,var(--muted),var(--card),var(--background))] p-6 md:p-8"
         >
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
-            <h2 className="font-serif text-xl font-bold text-gray-900 m-0">
+            <div className="h-0.5 w-8 rounded-full bg-[var(--primary)]" aria-hidden="true" />
+            <h2 className="m-0 font-serif text-xl font-bold text-[var(--foreground)]">
               Weekly Guide
             </h2>
           </div>
 
           {sermon.scriptureFocus && (
             <div className="mb-5">
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-2">
+              <p className="mb-2 text-xs font-sans font-bold uppercase tracking-[0.2em] text-[var(--primary)]">
                 Scripture Focus
               </p>
-              <p className="text-base font-sans text-gray-800">{sermon.scriptureFocus}</p>
+              <p className="text-base font-sans text-[var(--foreground)]">{sermon.scriptureFocus}</p>
             </div>
           )}
 
           {sermon.weeklyGuide && (
             <div className="mb-5">
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-2">
+              <p className="mb-2 text-xs font-sans font-bold uppercase tracking-[0.2em] text-[var(--primary)]">
                 Weekly Guide
               </p>
-              <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-gray-700">
+              <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-[var(--foreground)]">
                 {sermon.weeklyGuide}
               </div>
             </div>
@@ -222,14 +216,14 @@ export default function SermonDetailPage() {
 
           {reflectionPrompts.length > 0 && (
             <div>
-              <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-red-700 mb-3">
+              <p className="mb-3 text-xs font-sans font-bold uppercase tracking-[0.2em] text-[var(--primary)]">
                 Reflection Prompts
               </p>
               <ul className="space-y-3">
                 {reflectionPrompts.map((prompt) => (
                   <li
                     key={prompt}
-                    className="rounded-2xl border border-white bg-white/80 px-4 py-3 text-sm font-sans text-gray-700 shadow-sm"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm font-sans text-[var(--foreground)] shadow-sm"
                   >
                     {prompt}
                   </li>
@@ -241,7 +235,7 @@ export default function SermonDetailPage() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/prayer-request"
-              className="inline-flex items-center rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+              className="inline-flex items-center rounded-full border border-[var(--primary)]/25 bg-[var(--card)] px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-[var(--primary)] transition-colors hover:border-[var(--primary)]/45 hover:bg-[var(--muted)]"
             >
               Ask for Prayer
             </Link>
@@ -250,17 +244,17 @@ export default function SermonDetailPage() {
       )}
 
       {/* Navigation */}
-      <div className="mt-12 pt-8 border-t border-gray-100 flex justify-between">
+      <div className="mt-12 flex justify-between border-t border-[var(--border)] pt-8">
         <Link
           to="/preaching"
-          className="text-sm font-sans font-bold text-red-700 hover:text-red-900
+          className="text-sm font-sans font-bold text-[var(--primary)] hover:brightness-75
                      transition-colors focus:outline-none focus:underline"
         >
           ← Back to all preaching
         </Link>
         <Link
           to="/prayer-request"
-          className="text-sm font-sans font-bold text-gray-500 hover:text-gray-700
+          className="text-sm font-sans font-bold text-[var(--muted-foreground)] hover:text-[var(--foreground)]
                      transition-colors focus:outline-none focus:underline"
         >
           Submit a prayer request →
@@ -276,23 +270,21 @@ export function ErrorBoundary() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center max-w-md">
-        <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100
-                        flex items-center justify-center mx-auto mb-4"
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--primary)]/20 bg-[var(--muted)]"
              aria-hidden="true">
-          <span className="font-serif text-2xl text-red-700">✝</span>
+          <span className="font-serif text-2xl text-[var(--primary)]">✝</span>
         </div>
-        <h1 className="font-serif text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="mb-2 font-serif text-2xl font-bold text-[var(--foreground)]">
         {is404 ? "Preaching Not Found" : "Unable to Load Preaching"}
         </h1>
-        <p className="text-gray-500 text-sm mb-6">
+        <p className="mb-6 text-sm text-[var(--muted-foreground)]">
           {is404
             ? "This preaching message may have been removed or is not yet published."
             : "Please try again in a moment."}
         </p>
         <Link
           to="/preaching"
-          className="px-5 py-2.5 bg-red-700 text-white font-bold text-sm
-                     rounded-lg hover:bg-red-800 transition-colors"
+          className="rounded-full bg-[var(--primary)] px-5 py-2.5 text-sm font-bold text-[var(--primary-foreground)] transition-colors hover:brightness-110"
         >
           Browse all preaching
         </Link>

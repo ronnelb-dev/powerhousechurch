@@ -55,12 +55,16 @@ export function Footer({ settings }: FooterProps) {
       key: "address",
       icon: faMapMarkerAlt,
       value: churchAddress,
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(churchAddress)}`,
+      external: true,
     },
     churchPhone
       ? {
           key: "phone",
           icon: faPhone,
           value: churchPhone,
+          href: `tel:${churchPhone.replace(/[^\d+]/g, "")}`,
+          external: false,
         }
       : null,
     churchEmail
@@ -68,6 +72,8 @@ export function Footer({ settings }: FooterProps) {
           key: "email",
           icon: faEnvelope,
           value: churchEmail,
+          href: `mailto:${churchEmail}`,
+          external: false,
         }
       : null,
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -125,9 +131,15 @@ export function Footer({ settings }: FooterProps) {
                     icon={item.icon}
                     className="mt-1 size-4 text-[var(--inverse-accent)]"
                   />
-                  <span className="break-words text-sm leading-6 text-[var(--inverse)]">
+                  <a
+                    href={item.href}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noopener noreferrer" : undefined}
+                    aria-label={item.key === "address" ? `Open ${item.value} in Maps` : undefined}
+                    className="break-words text-sm leading-6 text-[var(--inverse)] underline decoration-white/30 underline-offset-4 transition-colors hover:text-[var(--inverse-accent)] focus-visible:rounded-sm"
+                  >
                     {item.value}
-                  </span>
+                  </a>
                 </div>
               ))}
             </div>
@@ -162,6 +174,7 @@ export function Footer({ settings }: FooterProps) {
                 { to: "/preaching",   label: "Preaching"  },
                 { to: "/events",      label: "Events"     },
                 { to: "/ministries",  label: "Ministries" },
+                { to: "/cell-groups", label: "Cell Groups" },
                 { to: "/contact",     label: "Contact"    },
               ].map(({ to, label }) => (
                 <li key={to}>
@@ -221,7 +234,7 @@ export function Footer({ settings }: FooterProps) {
           <p className="text-sm text-[var(--inverse-subtle)]">
             © {new Date().getFullYear()} {churchNameWithoutTrailingPeriod}. All rights reserved. Built with love for our community.
           </p>
-          <nav aria-label="Footer legal links">
+          <nav aria-label="Additional links">
             <ul className="flex flex-wrap gap-5 text-sm" role="list">
               <li>
                 <Link to="/new-here" className="text-[var(--inverse-muted)] transition-colors hover:text-white">

@@ -168,9 +168,9 @@ export default function AboutPage() {
 
       <section className="section-gap">
         <div className="shell">
-          <div className="overflow-hidden rounded-[28px] border border-[#eadfda] bg-white shadow-[0_18px_40px_rgba(35,23,21,0.08)]">
-            <div className="bg-[#a00000] px-8 py-8 text-white sm:px-10 sm:py-9">
-              <h2 className="font-serif text-4xl font-semibold text-white sm:text-5xl">
+          <div className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow-card)]">
+            <div className="bg-[linear-gradient(135deg,var(--primary),var(--surface-inverse))] px-8 py-8 text-[var(--inverse)] sm:px-10 sm:py-9">
+              <h2 className="font-serif text-4xl font-semibold text-[var(--inverse)] sm:text-5xl">
                 Our Core Values
               </h2>
               <p className="mt-4 max-w-5xl text-base leading-8 text-white/90 sm:text-lg">
@@ -181,10 +181,10 @@ export default function AboutPage() {
                 generation to fulfill the vision.
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-px bg-[#eadfda] sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-2 xl:grid-cols-4">
               {VALUES.map((value) => (
-                <div key={value.number} className="min-h-[170px] bg-white px-6 py-7 sm:px-7">
-                  <p className="text-lg font-semibold tracking-[0.18em] text-[#d88f8f]">
+                <div key={value.number} className="min-h-[170px] bg-[var(--card)] px-6 py-7 sm:px-7">
+                  <p className="text-lg font-semibold tracking-[0.18em] text-[var(--primary)]">
                     {value.number}
                   </p>
                   <h3 className="mt-4 text-2xl font-semibold leading-tight text-[var(--foreground)]">
@@ -204,7 +204,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 xl:grid-cols-4">
           {WCDS_STEPS.map((step) => (
             <div key={step.letter} className="mx-auto max-w-[240px] text-center">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#a00000] text-4xl font-semibold text-white">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[var(--primary)] text-4xl font-semibold text-[var(--primary-foreground)]">
                 {step.letter}
               </div>
               <h3 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
@@ -252,12 +252,12 @@ export default function AboutPage() {
       </section>
 
       <section className="shell pb-24 text-center">
-        <Card className="overflow-hidden bg-[linear-gradient(135deg,#923034_0%,#231715_100%)] text-white">
+        <Card className="overflow-hidden bg-[linear-gradient(135deg,var(--primary),var(--surface-inverse))] text-[var(--inverse)]">
           <CardContent className="p-10">
             <h2 className="font-serif text-4xl font-semibold text-white sm:text-5xl">
           Come and See
         </h2>
-            <p className="mx-auto mt-4 max-w-md text-base leading-7 text-[#f1ddd4]">
+            <p className="mx-auto mt-4 max-w-md text-base leading-7 text-[var(--inverse-muted)]">
           The best way to know who we are is to join us on a Sunday. Come hungry,
           come as you are, and come expecting.
         </p>

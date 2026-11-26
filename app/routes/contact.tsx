@@ -126,6 +126,7 @@ export default function ContactPage() {
       <PageHero
         title="Get in Touch"
         subtitle="We'd love to hear from you. Our team aims to respond within one business day."
+        compactOnSmallScreens
       />
 
       <div className="shell section-gap">

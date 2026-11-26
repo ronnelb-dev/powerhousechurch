@@ -34,12 +34,7 @@ export function Navbar() {
   return (
     <>
       <header
-        className={[
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-          isScrolled
-            ? "border-b border-white/50 bg-[rgba(255,247,240,0.82)] shadow-[0_18px_50px_-30px_rgba(31,17,15,0.45)] backdrop-blur-xl"
-            : "bg-transparent",
-        ].join(" ")}
+        className="fixed top-0 left-0 right-0 z-50"
         role="banner"
       >
         <nav className="shell" aria-label="Main navigation">
@@ -47,7 +42,7 @@ export function Navbar() {
             className={cn(
               "mt-3 flex items-center justify-between gap-3 rounded-[2rem] px-3 py-2.5 transition-all duration-300 sm:px-4 sm:py-3 lg:px-6",
               isScrolled
-                ? "bg-white/55"
+                ? "bg-white/55 shadow-[0_16px_45px_-34px_rgba(42,18,12,0.65)] backdrop-blur-xl"
                 : "bg-[rgba(255,250,245,0.52)] shadow-[0_16px_45px_-34px_rgba(42,18,12,0.65)] backdrop-blur-md",
             )}
           >

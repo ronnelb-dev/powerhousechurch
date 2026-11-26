@@ -15,6 +15,8 @@ interface PageHeroProps {
   scripture?: string;
   /** Cloudinary URL — red gradient overlay applied automatically */
   bgImage?:   string;
+  /** Reduce the hero's height on compact and tablet viewports for task-focused pages. */
+  compactOnSmallScreens?: boolean;
   children?:  React.ReactNode;
 }
 
@@ -23,11 +25,15 @@ export function PageHero({
   subtitle,
   scripture,
   bgImage,
+  compactOnSmallScreens = false,
   children,
 }: PageHeroProps) {
   return (
     <section
-      className="relative overflow-hidden pt-24 sm:pt-28"
+      className={cn(
+        "relative overflow-hidden",
+        compactOnSmallScreens ? "pt-20 sm:pt-24 lg:pt-28" : "pt-24 sm:pt-28",
+      )}
       style={
         bgImage
           ? {
@@ -65,12 +71,22 @@ export function PageHero({
         aria-hidden="true"
       />
 
-      <div className="shell relative pb-14 sm:pb-20 lg:pb-24">
+      <div
+        className={cn(
+          "shell relative",
+          compactOnSmallScreens ? "pb-10 sm:pb-12 lg:pb-24" : "pb-14 sm:pb-20 lg:pb-24",
+        )}
+      >
         <div className={cn("mx-auto max-w-4xl text-center", children ? "max-w-5xl" : undefined)}>
           <Badge className="border-white/10 bg-white/10 text-white">Powerhouse Church</Badge>
           <h1
             id="page-hero-title"
-            className="text-balance mt-5 font-serif text-[clamp(3rem,11vw,5rem)] font-semibold leading-[0.92] text-white sm:mt-6 sm:text-[clamp(4rem,8vw,5.75rem)] lg:text-7xl"
+            className={cn(
+              "text-balance mt-5 font-serif font-semibold leading-[0.92] text-white sm:mt-6 lg:text-7xl",
+              compactOnSmallScreens
+                ? "text-[clamp(2.5rem,9vw,4.5rem)] sm:text-[clamp(3rem,7vw,5rem)]"
+                : "text-[clamp(3rem,11vw,5rem)] sm:text-[clamp(4rem,8vw,5.75rem)]",
+            )}
           >
           {title}
           </h1>
@@ -82,7 +98,14 @@ export function PageHero({
           )}
 
           {scripture && (
-            <p className="mx-auto mt-5 max-w-2xl font-serif text-lg leading-8 italic text-[#f1d2a4] sm:mt-6 sm:text-2xl">
+            <p
+              className={cn(
+                "mx-auto max-w-2xl font-serif italic text-[#f1d2a4]",
+                compactOnSmallScreens
+                  ? "mt-4 hidden text-base leading-7 lg:mt-6 lg:block lg:text-2xl lg:leading-8"
+                  : "mt-5 text-lg leading-8 sm:mt-6 sm:text-2xl",
+              )}
+            >
               "{scripture}"
             </p>
           )}
