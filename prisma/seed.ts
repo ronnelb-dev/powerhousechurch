@@ -10,7 +10,7 @@ async function main() {
   const settings = [
     { key: "church.name",           value: "Powerhouse Church Christian Fellowship Intl." },
     { key: "church.tagline",        value: "Where Faith Meets Community" },
-    { key: "church.address",        value: "123 Masbate Street, Masbate City, Philippines" },
+    { key: "church.address",        value: "2nd Flr. Sundrel Business Center Bldg Cabuyao City, Laguna" },
     { key: "church.email",          value: "info@powerhousechurch.ph" },
     { key: "church.phone",          value: "+63 917 000 0000" },
     { key: "service.sunday1",       value: "7:00 AM" },
@@ -259,7 +259,7 @@ async function main() {
       name: "Katrina Ramos",
       email: "katrina@example.com",
       phone: "+63 917 555 0101",
-      city: "Masbate City",
+      city: "Cabuyao City",
       preferredService: "Sunday 9:00 AM",
       visitDate: new Date("2026-04-27"),
       adultCount: 2,

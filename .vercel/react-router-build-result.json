@@ -446,9 +446,9 @@
     }
   },
   "reactRouterConfig": {
-    "appDirectory": "/Users/ronnelbarashari/projects/powerhousechurch/app",
+    "appDirectory": "/Users/ronnel/personal/powerhousechurch/app",
     "basename": "/",
-    "buildDirectory": "/Users/ronnelbarashari/projects/powerhousechurch/build",
+    "buildDirectory": "/Users/ronnel/personal/powerhousechurch/build",
     "future": {
       "unstable_optimizeDeps": false,
       "unstable_passThroughRequests": false,
