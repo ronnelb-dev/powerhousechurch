@@ -12,6 +12,10 @@ import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 import {
+  buildAttendanceTrend,
+  type AttendanceTrendPoint,
+} from "~/lib/attendance-trend";
+import {
   addCalendarDays,
   calendarDateToUtc,
   getChurchCalendarDate,
@@ -20,17 +24,6 @@ import {
   isCalendarDate,
   utcDateToCalendarDate,
 } from "~/lib/calendar-date";
-
-type AttendanceTrendPoint = {
-  dateKey: string;
-  shortLabel: string;
-  fullLabel: string;
-  presentCount: number;
-  absentCount: number;
-  markedCount: number;
-  unmarkedCount: number;
-  attendanceRate: number;
-};
 
 type MemberGrowthPoint = {
   monthKey: string;
@@ -247,72 +240,6 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 }
 
-function buildAttendanceTrend(args: {
-  sundaySeries: Date[];
-  records: Array<{
-    date: Date;
-    status: string;
-    user: { isActive: boolean };
-  }>;
-  totalMembers: number;
-}): AttendanceTrendPoint[] {
-  const bucket = new Map<
-    string,
-    { presentCount: number; absentCount: number; markedCount: number }
-  >();
-
-  for (const record of args.records) {
-    if (!record.user.isActive) continue;
-    const key = toDateKey(record.date);
-    const existing = bucket.get(key) ?? {
-      presentCount: 0,
-      absentCount: 0,
-      markedCount: 0,
-    };
-
-    if (record.status === "PRESENT") {
-      existing.presentCount += 1;
-      existing.markedCount += 1;
-    } else if (record.status === "ABSENT") {
-      existing.absentCount += 1;
-      existing.markedCount += 1;
-    }
-
-    bucket.set(key, existing);
-  }
-
-  return args.sundaySeries.map((sunday) => {
-    const dateKey = toDateKey(sunday);
-    const counts = bucket.get(dateKey) ?? {
-      presentCount: 0,
-      absentCount: 0,
-      markedCount: 0,
-    };
-    const attendanceRate =
-      args.totalMembers > 0
-        ? Math.round((counts.presentCount / args.totalMembers) * 100)
-        : 0;
-
-    return {
-      dateKey,
-      shortLabel: sunday.toLocaleDateString("en-PH", {
-        month: "short",
-        day: "numeric",
-      }),
-      fullLabel: sunday.toLocaleDateString("en-PH", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-      presentCount: counts.presentCount,
-      absentCount: counts.absentCount,
-      markedCount: counts.markedCount,
-      unmarkedCount: Math.max(args.totalMembers - counts.markedCount, 0),
-      attendanceRate,
-    };
-  });
-}
-
 function buildMemberGrowth(args: {
   monthSeries: Date[];
   records: Array<{ createdAt: Date }>;
@@ -379,10 +306,6 @@ function getLastNMonths(count: number) {
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function toDateKey(date: Date) {
-  return utcDateToCalendarDate(date);
 }
 
 function toMonthKey(date: Date) {

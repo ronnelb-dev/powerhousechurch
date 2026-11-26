@@ -53,6 +53,61 @@ const PersonIcon = () => (
   </svg>
 );
 
+const PrayerIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M5 2.5v4l2 2V5.5L5 2.5Zm8 0v4l-2 2V5.5l2-3Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="m7 8.5 2 2 2-2 2 2.5-4 5-4-5L7 8.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const MailIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <rect x="1.5" y="3" width="15" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+    <path d="m2.5 5 6.5 5 6.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const MinistryIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M2 16h14M3.5 16V6.5L9 3l5.5 3.5V16M7 16v-4h4v4M6 8h.01M9 8h.01M12 8h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <rect x="2" y="3.5" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M5.5 2v3M12.5 2v3M2 7h14M5.5 10h.01M9 10h.01M12.5 10h.01M5.5 13h.01M9 13h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+const ClipboardCheckIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M6 3H4a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 4 16h10a1.5 1.5 0 0 0 1.5-1.5v-10A1.5 1.5 0 0 0 14 3h-2" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="6" y="1.5" width="6" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    <path d="m6 10 2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h8A1.5 1.5 0 0 1 13 3.5v6a1.5 1.5 0 0 1-1.5 1.5H7l-3.5 3v-3.2A1.5 1.5 0 0 1 2 9.5v-6Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M6 14.5h5l3.5 2v-3.2a1.5 1.5 0 0 0 1.5-1.5v-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M2 16h14M3.5 14V9M8 14V4M12.5 14V7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <path d="M9 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" stroke="currentColor" strokeWidth="1.5" />
+    <path d="m7.5 2 .3 1.4a5.8 5.8 0 0 0-1.2.7l-1.3-.6-1.5 1.5.6 1.3a5.8 5.8 0 0 0-.5 1.3L2.5 8v2l1.4.4a5.8 5.8 0 0 0 .5 1.3l-.6 1.3 1.5 1.5 1.3-.6a5.8 5.8 0 0 0 1.2.7L7.5 16h2l.3-1.4a5.8 5.8 0 0 0 1.2-.7l1.3.6 1.5-1.5-.6-1.3a5.8 5.8 0 0 0 .5-1.3l1.3-.4V8l-1.3-.4a5.8 5.8 0 0 0-.5-1.3l.6-1.3-1.5-1.5-1.3.6a5.8 5.8 0 0 0-1.2-.7L9.5 2h-2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+  </svg>
+);
+
 const NAV_ITEMS: NavItem[] = [
   { to: "/portal/dashboard", label: "Dashboard", icon: <DashIcon /> },
   { to: "/portal/attendance", label: "Attendance", icon: <CheckIcon /> },
@@ -63,16 +118,16 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_NAV = [
-  { to: "/portal/admin/prayers", label: "Prayer Requests" },
-  { to: "/portal/admin/cell-groups", label: "Cell Groups" },
-  { to: "/portal/admin/email-queue", label: "Email Queue" },
-  { to: "/portal/admin/members", label: "Members" },
-  { to: "/portal/admin/ministries", label: "Ministries" },
-  { to: "/portal/admin/events", label: "Events" },
-  { to: "/portal/admin/visit-plans", label: "Visit Plans" },
-  { to: "/portal/admin/posts", label: "Community" },
-  { to: "/portal/admin/reports", label: "Reports" },
-  { to: "/portal/admin/settings", label: "Settings" },
+  { to: "/portal/admin/prayers", label: "Prayer Requests", icon: <PrayerIcon /> },
+  { to: "/portal/admin/cell-groups", label: "Cell Groups", icon: <UsersIcon /> },
+  { to: "/portal/admin/email-queue", label: "Email Queue", icon: <MailIcon /> },
+  { to: "/portal/admin/members", label: "Members", icon: <PersonIcon /> },
+  { to: "/portal/admin/ministries", label: "Ministries", icon: <MinistryIcon /> },
+  { to: "/portal/admin/events", label: "Events", icon: <CalendarIcon /> },
+  { to: "/portal/admin/visit-plans", label: "Visit Plans", icon: <ClipboardCheckIcon /> },
+  { to: "/portal/admin/posts", label: "Community", icon: <ChatIcon /> },
+  { to: "/portal/admin/reports", label: "Reports", icon: <ChartIcon /> },
+  { to: "/portal/admin/settings", label: "Settings", icon: <SettingsIcon /> },
 ];
 
 interface PortalSidebarProps {
@@ -192,7 +247,7 @@ function SidebarContent({
               Admin
             </h2>
             <ul className="space-y-1" role="list">
-              {ADMIN_NAV.map(({ to, label }) => {
+              {ADMIN_NAV.map(({ to, label, icon }) => {
                 const active = isAdminActive(to);
                 return (
                   <li key={to}>
@@ -202,7 +257,9 @@ function SidebarContent({
                       className={[navLinkClass(active), "pl-4"].join(" ")}
                       aria-current={active ? "page" : undefined}
                     >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-55" aria-hidden="true" />
+                      <span className={active ? "text-[var(--inverse-accent)]" : "text-[var(--primary)]"}>
+                        {icon}
+                      </span>
                       {label}
                     </Link>
                   </li>
