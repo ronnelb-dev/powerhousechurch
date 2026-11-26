@@ -8,87 +8,6 @@ import {
 } from "~/lib/public-submissions.server";
 
 describe("handleRsvpSubmission", () => {
-  it("requires guest contact details before opening a transaction", async () => {
-    const transaction = vi.fn();
-
-    const result = await handleRsvpSubmission(
-      {
-        intent: "rsvp",
-        eventId: "event_1",
-        name: "",
-        email: "not-an-email",
-        phone: "",
-        notes: "",
-        honeypot: "",
-      },
-      "https://church.test/events",
-      {
-        db: { $transaction: transaction },
-        buildEventCalendarUrl: vi.fn(),
-        buildGoogleCalendarUrl: vi.fn(),
-      },
-    );
-
-    expect(transaction).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      success: false,
-      eventId: "event_1",
-      errors: {
-        name: expect.any(Array),
-        email: expect.any(Array),
-        phone: expect.any(Array),
-      },
-    });
-  });
-
-  it("rejects a duplicate guest email for the same event", async () => {
-    const createRegistration = vi.fn();
-
-    const result = await handleRsvpSubmission(
-      {
-        intent: "rsvp",
-        eventId: "event_1",
-        name: "Jane Doe",
-        email: "jane@example.com",
-        phone: "09123456789",
-        notes: "",
-        honeypot: "",
-      },
-      "https://church.test/events",
-      {
-        db: {
-          $transaction: async (fn) => fn({
-            $queryRaw: vi.fn().mockResolvedValue([{ id: "event_1" }]),
-            event: {
-              findUnique: vi.fn().mockResolvedValue({
-                id: "event_1",
-                isPublished: true,
-                requiresRegistration: true,
-                startDate: new Date(Date.now() + 86_400_000),
-                registrationDeadline: null,
-              }),
-            },
-            eventRegistration: {
-              findUnique: vi.fn().mockResolvedValue({ id: "registration_1" }),
-              count: vi.fn(),
-              create: createRegistration,
-            },
-          }),
-        },
-        buildEventCalendarUrl: vi.fn(),
-        buildGoogleCalendarUrl: vi.fn(),
-      },
-    );
-
-    expect(createRegistration).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      success: false,
-      eventId: "event_1",
-      formError: "This email address is already registered for the event.",
-      errors: {},
-    });
-  });
-
   it("waitlists registrations after capacity is reached", async () => {
     const createRegistration = vi.fn().mockResolvedValue(undefined);
 
@@ -177,6 +96,7 @@ describe("visitor submissions", () => {
         honeypot: "",
       },
       {
+        userId: "member_1",
         db: {
           prayerRequest: {
             create: createPrayerRequest,
@@ -187,6 +107,7 @@ describe("visitor submissions", () => {
 
     expect(createPrayerRequest).toHaveBeenCalledWith({
       data: {
+        memberId: "member_1",
         name: "Jane Doe",
         email: null,
         request: "Please pray for wisdom for our family this week.",

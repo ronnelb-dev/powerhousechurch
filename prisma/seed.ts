@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { hash } from "@node-rs/argon2";
 
 const db = new PrismaClient();
 
@@ -36,6 +37,53 @@ async function main() {
   }
   console.log("✅ Settings seeded");
 
+  // ── Admin user ─────────────────────────────────────────────
+  const adminHash = await hash("Admin@2025!", {
+    memoryCost: 19456,
+    timeCost: 2,
+    outputLen: 32,
+    parallelism: 1,
+  });
+
+  const admin = await db.user.upsert({
+    where:  { email: "admin@powerhousechurch.ph" },
+    update: {},
+    create: {
+      firstName:    "Emmanuel",
+      lastName:     "Santos",
+      email:        "admin@powerhousechurch.ph",
+      passwordHash: adminHash,
+      age:          45,
+      gender:       "MALE",
+      birthday:     new Date("1980-03-15"),
+      role:         "ADMIN",
+    },
+  });
+  console.log("✅ Admin created:", admin.email);
+
+  // ── Cell leader ────────────────────────────────────────────
+  const leaderHash = await hash("Leader@2025!", {
+    memoryCost: 19456,
+    timeCost: 2,
+    outputLen: 32,
+    parallelism: 1,
+  });
+
+  const leader = await db.user.upsert({
+    where:  { email: "grace@powerhousechurch.ph" },
+    update: {},
+    create: {
+      firstName:    "Grace",
+      lastName:     "Villanueva",
+      email:        "grace@powerhousechurch.ph",
+      passwordHash: leaderHash,
+      age:          32,
+      gender:       "FEMALE",
+      birthday:     new Date("1993-07-22"),
+      role:         "CELL_LEADER",
+    },
+  });
+
   // ── Cell group ─────────────────────────────────────────────
   const cellGroup = await db.cellGroup.upsert({
     where:  { id: "cg-graceland" },
@@ -43,15 +91,49 @@ async function main() {
     create: {
       id:          "cg-graceland",
       name:        "Graceland",
-      // Retained only because the deployed table still requires this legacy column.
-      leaderId:    "legacy-public-leader",
+      leaderId:    leader.id,
       meetingDay:  "Friday",
       meetingTime: "6:00 PM",
       barangay:    "Poblacion",
     },
   });
 
+  // Assign leader to her own cell group
+  await db.user.update({
+    where: { id: leader.id },
+    data:  { cellGroupId: cellGroup.id },
+  });
   console.log("✅ Cell group seeded:", cellGroup.name);
+
+  // ── Members ────────────────────────────────────────────────
+  const memberHash = await hash("Member@2025!", {
+    memoryCost: 19456,
+    timeCost: 2,
+    outputLen: 32,
+    parallelism: 1,
+  });
+
+  const memberData = [
+    { email: "maria@example.com", firstName: "Maria", lastName: "Reyes",  age: 28, gender: "FEMALE", birthday: new Date("1997-01-10") },
+    { email: "joel@example.com",  firstName: "Joel",  lastName: "Cruz",   age: 24, gender: "MALE",   birthday: new Date("2001-05-18") },
+    { email: "ana@example.com",   firstName: "Ana",   lastName: "Torres", age: 35, gender: "FEMALE", birthday: new Date("1990-11-03") },
+  ];
+
+  const members = [];
+  for (const m of memberData) {
+    const member = await db.user.upsert({
+      where:  { email: m.email },
+      update: {},
+      create: {
+        ...m,
+        passwordHash: memberHash,
+        role:         "MEMBER",
+        cellGroupId:  cellGroup.id,
+      },
+    });
+    members.push(member);
+  }
+  console.log("✅ Members seeded:", members.length);
 
   // ── Sermons ────────────────────────────────────────────────
   const sermons = [
@@ -188,6 +270,11 @@ async function main() {
       wantsUsherFollowUp: true,
       wantsPastorFollowUp: false,
       notes: "They are new in town and want directions before Sunday.",
+      status: "READY_FOR_SUNDAY",
+      followUpOwnerId: leader.id,
+      lastContactedAt: new Date(),
+      nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      outcomeNotes: "Texted directions and confirmed kids check-in support.",
     },
   });
 
@@ -208,6 +295,10 @@ async function main() {
       wantsUsherFollowUp: false,
       wantsPastorFollowUp: true,
       notes: "Asked for prayer and a conversation after service.",
+      status: "CONTACT_ATTEMPTED",
+      followUpOwnerId: admin.id,
+      nextFollowUpAt: new Date(),
+      outcomeNotes: "Called once and sent an email. Waiting for reply.",
     },
   });
   console.log("✅ Visit plans seeded");
@@ -275,6 +366,58 @@ async function main() {
     }
   }
   console.log("✅ Ministries seeded");
+
+  // ── Attendance (Ana — the "Needs Care" member) ─────────────
+  const sundays = [
+    new Date("2025-03-02"), new Date("2025-03-09"),
+    new Date("2025-03-16"), new Date("2025-03-23"),
+    new Date("2025-03-30"), new Date("2025-04-06"),
+  ];
+  const anaStatuses: string[] = [
+    "PRESENT", "PRESENT", "PRESENT", "ABSENT", "ABSENT", "PRESENT",
+  ];
+
+  for (const [index, sunday] of sundays.entries()) {
+    const member = members[2];
+    const status = anaStatuses[index];
+    if (!member || !status) continue;
+
+    await db.attendance.upsert({
+      where: {
+        userId_type_date: {
+          userId: member.id,
+          type:   "SUNDAY_SERVICE",
+          date:   sunday,
+        },
+      },
+      update: {},
+      create: {
+        userId:      member.id,
+        cellGroupId: cellGroup.id,
+        type:        "SUNDAY_SERVICE",
+        status,
+        date:        sunday,
+        markedById:  leader.id,
+      },
+    });
+  }
+  console.log("✅ Attendance records seeded");
+
+  // ── Devotion post ──────────────────────────────────────────
+  await db.post.upsert({
+    where:  { id: "post-seed-001" },
+    update: {},
+    create: {
+      id:         "post-seed-001",
+      authorId:   admin.id,
+      bibleVerse: "John 15:5",
+      bibleText:  "I am the vine; you are the branches. If you remain in me and I in you, you will bear much fruit; apart from me you can do nothing.",
+      content:    "This week I was reminded that fruitfulness is not a result of my effort, but of my abiding. When I rest in Him — in prayer, in the Word, in community — things flourish.",
+      scope:      "PUBLIC",
+      isApproved: true,
+    },
+  });
+  console.log("✅ Sample devotion post seeded");
 
   console.log("🌿 Seed complete.");
 }

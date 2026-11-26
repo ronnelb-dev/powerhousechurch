@@ -33,6 +33,7 @@ export async function loader() {
     select: {
       id: true, name: true, meetingDay: true,
       meetingTime: true, barangay: true,
+      _count: { select: { members: true } },
     },
   });
 
@@ -149,6 +150,10 @@ export default function CellGroupsPage() {
                       {group.barangay}
                     </p>
                   )}
+                  <p className="text-xs font-sans text-gray-500">
+                    <span className="font-bold text-gray-700">Members: </span>
+                    {group._count.members}
+                  </p>
                 </div>
 
                 <details className="group">

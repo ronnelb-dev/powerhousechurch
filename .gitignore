@@ -5,6 +5,5 @@
 # React Router
 /.react-router/
 /build/
-/coverage/
 
 /generated/prisma

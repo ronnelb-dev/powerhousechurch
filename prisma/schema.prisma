@@ -1,45 +1,214 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["driverAdapters"]  // ← NEW: required for Neon adapter
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  url       = env("DATABASE_URL")           // pooled — used at runtime
+  directUrl = env("DATABASE_URL_UNPOOLED")  // direct — used by CLI only
+}
+
+model User {
+  id             String     @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String?    @unique
+  isEmailVerified Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  phone          String?    @unique
+  passwordHash   String
+  age            Int
+  gender         String
+  birthday       DateTime
+  role           String     @default("MEMBER")
+  isActive       Boolean    @default(true)
+  profilePhoto   String?
+  cellGroupId    String?
+  cellGroup      CellGroup? @relation(fields: [cellGroupId], references: [id])
+  sessions       Session[]
+  attendance     Attendance[]
+  childGuardians ChildGuardian[]
+  childAttendanceMarked ChildAttendance[] @relation("ChildAttendanceMarker")
+  childAttendanceCheckedOut ChildAttendance[] @relation("ChildAttendanceCheckoutMarker")
+  posts          Post[]
+  likes          Like[]
+  comments       Comment[]
+  assignedPrayerRequests PrayerRequest[] @relation("PrayerRequestOwner")
+  memberPrayerRequests PrayerRequest[] @relation("PrayerRequestMember")
+  assignedVisitPlans VisitPlan[] @relation("VisitPlanOwner")
+  assignedCareCases CareCase[] @relation("CareCaseOwner")
+  memberCareCases   CareCase[] @relation("CareCaseMember")
+  sermonBookmarks SermonBookmark[]
+  servingInterests ServingInterest[]
+  notificationPreference NotificationPreference?
+  adminAuditLogs  AdminAuditLog[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([role])
+  @@index([cellGroupId])
+  @@index([isActive])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 model CellGroup {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
-  // Compatibility-only until the separately approved data-retirement migration.
   leaderId    String
   meetingDay  String?
   meetingTime String?
   barangay    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  isActive    Boolean      @default(true)
+  members     User[]
+  attendance  Attendance[]
+  posts       Post[]
+  createdAt   DateTime     @default(now())
 
+  @@index([isActive])
+  @@index([leaderId])
+}
+
+model Attendance {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cellGroupId String?
+  cellGroup   CellGroup? @relation(fields: [cellGroupId], references: [id])
+  type        String
+  status      String
+  date        DateTime
+  markedById  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([userId, type, date])
+  @@index([userId, date])
+  @@index([cellGroupId, date])
+  @@index([date, type])
+}
+
+model ChildProfile {
+  id            String           @id @default(cuid())
+  firstName     String
+  lastName      String
+  preferredName String?
+  gender        String?
+  birthday      DateTime
+  classroom     String?
+  allergies     String?
+  medicalNotes  String?
+  notes         String?
+  isActive      Boolean          @default(true)
+  guardians     ChildGuardian[]
+  attendance    ChildAttendance[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([classroom])
   @@index([isActive])
 }
 
+model ChildGuardian {
+  id               String       @id @default(cuid())
+  childId          String
+  child            ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  relationship     String
+  firstName        String
+  lastName         String
+  phone            String?
+  email            String?
+  isPrimaryContact Boolean      @default(false)
+  canPickup        Boolean      @default(true)
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([childId])
+  @@index([userId])
+  @@index([isPrimaryContact])
+}
+
+model ChildAttendance {
+  id          String       @id @default(cuid())
+  childId      String
+  child        ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  serviceType String       @default("KIDS_CHURCH")
+  status      String
+  date        DateTime
+  markedById  String?
+  markedBy    User?        @relation("ChildAttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+  checkedInAt DateTime?
+  checkedOutAt DateTime?
+  checkedOutById String?
+  checkedOutBy User?        @relation("ChildAttendanceCheckoutMarker", fields: [checkedOutById], references: [id], onDelete: SetNull)
+  pickupGuardianName String?
+  pickupGuardianRelationship String?
+  pickupNotes String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([childId, serviceType, date])
+  @@index([childId, date])
+  @@index([date, serviceType])
+  @@index([checkedOutAt])
+}
+
 model Sermon {
-  id                String   @id @default(cuid())
-  title             String
-  speaker           String
-  series            String?
-  videoUrl          String?
-  audioUrl          String?
-  notes             String?
-  scriptureFocus    String?
-  weeklyGuide       String?
+  id          String   @id @default(cuid())
+  title       String
+  speaker     String
+  series      String?
+  videoUrl    String?
+  audioUrl    String?
+  notes       String?
+  scriptureFocus String?
+  weeklyGuide String?
   reflectionPrompts String?
-  thumbnail         String?
-  date              DateTime
-  tags              String
-  isPublished       Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  thumbnail   String?
+  date        DateTime
+  tags        String
+  isPublished Boolean  @default(true)
+  bookmarks   SermonBookmark[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([date])
   @@index([series])
@@ -68,19 +237,22 @@ model Event {
 }
 
 model EventRegistration {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  name      String
-  email     String
-  phone     String?
-  notes     String?
-  status    String   @default("CONFIRMED")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  email       String
+  phone       String?
+  notes       String?
+  status      String   @default("CONFIRMED")
+  checkedInAt DateTime?
+  checkedInById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([eventId, email])
   @@index([eventId, status])
+  @@index([eventId, checkedInAt])
   @@index([createdAt])
 }
 
@@ -92,6 +264,7 @@ model Ministry {
   leader      String
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
+  servingInterests ServingInterest[]
   createdAt   DateTime @default(now())
 
   @@index([isActive])
@@ -115,39 +288,176 @@ model BlogPost {
   @@index([isPublished, publishedAt])
 }
 
+model Post {
+  id          String     @id @default(cuid())
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content     String
+  bibleVerse  String?
+  bibleText   String?
+  scope       String     @default("PUBLIC")
+  isApproved  Boolean    @default(false)
+  cellGroupId String?
+  cellGroup   CellGroup? @relation(fields: [cellGroupId], references: [id])
+  likes       Like[]
+  comments    Comment[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([isApproved, scope, createdAt])
+  @@index([cellGroupId, isApproved])
+  @@index([authorId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
 model PrayerRequest {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  request     String
-  isPrivate   Boolean  @default(false)
-  submittedAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  memberId        String?
+  member          User?    @relation("PrayerRequestMember", fields: [memberId], references: [id], onDelete: SetNull)
+  name            String
+  email           String?
+  request         String
+  isPrivate       Boolean  @default(false)
+  status          String   @default("NEW")
+  followUpOwnerId String?
+  followUpOwner   User?    @relation("PrayerRequestOwner", fields: [followUpOwnerId], references: [id], onDelete: SetNull)
+  careCase        CareCase?
+  isAnswered      Boolean  @default(false)
+  answeredAt      DateTime?
+  submittedAt     DateTime @default(now())
 
   @@index([submittedAt])
+  @@index([isAnswered])
+  @@index([status, submittedAt])
+  @@index([followUpOwnerId])
+  @@index([memberId, submittedAt])
+}
+
+model SermonBookmark {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sermonId     String
+  sermon       Sermon   @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  note         String?
+  isBookmarked Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, sermonId])
+  @@index([userId, updatedAt])
+  @@index([sermonId])
+}
+
+model ServingInterest {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ministryId     String?
+  ministry       Ministry? @relation(fields: [ministryId], references: [id], onDelete: SetNull)
+  areaOfInterest String
+  availability   String?
+  experience     String?
+  message        String
+  status         String    @default("NEW")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([ministryId, status])
+}
+
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prayerUpdatesEmail    Boolean  @default(true)
+  sermonAnnouncements   Boolean  @default(true)
+  servingOpportunities  Boolean  @default(true)
+  eventReminders        Boolean  @default(true)
+  smsUrgentCare         Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model CareCase {
+  id              String         @id @default(cuid())
+  category        String
+  memberId        String?
+  member          User?          @relation("CareCaseMember", fields: [memberId], references: [id], onDelete: SetNull)
+  prayerRequestId String?        @unique
+  prayerRequest   PrayerRequest? @relation(fields: [prayerRequestId], references: [id], onDelete: Cascade)
+  assignedOwnerId String?
+  assignedOwner   User?          @relation("CareCaseOwner", fields: [assignedOwnerId], references: [id], onDelete: SetNull)
+  lastContactedAt DateTime?
+  notes           String?
+  nextAction      String?
+  reminderAt      DateTime?
+  isResolved      Boolean        @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([memberId, category])
+  @@index([category, isResolved, reminderAt])
+  @@index([assignedOwnerId, reminderAt])
+  @@index([memberId])
 }
 
 model VisitPlan {
-  id                  String   @id @default(cuid())
-  name                String
-  email               String
-  phone               String?
-  city                String?
-  preferredService    String
-  visitDate           DateTime?
-  adultCount          Int      @default(1)
-  isFirstTimeGuest    Boolean  @default(true)
-  bringingKids        Boolean  @default(false)
-  kidsCount           Int?
-  kidsDetails         String?
-  wantsUsherFollowUp  Boolean  @default(false)
-  wantsPastorFollowUp Boolean  @default(false)
-  notes               String?
-  submittedAt         DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String
+  email                String
+  phone                String?
+  city                 String?
+  preferredService     String
+  visitDate            DateTime?
+  adultCount           Int      @default(1)
+  isFirstTimeGuest     Boolean  @default(true)
+  bringingKids         Boolean  @default(false)
+  kidsCount            Int?
+  kidsDetails          String?
+  wantsUsherFollowUp   Boolean  @default(false)
+  wantsPastorFollowUp  Boolean  @default(false)
+  notes                String?
+  status               String   @default("NEW")
+  followUpOwnerId      String?
+  followUpOwner        User?    @relation("VisitPlanOwner", fields: [followUpOwnerId], references: [id], onDelete: SetNull)
+  lastContactedAt      DateTime?
+  nextFollowUpAt       DateTime?
+  outcomeNotes         String?
+  submittedAt          DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([submittedAt])
+  @@index([status, submittedAt])
   @@index([preferredService, submittedAt])
   @@index([visitDate])
+  @@index([followUpOwnerId])
+  @@index([nextFollowUpAt])
 }
 
 model GivingRecord {
@@ -169,4 +479,49 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model OutboundEmail {
+  id            String   @id @default(cuid())
+  toEmail       String
+  recipientName String?
+  subject       String
+  html          String
+  textBody      String?
+  tag           String?
+  status        String   @default("PENDING")
+  attempts      Int      @default(0)
+  maxAttempts   Int      @default(5)
+  nextAttemptAt DateTime @default(now())
+  sentAt        DateTime?
+  lastError     String?
+  lastAttemptAt DateTime?
+  lockedAt      DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@index([tag, createdAt])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  String
+  action     String
+  entityType String
+  entityId   String?
+  summary    String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, createdAt])
+  @@index([createdAt])
 }
