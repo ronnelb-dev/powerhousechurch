@@ -4,8 +4,7 @@
 // Architecture:
 //   Server (loader):
 //     1. Calls getLiveStream() → checks YouTube API for an active broadcast
-//     2. If not live, calls getLatestVideo() → fetches most recent upload
-//     3. Falls back to DB preaching record if YouTube API is unavailable
+//     2. Falls back to a manually configured livestream URL if the API is unavailable
 //
 //   Client (component):
 //     1. Renders immediately with server-detected state (no flicker)
@@ -25,11 +24,7 @@ import {
 import type { MetaFunction } from "react-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSettings } from "~/lib/settings.server";
-import {
-  getLiveStream,
-  getLatestVideo,
-} from "~/lib/youtube.server";
-import { db } from "~/lib/db.server";
+import { getLiveStream } from "~/lib/youtube.server";
 import { buildEmbedUrl, parseVideoId } from "~/lib/youtube";
 
 export const meta: MetaFunction = () => [
@@ -41,15 +36,9 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader() {
-  const [settings, liveResult, latestYouTubeVideo, latestSermon] = await Promise.all([
+  const [settings, liveResult] = await Promise.all([
     getSettings(),
     getLiveStream(),
-    getLatestVideo(),
-    db.sermon.findFirst({
-      where:   { isPublished: true },
-      orderBy: { date: "desc" },
-      select:  { id: true, title: true, speaker: true, videoUrl: true, date: true },
-    }),
   ]);
 
   const service1 = settings["service.sunday1"]  ?? "7:00 AM";
@@ -57,9 +46,7 @@ export async function loader() {
 
   // Determine initial embed source (priority order):
   //   1. YouTube API confirmed live stream
-  //   2. Latest YouTube video from the channel
-  //   3. Latest sermon video URL from the DB
-  //   4. Manual override from Settings table (legacy fallback)
+  //   2. Manual override from Settings table
   let initialVideoId:  string | null = null;
   let initialIsLive:   boolean       = false;
   let initialTitle:    string | null = null;
@@ -69,21 +56,8 @@ export async function loader() {
     initialVideoId = liveResult.videoId;
     initialIsLive  = true;
     initialTitle   = liveResult.title;
-  } else if (latestYouTubeVideo.videoId) {
-    // Not live — show most recent upload from the channel
-    initialVideoId = latestYouTubeVideo.videoId;
-    initialIsLive  = false;
-    initialTitle   = latestYouTubeVideo.title;
-  } else if (latestSermon?.videoUrl) {
-    // YouTube API unavailable — fall back to DB preaching record
-    const parsed = parseVideoId(latestSermon.videoUrl);
-    if (parsed) {
-      initialVideoId = parsed;
-      initialIsLive  = false;
-      initialTitle   = latestSermon.title;
-    }
   } else {
-    // Final fallback — manual URL from settings (legacy)
+    // API unavailable or not live — use the configured livestream URL if present.
     const manualUrl =
       settings["youtube.live"] ||
       settings["YOUTUBE_LIVESTREAM_URL"];
@@ -104,14 +78,6 @@ export async function loader() {
     initialVideoId,
     initialIsLive,
     initialTitle,
-    latestSermon: latestSermon
-      ? {
-          ...latestSermon,
-          date: latestSermon.date instanceof Date
-            ? latestSermon.date.toISOString()
-            : latestSermon.date,
-        }
-      : null,
   };
 }
 
@@ -288,7 +254,7 @@ export default function LivePage() {
         )}
 
         {/* Info strip */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <InfoCard label="Service Times">
             <p className="text-white font-serif text-lg font-bold">
               {service1} &amp; {service2}
@@ -313,18 +279,6 @@ export default function LivePage() {
             )}
           </InfoCard>
 
-          <InfoCard label="Watch Anytime">
-            <p className="text-gray-300 text-base font-sans">
-              All past sermons are available in our archive.
-            </p>
-            <a
-              href="/preaching"
-              className="inline-flex items-center min-h-[44px] text-base font-bold
-                         text-red-400 hover:text-red-300 transition-colors"
-            >
-              Browse preaching →
-            </a>
-          </InfoCard>
         </div>
       </div>
     </div>

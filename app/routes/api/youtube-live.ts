@@ -3,8 +3,8 @@
 // Returns the current live status without a full page reload.
 //
 // Why a separate API route instead of using a fetcher + loader revalidation?
-//   - Loader revalidation re-runs ALL loaders on the page (settings, latestSermon,
-//     getLiveStream). We only want to re-check live status.
+//   - Loader revalidation re-runs ALL loaders on the page (settings, getLiveStream).
+//     We only want to re-check live status.
 //   - A dedicated JSON endpoint is cheaper (one YouTube API call, no DB queries)
 //     and keeps the polling logic explicit and testable.
 //

@@ -1,9 +1,7 @@
 // app/lib/youtube.server.ts
 // YouTube Data API v3 utility — server-side only.
 //
-// Two exported functions:
-//   getLiveStream()   → checks if the church channel is currently live
-//   getLatestVideo()  → fetches the most recently uploaded video (fallback)
+// Live stream detection and preaching playlist retrieval.
 //
 // API key is read from:
 //   1. The DB Setting row "youtube.apiKey"  (runtime, changeable without deploy)
@@ -385,53 +383,6 @@ export async function getLiveStream(): Promise<LiveStreamResult> {
   } catch (err) {
     console.error("[youtube.server] getLiveStream failed:", err);
     return notLive;
-  }
-}
-
-/**
- * Returns the most recently uploaded video from the channel.
- * Used as a fallback when not live — shows the latest content
- * instead of the "not currently live" empty state.
- *
- * Cached for 10 minutes — recent uploads don't change that fast.
- */
-let latestVideoCache: CacheEntry<VideoResult> | null = null;
-const LATEST_CACHE_TTL_MS = 10 * 60_000; // 10 minutes
-
-export async function getLatestVideo(): Promise<VideoResult> {
-  const cached = getCached(latestVideoCache);
-  if (cached) return cached;
-
-  const empty: VideoResult = { videoId: null, title: null };
-
-  const config = await getYouTubeConfig();
-  if (!config) return empty;
-
-  try {
-    const data = await fetchFromYouTube("search", {
-      part:       "snippet",
-      channelId:  config.channelId,
-      order:      "date",          // most recent first
-      type:       "video",
-      maxResults: "1",
-      key:        config.apiKey,
-    });
-
-    if (data.error) {
-      console.error("[youtube.server] API error:", data.error.message);
-      return empty;
-    }
-
-    const item = data.items?.[0];
-    const result: VideoResult = item?.id.videoId
-      ? { videoId: item.id.videoId, title: item.snippet.title ?? null }
-      : empty;
-
-    latestVideoCache = { data: result, expiresAt: Date.now() + LATEST_CACHE_TTL_MS };
-    return result;
-  } catch (err) {
-    console.error("[youtube.server] getLatestVideo failed:", err);
-    return empty;
   }
 }
 

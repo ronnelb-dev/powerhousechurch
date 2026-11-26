@@ -10,14 +10,6 @@ const SAMPLE_MINISTRIES = [
     isActive: true,
   },
   {
-    name: "Kids Ministry",
-    leader: "Sis. Maria Reyes",
-    description:
-      "Creates a safe, joyful, and Bible-centered space where children can grow in faith.",
-    sortOrder: 2,
-    isActive: true,
-  },
-  {
     name: "Youth Ministry",
     leader: "Bro. Joel Cruz",
     description:

@@ -45,7 +45,7 @@ const SOCIALS = [
     key: "social.youtube",
     icon: faYoutube,
     label: "YouTube",
-    description: "Sermons, worship, and live content",
+    description: "Preaching, worship, and live content",
     href: SOCIAL_DEFAULTS["social.youtube"],
   },
   {

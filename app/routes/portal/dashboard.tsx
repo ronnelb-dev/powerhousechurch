@@ -51,9 +51,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const [
     prayerRequestCount,
-    savedSermonCount,
     servingInterestCount,
-    latestSermon,
     cellGroupResult,
     memberCountResult,
     presentCountResult,
@@ -61,20 +59,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     recentAttendanceRecords,
   ] = await Promise.all([
     db.prayerRequest.count({ where: { memberId: user.id } }),
-    db.sermonBookmark.count({ where: { userId: user.id, isBookmarked: true } }),
     db.servingInterest.count({ where: { userId: user.id } }),
-    db.sermon.findFirst({
-      where: { isPublished: true },
-      orderBy: { date: "desc" },
-      select: {
-        id: true,
-        title: true,
-        speaker: true,
-        date: true,
-        weeklyGuide: true,
-        reflectionPrompts: true,
-      },
-    }),
     user.cellGroupId
       ? db.cellGroup.findUnique({
           where: { id: user.cellGroupId },
@@ -169,17 +154,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     churchToday,
     engagementSummary: {
       prayerRequestCount,
-      savedSermonCount,
       servingInterestCount,
     },
-    latestSermon: latestSermon
-      ? {
-          ...latestSermon,
-          date: latestSermon.date instanceof Date
-            ? latestSermon.date.toISOString()
-            : latestSermon.date,
-        }
-      : null,
   };
 }
 
@@ -265,7 +241,7 @@ function QuickActionCard({
 export default function DashboardPage() {
   const {
     user, cellGroup, memberCount, attendanceSummary,
-    recentAttendance, latestSermon, engagementSummary, churchToday,
+    recentAttendance, engagementSummary, churchToday,
   } = useLoaderData<typeof loader>();
 
   const isCellLeaderOrAdmin = user.role === "CELL_LEADER" || user.role === "ADMIN";
@@ -283,8 +259,8 @@ export default function DashboardPage() {
           ? `You are leading ${cellGroup.name} Group. Keep momentum strong with attendance and community rhythms this week.`
           : "Your leader tools will become more useful once a cell group is assigned."
         : cellGroup
-          ? `You are connected to ${cellGroup.name} Group. Keep growing through sermons, prayer, and community life this week.`
-          : "Your portal keeps prayer, sermons, community, and church life close at hand.";
+          ? `You are connected to ${cellGroup.name} Group. Keep growing through prayer and community life this week.`
+          : "Your portal keeps prayer, community, and church life close at hand.";
   const primaryActions =
     user.role === "ADMIN"
       ? [
@@ -307,7 +283,7 @@ export default function DashboardPage() {
           title: cellGroup ? `${cellGroup.name} Group` : "Church Operations",
           description: cellGroup
             ? `${memberCount} members connected in your current group. Use admin tools for the wider church view.`
-            : "Use the admin workspace to manage members, ministries, communications, reports, and prayer requests.",
+            : "Use the admin workspace to manage members, ministries, reports, and prayer requests.",
         }
       : {
           label: "Group Snapshot",
@@ -323,9 +299,6 @@ export default function DashboardPage() {
     month: "long",
     day: "numeric",
   });
-  const sermonHasGuide = Boolean(
-    latestSermon?.weeklyGuide || latestSermon?.reflectionPrompts,
-  );
   const quickActions = [
     ...(user.role === "ADMIN"
       ? [
@@ -345,12 +318,6 @@ export default function DashboardPage() {
             to: "/portal/admin/members",
             title: "Manage Members",
             description: "Update roles, assignments, status, exports, and bulk actions.",
-            tone: "neutral" as const,
-          },
-          {
-            to: "/portal/admin/communications",
-            title: "Communications",
-            description: "Send church updates and manage scheduled messages.",
             tone: "neutral" as const,
           },
           {
@@ -385,7 +352,7 @@ export default function DashboardPage() {
     {
       to: "/portal/engagement",
       title: "Engagement Hub",
-      description: "Track prayer, serving, and sermon engagement in one place.",
+      description: "Track prayer, serving, and community engagement in one place.",
       tone: "gold" as const,
     },
   ];
@@ -432,27 +399,6 @@ export default function DashboardPage() {
               </p>
             </PortalPanel>
 
-            <PortalPanel>
-              <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Weekly Focus
-              </p>
-              <p className="mt-2 font-sans text-base font-bold text-gray-900">
-                {sermonHasGuide ? "Community prompts are ready" : "Fresh sermon content available"}
-              </p>
-              <p className="mt-1 text-sm font-sans leading-6 text-gray-500">
-                {sermonHasGuide
-                  ? "Open the latest message, then move into reflection prompts with your church family."
-                  : "Catch up on the newest sermon and keep building a consistent rhythm."}
-              </p>
-              {latestSermon ? (
-                <Link
-                  to={`/preaching/${latestSermon.id}`}
-                  className="mt-3 inline-flex text-sm font-sans font-bold text-gray-700 transition-colors hover:text-gray-950"
-                >
-                  Open latest sermon →
-                </Link>
-              ) : null}
-            </PortalPanel>
           </div>
         </div>
       </PortalSection>
@@ -497,48 +443,6 @@ export default function DashboardPage() {
             </PortalSection>
           )}
 
-          {latestSermon && (
-            <PortalSection>
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                    Latest Message
-                  </p>
-                  <h2 className="mt-2 font-sans text-xl font-bold text-gray-900">
-                    {latestSermon.title}
-                  </h2>
-                  <p className="mt-1 text-sm font-sans text-gray-400">
-                    {latestSermon.speaker} ·{" "}
-                    {new Date(latestSermon.date).toLocaleDateString("en-PH", {
-                      month: "long", day: "numeric", year: "numeric",
-                    })}
-                  </p>
-                  <p className="mt-3 text-sm font-sans leading-6 text-gray-600">
-                    {sermonHasGuide
-                      ? "Weekly guide and reflection prompts are ready in Community."
-                      : "Revisit the latest sermon and keep its message close this week."}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    to={`/preaching/${latestSermon.id}`}
-                    className={portalButtonClasses()}
-                  >
-                    Watch Message
-                  </Link>
-                  {sermonHasGuide ? (
-                    <Link
-                      to="/portal/community"
-                      className={portalButtonClasses({ variant: "secondary" })}
-                    >
-                      Open Community
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            </PortalSection>
-          )}
         </div>
 
         <div className="space-y-5">
@@ -559,7 +463,7 @@ export default function DashboardPage() {
 
           <PortalSection>
             <PortalSectionHeading eyebrow="Stay Engaged" title="Personal Momentum" />
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Prayer
@@ -568,15 +472,6 @@ export default function DashboardPage() {
                   {engagementSummary.prayerRequestCount}
                 </p>
                 <p className="mt-1 text-xs font-sans text-gray-400">Requests shared</p>
-              </PortalPanel>
-              <PortalPanel className="p-3">
-                <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                  Preaching
-                </p>
-                <p className="mt-1.5 font-sans text-xl font-bold text-gray-900">
-                  {engagementSummary.savedSermonCount}
-                </p>
-                <p className="mt-1 text-xs font-sans text-gray-400">Saved messages</p>
               </PortalPanel>
               <PortalPanel className="p-3">
                 <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">

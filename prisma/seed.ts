@@ -135,45 +135,6 @@ async function main() {
   }
   console.log("✅ Members seeded:", members.length);
 
-  // ── Sermons ────────────────────────────────────────────────
-  const sermons = [
-    {
-      title:       "When Fire Falls: A Faith That Cannot Be Shaken",
-      speaker:     "Ptr. Emmanuel Santos",
-      series:      "Walking in the Spirit",
-      videoUrl:    "https://www.youtube.com/watch?v=example1",
-      date:        new Date("2025-04-06"),
-      tags:        "Holy Spirit,Faith,Revival",
-      isPublished: true,
-    },
-    {
-      title:       "Rooted in the Rock",
-      speaker:     "Ptr. Grace Villanueva",
-      series:      "Unshakeable",
-      videoUrl:    "https://www.youtube.com/watch?v=example2",
-      date:        new Date("2025-03-30"),
-      tags:        "Faith,Foundation,Trust",
-      isPublished: true,
-    },
-    {
-      title:       "Heirs of the Kingdom",
-      speaker:     "Ptr. Emmanuel Santos",
-      series:      "The Promise",
-      date:        new Date("2025-03-23"),
-      tags:        "Promise,Identity,Kingdom",
-      isPublished: true,
-    },
-  ];
-
-  for (const sermon of sermons) {
-    await db.sermon.upsert({
-      where:  { id: `sermon-${sermon.date.toISOString().slice(0, 10)}` },
-      update: {},
-      create: { id: `sermon-${sermon.date.toISOString().slice(0, 10)}`, ...sermon },
-    });
-  }
-  console.log("✅ Sermons seeded");
-
   // ── Events ─────────────────────────────────────────────────
   const events = [
     {
@@ -274,7 +235,7 @@ async function main() {
       followUpOwnerId: leader.id,
       lastContactedAt: new Date(),
       nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      outcomeNotes: "Texted directions and confirmed kids check-in support.",
+      outcomeNotes: "Texted directions and confirmed arrival support.",
     },
   });
 
@@ -311,14 +272,6 @@ async function main() {
       description:
         "Leads the church in heartfelt worship through music, prayer, and a lifestyle of praise.",
       sortOrder: 1,
-      isActive: true,
-    },
-    {
-      name: "Kids Ministry",
-      leader: "Sis. Maria Reyes",
-      description:
-        "Creates a safe, joyful, and Bible-centered space where children can grow in faith.",
-      sortOrder: 2,
       isActive: true,
     },
     {

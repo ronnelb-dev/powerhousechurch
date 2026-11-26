@@ -14,9 +14,9 @@ Powerhouse Church is a full-stack React Router app for the church’s public web
 
 ## Key Areas
 
-- Public site: home, about, ministries, events, sermons, gallery, giving, contact, prayer request, and plan-your-visit flows
+- Public site: home, about, ministries, events, gallery, giving, contact, prayer request, and plan-your-visit flows
 - Members portal: dashboard, profile, directory, engagement, community, attendance
-- Admin tools: events, sermons, communications, members, prayers, reports, settings, visit plans
+- Admin tools: events, members, prayers, reports, settings, visit plans, and email queue
 - Operational workflows: password reset, RSVP handling, prayer follow-up, and visit-plan follow-up
 
 ## Local Setup

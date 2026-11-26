@@ -28,9 +28,6 @@ model User {
   cellGroup      CellGroup? @relation(fields: [cellGroupId], references: [id])
   sessions       Session[]
   attendance     Attendance[]
-  childGuardians ChildGuardian[]
-  childAttendanceMarked ChildAttendance[] @relation("ChildAttendanceMarker")
-  childAttendanceCheckedOut ChildAttendance[] @relation("ChildAttendanceCheckoutMarker")
   posts          Post[]
   likes          Like[]
   comments       Comment[]
@@ -39,7 +36,6 @@ model User {
   assignedVisitPlans VisitPlan[] @relation("VisitPlanOwner")
   assignedCareCases CareCase[] @relation("CareCaseOwner")
   memberCareCases   CareCase[] @relation("CareCaseMember")
-  sermonBookmarks SermonBookmark[]
   servingInterests ServingInterest[]
   notificationPreference NotificationPreference?
   adminAuditLogs  AdminAuditLog[]
@@ -120,100 +116,6 @@ model Attendance {
   @@index([userId, date])
   @@index([cellGroupId, date])
   @@index([date, type])
-}
-
-model ChildProfile {
-  id            String           @id @default(cuid())
-  firstName     String
-  lastName      String
-  preferredName String?
-  gender        String?
-  birthday      DateTime
-  classroom     String?
-  allergies     String?
-  medicalNotes  String?
-  notes         String?
-  isActive      Boolean          @default(true)
-  guardians     ChildGuardian[]
-  attendance    ChildAttendance[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  @@index([lastName, firstName])
-  @@index([classroom])
-  @@index([isActive])
-}
-
-model ChildGuardian {
-  id               String       @id @default(cuid())
-  childId          String
-  child            ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
-  userId           String?
-  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  relationship     String
-  firstName        String
-  lastName         String
-  phone            String?
-  email            String?
-  isPrimaryContact Boolean      @default(false)
-  canPickup        Boolean      @default(true)
-  notes            String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  @@index([childId])
-  @@index([userId])
-  @@index([isPrimaryContact])
-}
-
-model ChildAttendance {
-  id          String       @id @default(cuid())
-  childId      String
-  child        ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
-  serviceType String       @default("KIDS_CHURCH")
-  status      String
-  date        DateTime
-  markedById  String?
-  markedBy    User?        @relation("ChildAttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
-  checkedInAt DateTime?
-  checkedOutAt DateTime?
-  checkedOutById String?
-  checkedOutBy User?        @relation("ChildAttendanceCheckoutMarker", fields: [checkedOutById], references: [id], onDelete: SetNull)
-  pickupGuardianName String?
-  pickupGuardianRelationship String?
-  pickupNotes String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@unique([childId, serviceType, date])
-  @@index([childId, date])
-  @@index([date, serviceType])
-  @@index([checkedOutAt])
-}
-
-model Sermon {
-  id          String   @id @default(cuid())
-  title       String
-  speaker     String
-  series      String?
-  videoUrl    String?
-  audioUrl    String?
-  notes       String?
-  scriptureFocus String?
-  weeklyGuide String?
-  reflectionPrompts String?
-  thumbnail   String?
-  date        DateTime
-  tags        String
-  isPublished Boolean  @default(true)
-  bookmarks   SermonBookmark[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([date])
-  @@index([series])
-  @@index([speaker])
-  @@index([isPublished])
 }
 
 model Event {
@@ -356,22 +258,6 @@ model PrayerRequest {
   @@index([memberId, submittedAt])
 }
 
-model SermonBookmark {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sermonId     String
-  sermon       Sermon   @relation(fields: [sermonId], references: [id], onDelete: Cascade)
-  note         String?
-  isBookmarked Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([userId, sermonId])
-  @@index([userId, updatedAt])
-  @@index([sermonId])
-}
-
 model ServingInterest {
   id             String    @id @default(cuid())
   userId         String
@@ -395,7 +281,6 @@ model NotificationPreference {
   userId                String   @unique
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   prayerUpdatesEmail    Boolean  @default(true)
-  sermonAnnouncements   Boolean  @default(true)
   servingOpportunities  Boolean  @default(true)
   eventReminders        Boolean  @default(true)
   smsUrgentCare         Boolean  @default(false)

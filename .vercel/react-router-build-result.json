@@ -27,8 +27,8 @@
       "routes/contact": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/prayer-request": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/gallery": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/sermons/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/sermons/$sermonId": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/legacy-preaching": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/legacy-preaching-detail": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/sermon-redirect": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/blog/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -49,13 +49,10 @@
       "routes/portal/attendance": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/cell-groups": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/portal/admin/kids-ministry": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/portal/admin/communications": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/email-queue": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/reports": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/members": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/ministries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/portal/admin/sermons": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/events": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/visit-plans": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/portal/admin/posts": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -189,18 +186,17 @@
         "path": "gallery",
         "config": {}
       },
-      "routes/sermons/_index": {
-        "id": "routes/sermons/_index",
+      "routes/legacy-preaching": {
+        "id": "routes/legacy-preaching",
         "parentId": "routes/_public",
-        "file": "app/routes/sermons/_index.tsx",
+        "file": "app/routes/legacy-preaching.tsx",
         "path": "preaching",
-        "index": true,
         "config": {}
       },
-      "routes/sermons/$sermonId": {
-        "id": "routes/sermons/$sermonId",
+      "routes/legacy-preaching-detail": {
+        "id": "routes/legacy-preaching-detail",
         "parentId": "routes/_public",
-        "file": "app/routes/sermons/$sermonId.tsx",
+        "file": "app/routes/legacy-preaching-detail.tsx",
         "path": "preaching/:preachingId",
         "config": {}
       },
@@ -359,20 +355,6 @@
         "path": "portal/admin/cell-groups",
         "config": {}
       },
-      "routes/portal/admin/kids-ministry": {
-        "id": "routes/portal/admin/kids-ministry",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "app/routes/portal/admin/kids-ministry.tsx",
-        "path": "portal/admin/kids-ministry",
-        "config": {}
-      },
-      "routes/portal/admin/communications": {
-        "id": "routes/portal/admin/communications",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "app/routes/portal/admin/communications.tsx",
-        "path": "portal/admin/communications",
-        "config": {}
-      },
       "routes/portal/admin/email-queue": {
         "id": "routes/portal/admin/email-queue",
         "parentId": "routes/portal/admin/_layout",
@@ -399,13 +381,6 @@
         "parentId": "routes/portal/admin/_layout",
         "file": "app/routes/portal/admin/ministries.tsx",
         "path": "portal/admin/ministries",
-        "config": {}
-      },
-      "routes/portal/admin/sermons": {
-        "id": "routes/portal/admin/sermons",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "app/routes/portal/admin/sermons.tsx",
-        "path": "portal/admin/sermons",
         "config": {}
       },
       "routes/portal/admin/events": {
@@ -566,17 +541,16 @@
         "file": "routes/gallery.tsx",
         "path": "gallery"
       },
-      "routes/sermons/_index": {
-        "id": "routes/sermons/_index",
+      "routes/legacy-preaching": {
+        "id": "routes/legacy-preaching",
         "parentId": "routes/_public",
-        "file": "routes/sermons/_index.tsx",
-        "path": "preaching",
-        "index": true
+        "file": "routes/legacy-preaching.tsx",
+        "path": "preaching"
       },
-      "routes/sermons/$sermonId": {
-        "id": "routes/sermons/$sermonId",
+      "routes/legacy-preaching-detail": {
+        "id": "routes/legacy-preaching-detail",
         "parentId": "routes/_public",
-        "file": "routes/sermons/$sermonId.tsx",
+        "file": "routes/legacy-preaching-detail.tsx",
         "path": "preaching/:preachingId"
       },
       "routes/sermons": {
@@ -712,18 +686,6 @@
         "file": "routes/portal/admin/cell-groups.tsx",
         "path": "portal/admin/cell-groups"
       },
-      "routes/portal/admin/kids-ministry": {
-        "id": "routes/portal/admin/kids-ministry",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "routes/portal/admin/kids-ministry.tsx",
-        "path": "portal/admin/kids-ministry"
-      },
-      "routes/portal/admin/communications": {
-        "id": "routes/portal/admin/communications",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "routes/portal/admin/communications.tsx",
-        "path": "portal/admin/communications"
-      },
       "routes/portal/admin/email-queue": {
         "id": "routes/portal/admin/email-queue",
         "parentId": "routes/portal/admin/_layout",
@@ -747,12 +709,6 @@
         "parentId": "routes/portal/admin/_layout",
         "file": "routes/portal/admin/ministries.tsx",
         "path": "portal/admin/ministries"
-      },
-      "routes/portal/admin/sermons": {
-        "id": "routes/portal/admin/sermons",
-        "parentId": "routes/portal/admin/_layout",
-        "file": "routes/portal/admin/sermons.tsx",
-        "path": "portal/admin/sermons"
       },
       "routes/portal/admin/events": {
         "id": "routes/portal/admin/events",
@@ -867,12 +823,11 @@
                 "path": "gallery"
               },
               {
-                "file": "routes/sermons/_index.tsx",
-                "index": true,
+                "file": "routes/legacy-preaching.tsx",
                 "path": "preaching"
               },
               {
-                "file": "routes/sermons/$sermonId.tsx",
+                "file": "routes/legacy-preaching-detail.tsx",
                 "path": "preaching/:preachingId"
               },
               {
@@ -967,14 +922,6 @@
                     "path": "portal/admin/cell-groups"
                   },
                   {
-                    "file": "routes/portal/admin/kids-ministry.tsx",
-                    "path": "portal/admin/kids-ministry"
-                  },
-                  {
-                    "file": "routes/portal/admin/communications.tsx",
-                    "path": "portal/admin/communications"
-                  },
-                  {
                     "file": "routes/portal/admin/email-queue.tsx",
                     "path": "portal/admin/email-queue"
                   },
@@ -989,10 +936,6 @@
                   {
                     "file": "routes/portal/admin/ministries.tsx",
                     "path": "portal/admin/ministries"
-                  },
-                  {
-                    "file": "routes/portal/admin/sermons.tsx",
-                    "path": "portal/admin/sermons"
                   },
                   {
                     "file": "routes/portal/admin/events.tsx",

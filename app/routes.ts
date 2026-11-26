@@ -30,13 +30,9 @@ export default [
     route("prayer-request", "routes/prayer-request.tsx"),
     route("gallery", "routes/gallery.tsx"),
 
-    // Preaching
-    ...prefix("preaching", [
-      index("routes/sermons/_index.tsx"),
-      route(":preachingId", "routes/sermons/$sermonId.tsx"),
-    ]),
-
-    // Legacy Sermons URLs redirect to the new preaching routes
+    // Legacy sermon URLs redirect to the site home.
+    route("preaching", "routes/preaching.tsx"),
+    route("preaching/:preachingId", "routes/legacy-preaching-detail.tsx"),
     route("sermons", "routes/sermons.tsx"),
     route("sermons/:sermonId", "routes/sermon-redirect.tsx"),
 
@@ -74,13 +70,10 @@ export default [
         ...prefix("admin", [
           index("routes/portal/admin/_index.tsx"),
           route("cell-groups", "routes/portal/admin/cell-groups.tsx"),
-          route("kids-ministry", "routes/portal/admin/kids-ministry.tsx"),
-          route("communications", "routes/portal/admin/communications.tsx"),
           route("email-queue", "routes/portal/admin/email-queue.tsx"),
           route("reports", "routes/portal/admin/reports.tsx"),
           route("members", "routes/portal/admin/members.tsx"),
           route("ministries", "routes/portal/admin/ministries.tsx"),
-          route("sermons", "routes/portal/admin/sermons.tsx"),
           route("events", "routes/portal/admin/events.tsx"),
           route("visit-plans", "routes/portal/admin/visit-plans.tsx"),
           route("posts", "routes/portal/admin/posts.tsx"),

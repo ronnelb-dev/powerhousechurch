@@ -87,12 +87,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const [
     cellGroups,
-    classrooms,
     totalMembers,
-    totalChildren,
     totalAttendance,
-    totalChildAttendance,
-    totalSermons,
     totalPrayers,
     attendanceRecords,
     memberRows,
@@ -103,17 +99,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    db.childProfile.findMany({
-      where: { classroom: { not: null } },
-      distinct: ["classroom"],
-      select: { classroom: true },
-      orderBy: { classroom: "asc" },
-    }),
     db.user.count({ where: { isActive: true } }),
-    db.childProfile.count({ where: { isActive: true } }),
     db.attendance.count(),
-    db.childAttendance.count(),
-    db.sermon.count({ where: { isPublished: true } }),
     db.prayerRequest.count(),
     db.attendance.findMany({
       where: {
@@ -162,14 +149,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   return {
     cellGroups,
-    classrooms: classrooms
-      .map((item) => item.classroom)
-      .filter((room): room is string => Boolean(room)),
     totalMembers,
-    totalChildren,
-    totalSermons,
     totalAttendance,
-    totalChildAttendance,
     totalPrayers,
     attendanceTrend,
     memberGrowth,
@@ -189,14 +170,9 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const startDateKey = String(formData.get("startDate") ?? "");
   const endDateKey = String(formData.get("endDate") ?? "");
-  const audience = ((formData.get("audience") as string) || "adults") as
-    | "adults"
-    | "kids";
-  const startDate = new Date(`${startDateKey}T00:00:00`);
-  const endDate = new Date(`${endDateKey}T23:59:59`);
   const cellGroupId = (formData.get("cellGroupId") as string) || undefined;
-  const classroom = (formData.get("classroom") as string) || undefined;
-  const type = (formData.get("type") as string) || "SUNDAY_SERVICE";
+  const type =
+    formData.get("type") === "CELL_GROUP" ? "CELL_GROUP" : "SUNDAY_SERVICE";
 
   if (
     !isCalendarDate(startDateKey) ||
@@ -204,84 +180,6 @@ export async function action({ request }: ActionFunctionArgs) {
     startDateKey > endDateKey
   ) {
     return new Response("Invalid date range", { status: 400 });
-  }
-
-  if (audience === "kids") {
-    const records = await db.childAttendance.findMany({
-      where: {
-        date: { gte: startDate, lte: endDate },
-        serviceType: type,
-        ...(classroom ? { child: { classroom } } : {}),
-      },
-      include: {
-        child: {
-          include: {
-            guardians: {
-              orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "asc" }],
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: [{ date: "asc" }, { child: { lastName: "asc" } }],
-    });
-
-    const header =
-      "Date,Last Name,First Name,Preferred Name,Classroom,Primary Guardian,Phone,Service Type,Status";
-    const rows = records.map((record) => {
-      const guardian = record.child.guardians[0];
-      const date =
-        record.date instanceof Date
-          ? record.date.toLocaleDateString("en-PH", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            })
-          : String(record.date).slice(0, 10);
-      return [
-        date,
-        record.child.lastName,
-        record.child.firstName,
-        record.child.preferredName ?? "",
-        record.child.classroom ?? "",
-        guardian ? `${guardian.firstName} ${guardian.lastName}` : "",
-        guardian?.phone ?? "",
-        record.serviceType,
-        record.status,
-      ]
-        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-        .join(",");
-    });
-
-    const csv = [header, ...rows].join("\n");
-    const filename = `kids-attendance-${type.toLowerCase().replace("_", "-")}-${startDate
-      .toISOString()
-      .slice(0, 10)}-to-${endDate.toISOString().slice(0, 10)}.csv`;
-
-    await recordAdminAuditEvent({
-      request,
-      actorId: user.id,
-      actorRole: user.role,
-      action: "report.export",
-      entityType: "attendance_report",
-      summary: `Exported kids attendance report for ${type}`,
-      details: {
-        audience,
-        type,
-        classroom: classroom ?? null,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        rowCount: records.length,
-      },
-    });
-
-    return new Response(csv, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-      },
-    });
   }
 
   const adultStartDate = calendarDateToUtc(startDateKey);
@@ -332,7 +230,6 @@ export async function action({ request }: ActionFunctionArgs) {
     entityType: "attendance_report",
     summary: `Exported adult attendance report for ${type}`,
     details: {
-      audience,
       type,
       cellGroupId: cellGroupId ?? null,
       startDate: startDateKey,
@@ -509,12 +406,8 @@ const labelClass = "mb-1.5 block text-xs font-sans font-bold text-gray-600";
 export default function AdminReportsPage() {
   const {
     cellGroups,
-    classrooms,
     totalMembers,
-    totalChildren,
-    totalSermons,
     totalAttendance,
-    totalChildAttendance,
     totalPrayers,
     attendanceTrend,
     memberGrowth,
@@ -562,13 +455,10 @@ export default function AdminReportsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         {[
           { label: "Active Members", value: totalMembers },
-          { label: "Active Children", value: totalChildren },
           { label: "Adult Attendance", value: totalAttendance },
-          { label: "Kids Attendance", value: totalChildAttendance },
-          { label: "Published Sermons", value: totalSermons },
           { label: "Prayer Requests", value: totalPrayers },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-gray-100 bg-white p-5">
@@ -732,25 +622,10 @@ export default function AdminReportsPage() {
           Export Attendance (CSV)
         </h2>
         <p className="mb-6 text-sm leading-6 text-gray-500 font-sans">
-          Download adult or kids ministry attendance for deeper review in Excel or Google Sheets.
+          Download adult attendance for deeper review in Excel or Google Sheets.
         </p>
 
         <Form method="post" aria-label="Attendance export form">
-          <div className="mb-4">
-            <label htmlFor="report-audience" className={labelClass}>
-              Attendance Audience
-            </label>
-            <select
-              id="report-audience"
-              name="audience"
-              className={inputClass}
-              defaultValue="adults"
-            >
-              <option value="adults">Adults</option>
-              <option value="kids">Kids Ministry</option>
-            </select>
-          </div>
-
           <div className="mb-4 grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="startDate" className={labelClass}>
@@ -789,9 +664,6 @@ export default function AdminReportsPage() {
             <select id="report-type" name="type" className={inputClass}>
               <option value="SUNDAY_SERVICE">Sunday Service</option>
               <option value="CELL_GROUP">Cell Group</option>
-              <option value="KIDS_CHURCH">Kids Church</option>
-              <option value="NURSERY">Nursery</option>
-              <option value="SPECIAL_EVENT">Special Event</option>
             </select>
           </div>
 
@@ -804,20 +676,6 @@ export default function AdminReportsPage() {
               {cellGroups.map((cellGroup) => (
                 <option key={cellGroup.id} value={cellGroup.id}>
                   {cellGroup.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label htmlFor="report-classroom" className={labelClass}>
-              Kids Classroom
-            </label>
-            <select id="report-classroom" name="classroom" className={inputClass}>
-              <option value="">All classrooms</option>
-              {classrooms.map((room) => (
-                <option key={room} value={room}>
-                  {room}
                 </option>
               ))}
             </select>

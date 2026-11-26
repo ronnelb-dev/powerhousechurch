@@ -3,10 +3,8 @@ import { Link, useLoaderData, isRouteErrorResponse, useRouteError } from "react-
 import type { MetaFunction } from "react-router";
 import { db } from "~/lib/db.server";
 import { getSettings } from "~/lib/settings.server";
-import { getSermonPlaylistVideos } from "~/lib/youtube.server";
-import { SectionHeader } from "~/components/ui/SectionHeader";
-import { SermonCard } from "~/components/church/SermonCard";
 import { EventCard } from "~/components/church/EventCard";
+import { SectionHeader } from "~/components/ui/SectionHeader";
 import { ServiceTimesBar } from "~/components/ui/ServiceTimesBar";
 import { buttonVariants } from "~/components/ui/Button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -42,16 +40,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader() {
-  const [latestSermon, upcomingEvents, settings, playlistVideos] = await Promise.all([
-    db.sermon.findFirst({
-      where: { isPublished: true },
-      orderBy: { date: "desc" },
-      select: {
-        id: true, title: true, speaker: true,
-        series: true, date: true, thumbnail: true,
-        videoUrl: true, tags: true,
-      },
-    }),
+  const [upcomingEvents, settings] = await Promise.all([
     db.event.findMany({
       where: { isPublished: true, startDate: { gt: new Date() } },
       orderBy: { startDate: "asc" },
@@ -62,15 +51,9 @@ export async function loader() {
       },
     }),
     getSettings(),
-    getSermonPlaylistVideos(),
   ]);
 
-  const latestCellCelebrationMessage =
-    playlistVideos.find((video) => video.playlistKey === "CELL_CELEBRATION") ?? null;
-
   return {
-    latestCellCelebrationMessage,
-    latestSermon,
     upcomingEvents: upcomingEvents.map((e) => ({
       ...e,
       startDate: e.startDate.toISOString(),
@@ -81,7 +64,7 @@ export async function loader() {
 }
 
 export default function HomePage() {
-  const { latestCellCelebrationMessage, latestSermon, upcomingEvents, settings } = useLoaderData<typeof loader>();
+  const { upcomingEvents, settings } = useLoaderData<typeof loader>();
   const serviceSchedule = getServiceSchedule(settings);
 
   const serviceTimes = [
@@ -185,53 +168,6 @@ export default function HomePage() {
       <div className="shell relative z-10 -mt-8 sm:-mt-10">
         <ServiceTimesBar times={serviceTimes} />
       </div>
-
-      <section className="shell section-gap">
-        <SectionHeader
-          eyebrow="From the Pulpit"
-          title="Latest Preaching"
-          subtitle="Watch the newest preaching from Powerhouse Cell Celebration and carry the Word with you into the week ahead."
-        />
-        {latestCellCelebrationMessage ? (
-          <div className="mx-auto mt-10 max-w-6xl">
-            <SermonCard
-              id={latestCellCelebrationMessage.id}
-              title={latestCellCelebrationMessage.title}
-              speaker={latestCellCelebrationMessage.speaker}
-              series={latestCellCelebrationMessage.playlistLabel}
-              date={latestCellCelebrationMessage.publishedAt}
-              thumbnail={latestCellCelebrationMessage.thumbnail}
-              href={latestCellCelebrationMessage.url}
-              external
-              featured
-            />
-          </div>
-        ) : latestSermon ? (
-          <div className="mx-auto mt-10 max-w-6xl">
-            <SermonCard
-              id={latestSermon.id}
-              title={latestSermon.title}
-              speaker={latestSermon.speaker}
-              series={latestSermon.series}
-              date={latestSermon.date instanceof Date
-                ? latestSermon.date.toISOString()
-                : latestSermon.date}
-              thumbnail={latestSermon.thumbnail}
-              tags={latestSermon.tags}
-              featured
-            />
-          </div>
-        ) : (
-          <p className="text-gray-400 font-sans text-sm mt-6">
-            No messages published yet.
-          </p>
-        )}
-        <div className="mt-8">
-          <Link to="/preaching" className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
-            Browse all preaching →
-          </Link>
-        </div>
-      </section>
 
       <section className="shell pb-10" aria-labelledby="mission-heading">
         <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">

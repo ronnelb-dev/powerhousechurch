@@ -20,7 +20,7 @@ export const meta: MetaFunction = () => [
 const NEXT_STEPS = [
   {
     title: "Find the welcome team",
-    body: "Let an usher or welcome team member know it is your first time. They can help with seats, kids check-in, restrooms, and any questions right away.",
+    body: "Let an usher or welcome team member know it is your first time. They can help you find seats, restrooms, and answers to any questions.",
   },
   {
     title: "Settle in without pressure",
@@ -28,7 +28,7 @@ const NEXT_STEPS = [
   },
   {
     title: "Ask for help when you need it",
-    body: "If you came with kids, need prayer, or are unsure where to go after service, ask early. Our team would rather help than have you guess.",
+    body: "If you need prayer or are unsure where to go after service, ask early. Our team would rather help than have you guess.",
   },
 ];
 
@@ -56,7 +56,6 @@ const TODAY_FLOW = [
 ];
 
 const QUICK_HELP = [
-  "I need help with kids check-in",
   "I want someone to sit with",
   "I need prayer today",
   "I want to meet a pastor before I leave",
@@ -222,15 +221,9 @@ export default function WelcomeInsidePage() {
           <Card className="overflow-hidden bg-[linear-gradient(135deg,#214437_0%,#2b1815_100%)] text-white">
             <CardContent className="p-6 sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d6a24c]">
-                Families & Contact
+                Contact
               </p>
               <div className="mt-5 space-y-5">
-                <div>
-                  <h3 className="font-serif text-2xl font-semibold text-white">With kids today?</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#d8ded7]">
-                    Ask the welcome team to point you to the kids check-in area first so you can settle your family before service begins.
-                  </p>
-                </div>
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/7 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-[#d6a24c]">Location</p>
                   <p className="mt-2 text-sm leading-7 text-[#f5ede7]">{address}</p>

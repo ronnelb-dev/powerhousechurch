@@ -171,23 +171,6 @@ export const CreateCommentSchema = z.object({
   content: z.string().min(1).max(500),
 });
 
-// ── Sermon (Admin) ─────────────────────────────────────────
-export const SermonSchema = z.object({
-  title:       z.string().min(1).max(200),
-  speaker:     z.string().min(1).max(100),
-  series:      z.string().max(100).optional().or(z.literal("")),
-  videoUrl:    z.string().url().optional().or(z.literal("")),
-  audioUrl:    z.string().url().optional().or(z.literal("")),
-  notes:       z.string().optional().or(z.literal("")),
-  scriptureFocus: z.string().max(200).optional().or(z.literal("")),
-  weeklyGuide: z.string().max(4000).optional().or(z.literal("")),
-  reflectionPrompts: z.string().max(2000).optional().or(z.literal("")),
-  thumbnail:   z.string().url().optional().or(z.literal("")),
-  date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  tags:        z.string().max(200).default(""),
-  isPublished: z.coerce.boolean().default(true),
-});
-
 // ── Giving ─────────────────────────────────────────────────
 export const GivingSchema = z.object({
   amount:   z.coerce.number().int().min(100, "Minimum giving is ₱1.00"),  // in centavos
@@ -204,5 +187,4 @@ export type VisitPlanInput    = z.infer<typeof VisitPlanSchema>;
 export type CreatePostInput   = z.infer<typeof CreatePostSchema>;
 export type MarkAttendanceInput = z.infer<typeof MarkAttendanceSchema>;
 export type AttendanceActionInput = z.infer<typeof AttendanceActionSchema>;
-export type SermonInput       = z.infer<typeof SermonSchema>;
 export type GivingInput       = z.infer<typeof GivingSchema>;

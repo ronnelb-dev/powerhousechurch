@@ -29,11 +29,6 @@ const PrayerSchema = z.object({
   isPrivate: z.boolean().default(true),
 });
 
-const SermonNoteSchema = z.object({
-  sermonId: z.string().min(1),
-  note: z.string().max(2000, "Notes must stay under 2000 characters.").optional(),
-});
-
 const ServingInterestSchema = z.object({
   ministryId: z.string().optional().or(z.literal("")),
   areaOfInterest: z.string().min(2, "Tell us where you'd like to serve.").max(120),
@@ -48,7 +43,6 @@ type ActionData =
 
 const DEFAULT_NOTIFICATION_PREFERENCES = {
   prayerUpdatesEmail: true,
-  sermonAnnouncements: true,
   servingOpportunities: true,
   eventReminders: true,
   smsUrgentCare: false,
@@ -57,7 +51,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
 
-  const [prayerRequests, sermons, ministries, servingInterests, notificationPreference] =
+  const [prayerRequests, ministries, servingInterests, notificationPreference] =
     await Promise.all([
       db.prayerRequest.findMany({
         where: { memberId: user.id },
@@ -71,29 +65,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
           isAnswered: true,
           answeredAt: true,
           submittedAt: true,
-        },
-      }),
-      db.sermon.findMany({
-        where: { isPublished: true },
-        orderBy: { date: "desc" },
-        take: 6,
-        select: {
-          id: true,
-          title: true,
-          speaker: true,
-          date: true,
-          series: true,
-          scriptureFocus: true,
-          bookmarks: {
-            where: { userId: user.id },
-            select: {
-              id: true,
-              note: true,
-              isBookmarked: true,
-              updatedAt: true,
-            },
-            take: 1,
-          },
         },
       }),
       db.ministry.findMany({
@@ -118,7 +89,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         where: { userId: user.id },
         select: {
           prayerUpdatesEmail: true,
-          sermonAnnouncements: true,
           servingOpportunities: true,
           eventReminders: true,
           smsUrgentCare: true,
@@ -136,16 +106,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...item,
       submittedAt: item.submittedAt.toISOString(),
       answeredAt: item.answeredAt ? item.answeredAt.toISOString() : null,
-    })),
-    sermons: sermons.map((sermon) => ({
-      ...sermon,
-      date: sermon.date.toISOString(),
-      bookmark: sermon.bookmarks[0]
-        ? {
-            ...sermon.bookmarks[0],
-            updatedAt: sermon.bookmarks[0].updatedAt.toISOString(),
-          }
-        : null,
     })),
     ministries,
     servingInterests: servingInterests.map((interest) => ({
@@ -193,83 +153,6 @@ export async function action({ request }: ActionFunctionArgs) {
     } satisfies ActionData;
   }
 
-  if (intent === "toggleSermonBookmark") {
-    const sermonId = String(formData.get("sermonId") ?? "");
-    if (!sermonId) {
-      return {
-        success: false,
-        intent,
-        message: "Sermon ID is missing.",
-      } satisfies ActionData;
-    }
-
-    const existing = await db.sermonBookmark.findUnique({
-      where: { userId_sermonId: { userId: user.id, sermonId } },
-      select: { id: true, isBookmarked: true },
-    });
-
-    if (existing) {
-      await db.sermonBookmark.update({
-        where: { id: existing.id },
-        data: { isBookmarked: !existing.isBookmarked },
-      });
-    } else {
-      await db.sermonBookmark.create({
-        data: {
-          userId: user.id,
-          sermonId,
-          isBookmarked: true,
-        },
-      });
-    }
-
-    return {
-      success: true,
-      intent,
-      message: "Your sermon library has been updated.",
-    } satisfies ActionData;
-  }
-
-  if (intent === "saveSermonNote") {
-    const result = SermonNoteSchema.safeParse({
-      sermonId: String(formData.get("sermonId") ?? ""),
-      note: String(formData.get("note") ?? "").trim(),
-    });
-
-    if (!result.success) {
-      return {
-        success: false,
-        intent,
-        errors: result.error.flatten().fieldErrors,
-      } satisfies ActionData;
-    }
-
-    await db.sermonBookmark.upsert({
-      where: {
-        userId_sermonId: {
-          userId: user.id,
-          sermonId: result.data.sermonId,
-        },
-      },
-      update: {
-        note: result.data.note || null,
-        isBookmarked: true,
-      },
-      create: {
-        userId: user.id,
-        sermonId: result.data.sermonId,
-        note: result.data.note || null,
-        isBookmarked: true,
-      },
-    });
-
-    return {
-      success: true,
-      intent,
-      message: "Sermon notes saved.",
-    } satisfies ActionData;
-  }
-
   if (intent === "submitServingInterest") {
     const result = ServingInterestSchema.safeParse({
       ministryId: String(formData.get("ministryId") ?? ""),
@@ -310,7 +193,6 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { userId: user.id },
       update: {
         prayerUpdatesEmail: formData.get("prayerUpdatesEmail") === "on",
-        sermonAnnouncements: formData.get("sermonAnnouncements") === "on",
         servingOpportunities: formData.get("servingOpportunities") === "on",
         eventReminders: formData.get("eventReminders") === "on",
         smsUrgentCare: formData.get("smsUrgentCare") === "on",
@@ -318,7 +200,6 @@ export async function action({ request }: ActionFunctionArgs) {
       create: {
         userId: user.id,
         prayerUpdatesEmail: formData.get("prayerUpdatesEmail") === "on",
-        sermonAnnouncements: formData.get("sermonAnnouncements") === "on",
         servingOpportunities: formData.get("servingOpportunities") === "on",
         eventReminders: formData.get("eventReminders") === "on",
         smsUrgentCare: formData.get("smsUrgentCare") === "on",
@@ -396,7 +277,6 @@ export default function EngagementPage() {
   const {
     user,
     prayerRequests,
-    sermons,
     ministries,
     servingInterests,
     notificationPreference,
@@ -428,10 +308,6 @@ export default function EngagementPage() {
     actionData?.success === false && actionData.intent === "submitPrayerRequest"
       ? actionData.errors ?? {}
       : {};
-  const sermonErrors: Record<string, string[] | undefined> =
-    actionData?.success === false && actionData.intent === "saveSermonNote"
-      ? actionData.errors ?? {}
-      : {};
   const servingErrors: Record<string, string[] | undefined> =
     actionData?.success === false && actionData.intent === "submitServingInterest"
       ? actionData.errors ?? {}
@@ -442,24 +318,16 @@ export default function EngagementPage() {
       <SectionHeader
         eyebrow="Members Portal"
         title="Engagement Hub"
-        subtitle="Keep your prayers, sermon takeaways, serving interests, and communication preferences in one place."
+        subtitle="Keep your prayers, serving interests, and communication preferences in one place."
       />
 
-      <div className="mt-8 grid gap-4 md:grid-cols-4">
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-gray-100 bg-white p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
             Prayer History
           </p>
           <p className="mt-2 font-serif text-3xl font-bold text-gray-900">
             {prayerRequests.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
-            Saved Sermons
-          </p>
-          <p className="mt-2 font-serif text-3xl font-bold text-gray-900">
-            {sermons.filter((sermon) => sermon.bookmark?.isBookmarked).length}
           </p>
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-5">
@@ -589,7 +457,6 @@ export default function EngagementPage() {
 
             {[
               ["prayerUpdatesEmail", "Email me about updates to my prayer requests."],
-              ["sermonAnnouncements", "Send me sermon drops and Community tie-ins."],
               ["servingOpportunities", "Notify me when serving opportunities open up."],
               ["eventReminders", "Keep me updated on church events and reminders."],
               ["smsUrgentCare", "Text me for urgent pastoral care follow-up."],
@@ -615,97 +482,6 @@ export default function EngagementPage() {
           </Form>
         </section>
       </div>
-
-      <section className="mt-6 rounded-3xl border border-gray-100 bg-white p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-serif text-2xl font-bold text-gray-900">
-              Sermon Bookmarks and Notes
-            </h2>
-            <p className="mt-1 text-sm font-sans text-gray-500">
-              Keep your latest takeaways close and build your own sermon library.
-            </p>
-          </div>
-          <Link
-            to="/preaching"
-            className="rounded-full border border-gray-200 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-gray-600 hover:border-red-300 hover:text-red-700"
-          >
-            Browse all sermons
-          </Link>
-        </div>
-
-        <SectionMessage actionData={actionData} intent="toggleSermonBookmark" />
-        <SectionMessage actionData={actionData} intent="saveSermonNote" />
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {sermons.map((sermon) => (
-            <div key={sermon.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-red-700">
-                    {formatDate(sermon.date)}
-                  </p>
-                  <h3 className="mt-2 font-serif text-xl font-bold text-gray-900">
-                    {sermon.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {sermon.speaker}
-                    {sermon.series ? ` · ${sermon.series}` : ""}
-                  </p>
-                  {sermon.scriptureFocus ? (
-                    <p className="mt-3 text-sm text-gray-700">{sermon.scriptureFocus}</p>
-                  ) : null}
-                </div>
-
-                <Form method="post">
-                  <input type="hidden" name="intent" value="toggleSermonBookmark" />
-                  <input type="hidden" name="sermonId" value={sermon.id} />
-                  <button
-                    type="submit"
-                    className={[
-                      "rounded-full border px-3 py-2 text-xs font-bold uppercase tracking-[0.12em]",
-                      sermon.bookmark?.isBookmarked
-                        ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : "border-gray-200 bg-white text-gray-500 hover:border-amber-200 hover:text-amber-800",
-                    ].join(" ")}
-                  >
-                    {sermon.bookmark?.isBookmarked ? "Saved" : "Save"}
-                  </button>
-                </Form>
-              </div>
-
-              <Form method="post" className="mt-4">
-                <input type="hidden" name="intent" value="saveSermonNote" />
-                <input type="hidden" name="sermonId" value={sermon.id} />
-                <textarea
-                  id={`sermon-note-${sermon.id}`}
-                  name="note"
-                  rows={4}
-                  defaultValue={sermon.bookmark?.note ?? ""}
-                  placeholder="Write your takeaway, prayer, or action step from this message."
-                  aria-invalid={sermonErrors.note?.length ? true : undefined}
-                  aria-describedby={describedBy(sermonErrors.note?.length ? `sermon-note-${sermon.id}-error` : null)}
-                  className={inputClass}
-                />
-                <FieldError errors={sermonErrors.note} id={`sermon-note-${sermon.id}-error`} />
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <Link to={`/preaching/${sermon.id}`} className="text-sm font-bold text-red-700 hover:text-red-900">
-                    Open sermon →
-                  </Link>
-                  <PendingButton
-                    type="submit"
-                    isPending={navigation.state === "submitting"}
-                    pendingText="Saving..."
-                    className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800"
-                  >
-                    Save note
-                  </PendingButton>
-                </div>
-              </Form>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="mt-6 rounded-3xl border border-gray-100 bg-white p-6">
         <div className="mb-5">
@@ -747,7 +523,7 @@ export default function EngagementPage() {
                   id="serving-areaOfInterest"
                   type="text"
                   name="areaOfInterest"
-                  placeholder="Prayer, worship, kids, ushering, media..."
+                  placeholder="Prayer, worship, ushering, media..."
                   aria-invalid={servingErrors.areaOfInterest?.length ? true : undefined}
                   aria-describedby={describedBy(servingErrors.areaOfInterest?.length ? "serving-areaOfInterest-error" : null)}
                   className={inputClass}

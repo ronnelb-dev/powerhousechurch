@@ -14,10 +14,10 @@
 
 ## Slide 4: Visitor Journey
 - Explain that the new-here flow is designed to reduce friction for first-time guests.
-- Call out the ministry value: ushers, pastors, and kids workers can prepare before the person arrives.
+- Call out the visit-planning value: ushers and pastors can prepare before the person arrives.
 
 ## Slide 5: Ongoing Engagement
-- Show that the website supports ongoing participation through events, sermons, prayer, giving, and live content.
+- Show that the website supports ongoing participation through events, prayer, giving, and live content.
 - Mention that events are not static posts because they include RSVP, capacity, waitlist, and calendar features.
 
 ## Slide 6: Members Portal

@@ -8,7 +8,6 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
-import { db } from "~/lib/db.server";
 import { SERMON_PLAYLISTS } from "~/lib/sermon-playlists";
 import { getSermonPlaylistVideos } from "~/lib/youtube.server";
 import { PageHero } from "~/components/ui/PageHero";
@@ -90,68 +89,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
       };
     }
   } catch (error) {
-    console.error("[sermons] Failed to load YouTube playlists:", error);
+    console.error("[preaching] Failed to load YouTube playlists:", error);
   }
 
-  const where = {
-    isPublished: true,
-    ...(speaker ? { speaker } : {}),
-    ...(q
-      ? {
-          OR: [
-            { title: { contains: q } },
-            { speaker: { contains: q } },
-            { series: { contains: q } },
-            { tags: { contains: q } },
-          ],
-        }
-      : {}),
-  };
-
-  const [sermons, total, allSpeakersRaw] = await Promise.all([
-    db.sermon.findMany({
-      where,
-      orderBy: { date: "desc" },
-      skip: (page - 1) * PER_PAGE,
-      take: PER_PAGE,
-      select: {
-        id: true,
-        title: true,
-        speaker: true,
-        series: true,
-        date: true,
-        thumbnail: true,
-        tags: true,
-      },
-    }),
-    db.sermon.count({ where }),
-    db.sermon.findMany({
-      where: { isPublished: true },
-      select: { speaker: true },
-      distinct: ["speaker"],
-    }),
-  ]);
-
   return {
-    source: "database" as const,
-    sermons: sermons.map((sermon) => ({
-      ...sermon,
-      date:
-        sermon.date instanceof Date ? sermon.date.toISOString() : sermon.date,
-      href: undefined,
-      external: false,
-    })),
-    total,
+    source: "youtube" as const,
+    sermons: [],
+    total: 0,
     page,
     perPage: PER_PAGE,
-    totalPages: Math.ceil(total / PER_PAGE),
-    allPlaylists: [],
-    allSpeakers: allSpeakersRaw.map((row) => row.speaker).filter(Boolean),
-    filters: { q, playlist: "", speaker },
+    totalPages: 0,
+    allPlaylists: Object.entries(SERMON_PLAYLISTS).map(([key, value]) => ({
+      key,
+      label: value.label,
+    })),
+    allSpeakers: [],
+    filters: { q, playlist, speaker },
   };
 }
 
-export default function SermonsPage() {
+export default function PreachingPage() {
   const {
     source,
     sermons,
@@ -295,7 +252,7 @@ export default function SermonsPage() {
           </div>
         ) : (
           <EmptyState
-            icon="sermons"
+            icon="generic"
             title="No preaching found"
             message="Try a broader keyword or switch to a different playlist filter."
             action={{ label: "View all preaching", to: "/preaching" }}
@@ -347,7 +304,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <EmptyState
-      icon="sermons"
+      icon="generic"
       title="Could not load preaching"
       message={
         isRouteErrorResponse(error)

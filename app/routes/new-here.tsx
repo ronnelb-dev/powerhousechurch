@@ -36,7 +36,7 @@ export const meta: MetaFunction = () => [
   {
     name: "description",
     content:
-      "Plan your first visit to Powerhouse Church, choose a service, share kids info, and request follow-up from our ushers or pastors.",
+      "Plan your first visit to Powerhouse Church, choose a service, share family details, and request follow-up from our ushers or pastors.",
   },
 ];
 
@@ -120,7 +120,7 @@ const STEPS = [
   {
     num: 2,
     title: "Check In If Needed",
-    body: "If you submitted this form, our team will already have a heads-up. Bringing kids? We'll point you straight to the right check-in area.",
+    body: "If you submitted this form, our team will already have a heads-up and can help your family get settled.",
   },
   {
     num: 3,
@@ -154,10 +154,6 @@ const FAQS = [
     a: "Not at all. Come as you are — casual, smart-casual, whatever feels comfortable. We care far more about your heart than your outfit.",
   },
   {
-    q: "What about my kids?",
-    a: "We have a fully staffed Kids' Ministry for ages 3–12, running at the same time as the main service. All our children's workers are trained and background-checked. Your kids will love it.",
-  },
-  {
     q: "I'm not a Christian — can I still attend?",
     a: "Absolutely. Many of our most faithful members came as curious seekers first. There is zero pressure. Come, observe, ask questions, and feel the welcome.",
   },
@@ -173,7 +169,7 @@ const FAQS = [
 
 const VISIT_BENEFITS = [
   "We can welcome you by name instead of leaving you to figure things out alone.",
-  "Your preferred service helps our team prepare for seating, kids check-in, and follow-up.",
+  "Your preferred service helps our team prepare for seating, family needs, and follow-up.",
   "Optional usher or pastoral follow-up only happens if you ask for it.",
 ];
 
@@ -350,11 +346,11 @@ export default function NewHerePage() {
                   </p>
                   <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-[#f3cf8e]">Kids</p>
+                      <p className="text-xs uppercase tracking-[0.22em] text-[#f3cf8e]">Family Details</p>
                       <p className="mt-2 text-sm leading-6 text-[#f7ebe4]">
                         {actionData.bringingKids
-                          ? "We noted that you’re bringing kids and can help with check-in."
-                          : "No kids details were added for this visit."}
+                          ? "We noted the family details you shared for your visit."
+                          : "No family details were added for this visit."}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-4">
@@ -391,7 +387,7 @@ export default function NewHerePage() {
                       Tell us about your visit
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-[#f7e6df]">
-                      Name, email, preferred service, and adult count are required. If you’re bringing kids, add their headcount; notes and follow-up are optional.
+                      Name, email, preferred service, and adult count are required. Add family details if they will help us prepare; notes and follow-up are optional.
                     </p>
                   </div>
 
@@ -572,10 +568,10 @@ export default function NewHerePage() {
                         />
                         <div>
                           <label htmlFor="bringingKids" className="text-sm font-semibold text-white">
-                            We’re bringing kids
+                            We’re bringing children
                           </label>
                           <p className="mt-1 text-sm leading-6 text-[#f7e6df]">
-                            If you’re bringing kids, add the headcount and any quick notes so our team can be ready.
+                            Add the headcount and any helpful arrival notes so our team can prepare for your family.
                           </p>
                         </div>
                       </div>
@@ -583,7 +579,7 @@ export default function NewHerePage() {
                         <div className="mt-5 grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
                           <div>
                             <label htmlFor="kidsCount" className="mb-2 block text-sm font-semibold text-white">
-                              Number of kids <span className="text-[#f3cf8e]">*</span>
+                              Number of children <span className="text-[#f3cf8e]">*</span>
                             </label>
                             <input
                               id="kidsCount"
@@ -602,7 +598,7 @@ export default function NewHerePage() {
                           </div>
                           <div>
                             <label htmlFor="kidsDetails" className="mb-2 block text-sm font-semibold text-white">
-                              Kids notes <span className="font-normal text-[#f7e6df]">(optional)</span>
+                              Family notes <span className="font-normal text-[#f7e6df]">(optional)</span>
                             </label>
                             <textarea
                               id="kidsDetails"
@@ -612,11 +608,8 @@ export default function NewHerePage() {
                               aria-invalid={!!errors.kidsDetails}
                               aria-describedby={describedBy(errors.kidsDetails && "visit-kidsDetails-error", "kids-details-guidance")}
                               className={cn(fieldClass, "min-h-[110px] resize-y", errors.kidsDetails ? "border-red-300/70 ring-1 ring-red-300/60" : "")}
-                              placeholder="Ages or check-in notes (optional)"
+                              placeholder="Ages or helpful arrival notes (optional)"
                             />
-                            <p id="kids-details-guidance" className="mt-2 text-xs leading-5 text-[#f7e6df]">
-                              Please share allergies or other health details directly with our Kids team when you arrive.
-                            </p>
                             <FieldError id="visit-kidsDetails-error" errors={errors.kidsDetails} />
                           </div>
                         </div>

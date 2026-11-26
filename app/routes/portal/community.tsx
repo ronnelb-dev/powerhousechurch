@@ -6,7 +6,6 @@ import {
   useNavigation,
   isRouteErrorResponse,
   useRouteError,
-  Link,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "react-router";
@@ -34,27 +33,6 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
-  const latestSermon = await db.sermon.findFirst({
-    where: {
-      isPublished: true,
-      OR: [
-        { weeklyGuide: { not: null } },
-        { reflectionPrompts: { not: null } },
-        { scriptureFocus: { not: null } },
-      ],
-    },
-    orderBy: { date: "desc" },
-    select: {
-      id: true,
-      title: true,
-      speaker: true,
-      date: true,
-      scriptureFocus: true,
-      weeklyGuide: true,
-      reflectionPrompts: true,
-    },
-  });
-
   const posts = await db.post.findMany({
     where: {
       isApproved: true,
@@ -114,14 +92,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   return {
-    latestSermon: latestSermon
-      ? {
-          ...latestSermon,
-          date: latestSermon.date instanceof Date
-            ? latestSermon.date.toISOString()
-            : latestSermon.date,
-        }
-      : null,
     posts:        posts.map(serialize),
     pendingPosts: pendingPosts.map((p) => ({
       id:        p.id,
@@ -216,7 +186,7 @@ const inputClass =
   "focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent transition-all";
 
 export default function CommunityPage() {
-  const { latestSermon, posts, pendingPosts, userRole, cellGroupId } =
+  const { posts, pendingPosts, userRole, cellGroupId } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -224,12 +194,6 @@ export default function CommunityPage() {
   const [showComposer, setShowComposer] = useState(false);
   const isPosting  = navigation.state === "submitting" &&
     navigation.formData?.get("intent") === "createPost";
-  const reflectionPrompts = latestSermon?.reflectionPrompts
-    ? latestSermon.reflectionPrompts
-        .split(/\r?\n/)
-        .map((prompt) => prompt.trim())
-        .filter(Boolean)
-    : [];
 
   useEffect(() => {
     if (navigation.state === "submitting") {
@@ -284,68 +248,6 @@ export default function CommunityPage() {
         title="Community"
         subtitle="Share what God is speaking to you through His Word."
       />
-
-      {latestSermon && (
-        <PortalSection className="mb-5">
-          <PortalSectionHeading
-            eyebrow="This Week's Preaching Guide"
-            title={latestSermon.title}
-            subtitle={`${latestSermon.speaker} · ${new Date(latestSermon.date).toLocaleDateString("en-PH", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}`}
-            actions={
-              <Link
-                to={`/preaching/${latestSermon.id}`}
-                className={portalButtonClasses({ variant: "secondary" })}
-              >
-                Open Preaching
-              </Link>
-            }
-          />
-
-          {latestSermon.scriptureFocus && (
-            <div>
-              <p className="mb-2 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Scripture Focus
-              </p>
-              <p className="text-sm font-sans leading-7 text-gray-700">
-                {latestSermon.scriptureFocus}
-              </p>
-            </div>
-          )}
-
-          {latestSermon.weeklyGuide && (
-            <div className="mt-5">
-              <p className="mb-2 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Weekly Guide
-              </p>
-              <div className="whitespace-pre-wrap text-sm font-sans leading-7 text-gray-700">
-                {latestSermon.weeklyGuide}
-              </div>
-            </div>
-          )}
-
-          {reflectionPrompts.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-3 text-[0.68rem] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
-                Reflection Prompts
-              </p>
-              <div className="space-y-2">
-                {reflectionPrompts.map((prompt) => (
-                  <div
-                    key={prompt}
-                    className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-sans text-gray-700"
-                  >
-                    {prompt}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </PortalSection>
-      )}
 
       {/* Admin approval queue */}
       {userRole === "ADMIN" && pendingPosts.length > 0 && (
