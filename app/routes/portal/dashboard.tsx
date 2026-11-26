@@ -9,8 +9,6 @@ import {
 import type { MetaFunction } from "react-router";
 import { requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
-import { getMembersNeedingCare } from "~/lib/attendance.server";
-import { PastoralAlert } from "~/components/church/PastoralAlert";
 import { AttendanceHeatmap, type HeatmapCell } from "~/components/church/AttendanceHeatmap";
 import { EmptyState } from "~/components/ui/EmptyState";
 import {
@@ -39,7 +37,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let cellGroup = null;
   let memberCount = 0;
   let attendanceSummary = null;
-  let needsCare: Awaited<ReturnType<typeof getMembersNeedingCare>> = [];
   let recentAttendance: HeatmapCell[] = [];
   const churchToday = getChurchCalendarDate();
   const last12 = user.cellGroupId
@@ -59,7 +56,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     latestSermon,
     cellGroupResult,
     memberCountResult,
-    needsCareResult,
     presentCountResult,
     totalMarkedResult,
     recentAttendanceRecords,
@@ -90,9 +86,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
           where: { cellGroupId: user.cellGroupId, isActive: true },
         })
       : Promise.resolve(0),
-    user.cellGroupId && (user.role === "CELL_LEADER" || user.role === "ADMIN")
-      ? getMembersNeedingCare({ cellGroupId: user.cellGroupId })
-      : Promise.resolve([]),
     user.cellGroupId && thisSunday
       ? db.attendance.count({
           where: {
@@ -129,7 +122,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     memberCount = memberCountResult;
 
     if (user.role === "CELL_LEADER" || user.role === "ADMIN") {
-      needsCare = needsCareResult;
       attendanceSummary = {
         presentCount: presentCountResult,
         totalMarked: totalMarkedResult,
@@ -173,7 +165,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     cellGroup,
     memberCount,
     attendanceSummary,
-    needsCare,
     recentAttendance,
     churchToday,
     engagementSummary: {
@@ -274,7 +265,7 @@ function QuickActionCard({
 export default function DashboardPage() {
   const {
     user, cellGroup, memberCount, attendanceSummary,
-    needsCare, recentAttendance, latestSermon, engagementSummary, churchToday,
+    recentAttendance, latestSermon, engagementSummary, churchToday,
   } = useLoaderData<typeof loader>();
 
   const isCellLeaderOrAdmin = user.role === "CELL_LEADER" || user.role === "ADMIN";
@@ -286,10 +277,10 @@ export default function DashboardPage() {
         : "Member";
   const heroIntro =
     user.role === "ADMIN"
-      ? "Stay close to the church's operational pulse: attendance, care, members, and ministry follow-up."
+      ? "Stay close to the church's operational pulse: attendance, prayer requests, members, and ministry follow-up."
       : user.role === "CELL_LEADER"
         ? cellGroup
-          ? `You are leading ${cellGroup.name} Group. Keep momentum strong with attendance, care, and community rhythms this week.`
+          ? `You are leading ${cellGroup.name} Group. Keep momentum strong with attendance and community rhythms this week.`
           : "Your leader tools will become more useful once a cell group is assigned."
         : cellGroup
           ? `You are connected to ${cellGroup.name} Group. Keep growing through sermons, prayer, and community life this week.`
@@ -299,12 +290,11 @@ export default function DashboardPage() {
       ? [
           { to: "/portal/attendance", label: "Mark Attendance", variant: "primary" as const },
           { to: "/portal/admin/members", label: "Manage Members", variant: "secondary" as const },
-          { to: "/portal/care", label: "Care Queue", variant: "secondary" as const },
+          { to: "/portal/admin/prayers", label: "Prayer Requests", variant: "secondary" as const },
         ]
       : user.role === "CELL_LEADER"
         ? [
             { to: "/portal/attendance", label: "Mark Attendance", variant: "primary" as const },
-            { to: "/portal/care", label: "Care Queue", variant: "secondary" as const },
           ]
         : [
             { to: "/portal/community", label: "Open Community", variant: "primary" as const },
@@ -317,7 +307,7 @@ export default function DashboardPage() {
           title: cellGroup ? `${cellGroup.name} Group` : "Church Operations",
           description: cellGroup
             ? `${memberCount} members connected in your current group. Use admin tools for the wider church view.`
-            : "Use the admin workspace to manage members, ministries, communications, reports, and care rhythms.",
+            : "Use the admin workspace to manage members, ministries, communications, reports, and prayer requests.",
         }
       : {
           label: "Group Snapshot",
@@ -346,9 +336,9 @@ export default function DashboardPage() {
             tone: "warm" as const,
           },
           {
-            to: "/portal/care",
-            title: "Care Queue",
-            description: "Follow up with members who may need encouragement this week.",
+            to: "/portal/admin/prayers",
+            title: "Prayer Requests",
+            description: "Review requests and coordinate pastoral follow-up.",
             tone: "gold" as const,
           },
           {
@@ -377,12 +367,6 @@ export default function DashboardPage() {
             title: "Mark Attendance",
             description: "Update Sunday service or cell group attendance in a few taps.",
             tone: "warm" as const,
-          },
-          {
-            to: "/portal/care",
-            title: "Care Queue",
-            description: "Follow up with members who may need encouragement this week.",
-            tone: "gold" as const,
           },
         ]
       : []),
@@ -473,16 +457,9 @@ export default function DashboardPage() {
         </div>
       </PortalSection>
 
-      {/* Pastoral alert — only visible when members need care */}
-      {isCellLeaderOrAdmin && needsCare.length > 0 && (
-        <div className="mt-5">
-          <PastoralAlert members={needsCare} />
-        </div>
-      )}
-
       {/* KPI cards — cell leader / admin only */}
       {isCellLeaderOrAdmin && attendanceSummary && (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard
             label="Members"
             value={String(memberCount)}
@@ -493,13 +470,6 @@ export default function DashboardPage() {
             value={String(attendanceSummary.presentCount)}
             note={`${attendanceSummary.percentage}% attended so far`}
             tone="success"
-          />
-          <MetricCard
-            label="Needs Care"
-            value={String(needsCare.length)}
-            note="People who missed 2 or more Sundays"
-            tone={needsCare.length > 0 ? "alert" : "default"}
-            action={needsCare.length > 0 ? { to: "/portal/care", label: "Open queue" } : undefined}
           />
           <MetricCard
             label="Unmarked"

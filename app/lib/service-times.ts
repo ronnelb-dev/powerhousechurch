@@ -1,6 +1,6 @@
 const DEFAULT_MIDWEEK_SERVICES = [
   "Wednesday 6:30 PM at PCF Church",
-  "Wednesday 7:00 PM at Bamboo Orchard, Banay-Banay",
+  "Thursday 7:00 PM at Bamboo Orchard, Banay-Banay",
   "Thursday 7:00 PM at Garden Villas Sta. Rosa",
 ] as const;
 

@@ -19,7 +19,7 @@ async function main() {
       key: "service.cellGroupDays",
       value: [
         "Wednesday 6:30 PM at PCF Church",
-        "Wednesday 7:00 PM at Bamboo Orchard, Banay-Banay",
+        "Thursday 7:00 PM at Bamboo Orchard, Banay-Banay",
         "Thursday 7:00 PM at Garden Villas Sta. Rosa",
       ].join("\n"),
     },
@@ -367,7 +367,7 @@ async function main() {
   }
   console.log("✅ Ministries seeded");
 
-  // ── Attendance (Ana — the "Needs Care" member) ─────────────
+  // ── Attendance example member ──────────────────────────────
   const sundays = [
     new Date("2025-03-02"), new Date("2025-03-09"),
     new Date("2025-03-16"), new Date("2025-03-23"),

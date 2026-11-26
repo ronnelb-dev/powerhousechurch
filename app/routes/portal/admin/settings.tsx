@@ -124,7 +124,7 @@ const SETTING_GROUPS = [
         type: "textarea",
         rows: 4,
         placeholder:
-          "Wednesday 6:30 PM at PCF Church\nWednesday 7:00 PM at Bamboo Orchard, Banay-Banay\nThursday 7:00 PM at Garden Villas Sta. Rosa",
+          "Wednesday 6:30 PM at PCF Church\nThursday 7:00 PM at Bamboo Orchard, Banay-Banay\nThursday 7:00 PM at Garden Villas Sta. Rosa",
         hint: "Enter one midweek service per line.",
       },
     ],
