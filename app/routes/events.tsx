@@ -7,6 +7,7 @@ import {
   useNavigation,
   useRouteError,
   type ActionFunctionArgs,
+  type LoaderFunctionArgs,
 } from "react-router";
 import type { MetaFunction } from "react-router";
 import { EventCard } from "~/components/church/EventCard";
@@ -15,6 +16,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import { PendingButton } from "~/components/ui/PendingButton";
 import { PageHero } from "~/components/ui/PageHero";
 import { SectionHeader } from "~/components/ui/SectionHeader";
+import { getSession } from "~/lib/auth.server";
 import {
   buildEventCalendarUrl,
   buildGoogleCalendarUrl,
@@ -26,7 +28,6 @@ import {
   type RSVPActionData as ActionData,
 } from "~/lib/public-submissions.server";
 import {
-  getClientIpAddress,
   publicSubmissionRateLimiter,
 } from "~/lib/rate-limit.server";
 
@@ -42,6 +43,15 @@ export const meta: MetaFunction = () => [
 ];
 
 type RSVPFieldErrors = Partial<Record<"name" | "email" | "phone" | "notes", string[]>>;
+
+type CurrentMember = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+};
 
 type SerializedUpcomingEvent = {
   id: string;
@@ -72,19 +82,63 @@ type SerializedPastEvent = {
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const { user, session } = await getSession(request);
   const raw = {
     intent: String(formData.get("intent") ?? ""),
     eventId: String(formData.get("eventId") ?? ""),
-    name: String(formData.get("name") ?? "").trim(),
-    email: String(formData.get("email") ?? "").trim().toLowerCase(),
-    phone: String(formData.get("phone") ?? "").trim(),
+    name: "",
+    email: "",
+    phone: "",
     notes: String(formData.get("notes") ?? "").trim(),
     honeypot: String(formData.get("honeypot") ?? ""),
   };
 
+  if (!user || !session) {
+    return {
+      success: false,
+      eventId: raw.eventId || undefined,
+      formError: "Please log in with your member account to RSVP.",
+      errors: {},
+    } satisfies ActionData;
+  }
+
+  const member = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      isActive: true,
+    },
+  });
+
+  if (!member || !member.isActive) {
+    return {
+      success: false,
+      eventId: raw.eventId || undefined,
+      formError: "Your member account is not currently active for RSVPs.",
+      errors: {},
+    } satisfies ActionData;
+  }
+
+  raw.name = `${member.firstName} ${member.lastName}`.trim();
+  raw.email = (member.email ?? "").trim().toLowerCase();
+  raw.phone = (member.phone ?? "").trim();
+
+  if (!raw.email || !raw.phone) {
+    return {
+      success: false,
+      eventId: raw.eventId || undefined,
+      formError:
+        "Please add an email address and phone number to your profile before reserving a spot.",
+      errors: {},
+    } satisfies ActionData;
+  }
+
   const limit = publicSubmissionRateLimiter.consume({
     bucket: "public:rsvp",
-    key: getClientIpAddress(request),
+    key: user.id,
     limit: 5,
     windowMs: 15 * 60 * 1000,
   });
@@ -105,9 +159,10 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 }
 
-export async function loader() {
+export async function loader({ request }: LoaderFunctionArgs) {
   const now = new Date();
-  const [upcoming, past] = await Promise.all([
+  const { user } = await getSession(request);
+  const [upcoming, past, currentMember] = await Promise.all([
     prisma.event.findMany({
       where: { isPublished: true, startDate: { gt: now } },
       orderBy: { startDate: "asc" },
@@ -121,6 +176,20 @@ export async function loader() {
       orderBy: { startDate: "desc" },
       take: 6,
     }),
+    user
+      ? prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+          },
+        })
+      : null,
   ]);
 
   const serializeUpcoming = (event: any): SerializedUpcomingEvent => ({
@@ -172,11 +241,22 @@ export async function loader() {
   return {
     upcoming: upcoming.map(serializeUpcoming),
     past: past.map(serializePast),
+    currentMember:
+      currentMember && currentMember.isActive
+        ? {
+            id: currentMember.id,
+            firstName: currentMember.firstName,
+            lastName: currentMember.lastName,
+            email: currentMember.email,
+            phone: currentMember.phone,
+            role: currentMember.role,
+          }
+        : null,
   };
 }
 
 export default function EventsPage() {
-  const { upcoming, past } = useLoaderData<typeof loader>();
+  const { upcoming, past, currentMember } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const activeEventId =
@@ -233,6 +313,7 @@ export default function EventsPage() {
                       event={event}
                       actionData={actionData}
                       activeEventId={activeEventId}
+                      currentMember={currentMember}
                       errors={
                         actionData?.success === false &&
                         actionData.eventId === event.id
@@ -335,13 +416,17 @@ function RsvpPanel({
   event,
   actionData,
   activeEventId,
+  currentMember,
   errors,
 }: {
   event: SerializedUpcomingEvent;
   actionData: ActionData | undefined;
   activeEventId: string;
+  currentMember: CurrentMember | null;
   errors: RSVPFieldErrors;
 }) {
+  const hasCompleteProfile = Boolean(currentMember?.email && currentMember.phone);
+
   return (
     <details
       className="group rounded-2xl border border-[rgba(146,48,52,0.16)] bg-white/70"
@@ -365,7 +450,16 @@ function RsvpPanel({
       </summary>
 
       <div className="border-t border-[var(--border)] px-4 py-4">
-        {actionData?.success && actionData.eventId === event.id ? (
+        {!currentMember ? (
+          <MemberLoginPrompt />
+        ) : !hasCompleteProfile ? (
+          <ProfileBlocker
+            title="Complete your profile"
+            message="RSVPs use your saved member email and phone number. Add those details once, then come back to reserve your spot."
+            actionLabel="Update profile"
+            actionHref="/portal/profile"
+          />
+        ) : actionData?.success && actionData.eventId === event.id ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             {actionData.message}
           </div>
@@ -383,6 +477,18 @@ function RsvpPanel({
                 autoComplete="off"
               />
             </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-white/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
+                Reserving as
+              </p>
+              <p className="mt-2 font-serif text-xl font-semibold text-[var(--foreground)]">
+                {currentMember.firstName} {currentMember.lastName}
+              </p>
+              <div className="mt-2 grid gap-1 text-sm text-[var(--muted-foreground)] sm:grid-cols-2">
+                <p>{currentMember.email}</p>
+                <p>{currentMember.phone}</p>
+              </div>
+            </div>
             {actionData?.success === false &&
               actionData.eventId === event.id &&
               actionData.formError && (
@@ -390,52 +496,6 @@ function RsvpPanel({
                   {actionData.formError}
                 </div>
               )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]" htmlFor={`name-${event.id}`}>
-                  Name
-                </label>
-                <input
-                  id={`name-${event.id}`}
-                  name="name"
-                  required
-                  autoComplete="name"
-                  className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm"
-                  aria-invalid={Boolean(errors.name?.length)}
-                />
-                <FieldError errors={errors.name} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]" htmlFor={`email-${event.id}`}>
-                  Email
-                </label>
-                <input
-                  id={`email-${event.id}`}
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm"
-                  aria-invalid={Boolean(errors.email?.length)}
-                />
-                <FieldError errors={errors.email} />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]" htmlFor={`phone-${event.id}`}>
-                Phone
-              </label>
-              <input
-                id={`phone-${event.id}`}
-                name="phone"
-                type="tel"
-                required
-                autoComplete="tel"
-                className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm"
-                aria-invalid={Boolean(errors.phone?.length)}
-              />
-              <FieldError errors={errors.phone} />
-            </div>
             <div>
               <label
                 className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]"
@@ -453,6 +513,11 @@ function RsvpPanel({
               />
               <FieldError errors={errors.notes} />
             </div>
+            {(errors.name?.length || errors.email?.length || errors.phone?.length) && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                Please update your saved member profile details before reserving a spot.
+              </div>
+            )}
             <PendingButton
               type="submit"
               isPending={activeEventId === event.id}
@@ -465,6 +530,59 @@ function RsvpPanel({
         )}
       </div>
     </details>
+  );
+}
+
+function MemberLoginPrompt() {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-white/85 p-4">
+      <p className="font-serif text-xl font-semibold text-[var(--foreground)]">
+        Member login required
+      </p>
+      <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+        RSVPs are reserved for members. Log in or create a member account to
+        reserve your spot.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link
+          to="/auth/login"
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary-foreground)] sm:flex-none"
+        >
+          Log in
+        </Link>
+        <Link
+          to="/auth/register"
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)] sm:flex-none"
+        >
+          Register
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ProfileBlocker({
+  title,
+  message,
+  actionLabel,
+  actionHref,
+}: {
+  title: string;
+  message: string;
+  actionLabel: string;
+  actionHref: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+      <p className="font-serif text-xl font-semibold">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-amber-900">{message}</p>
+      <Link
+        to={actionHref}
+        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white"
+      >
+        {actionLabel}
+      </Link>
+    </div>
   );
 }
 

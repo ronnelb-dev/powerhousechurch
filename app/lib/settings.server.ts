@@ -2,7 +2,7 @@
 // Server-side helper to read church settings from the database.
 //
 // The Settings table is a generic key/value store. Every public-facing
-// string that an authorized operator might change without a code deploy lives here:
+// string that an admin might want to change without a code deploy lives here:
 // church name, service times, social links, YouTube channel ID, etc.
 //
 // Two exports:

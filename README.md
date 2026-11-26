@@ -1,6 +1,6 @@
 # Powerhouse Church
 
-Powerhouse Church is a full-stack React Router app for the church’s public website. It covers public pages, guest event RSVPs, prayer and contact submissions, visit planning, and public content backed by Prisma.
+Powerhouse Church is a full-stack React Router app for the church’s public website and members portal. It covers public-facing pages, event RSVPs, prayer and contact submissions, visit planning, and authenticated member/admin workflows backed by Prisma.
 
 ## Stack
 
@@ -8,14 +8,16 @@ Powerhouse Church is a full-stack React Router app for the church’s public web
 - TypeScript
 - Tailwind CSS 4
 - Prisma + PostgreSQL/Neon
+- Lucia auth
 - Vitest
 - Vercel deployment target
 
 ## Key Areas
 
 - Public site: home, about, ministries, events, sermons, gallery, giving, contact, prayer request, and plan-your-visit flows
-- Public submissions: guest event RSVPs, prayer requests, contact messages, and visit plans
-- Content data: sermons, events, ministries, blog posts, cell groups, and site settings
+- Members portal: dashboard, profile, directory, engagement, community, attendance
+- Admin tools: events, sermons, communications, members, prayers, reports, settings, visit plans
+- Operational workflows: password reset, RSVP handling, prayer follow-up, and visit-plan follow-up
 
 ## Local Setup
 
@@ -40,11 +42,11 @@ PUBLIC_APP_URL=http://localhost:5173
 CHURCH_EMAIL=
 ```
 
-4. Generate Prisma Client and apply the existing migration history:
+4. Generate Prisma client and apply schema changes:
 
 ```bash
 npm run db:generate
-npm run db:deploy
+npm run db:migrate
 ```
 
 5. Start the app:
@@ -65,6 +67,7 @@ npm run test:coverage
 npm run lint
 npm run typecheck
 npm run db:generate
+npm run db:migrate
 npm run db:deploy
 npm run db:seed
 ```
@@ -75,6 +78,7 @@ The repo uses Vitest.
 
 Current server-side coverage added around:
 
+- auth login/register decision logic
 - event RSVP handling
 - public visitor submissions
 - in-memory public submission rate limiting
@@ -101,6 +105,8 @@ This is a practical first layer for spam reduction and abuse control. Because it
 - Production is configured for Neon/PostgreSQL through Prisma.
 - The app no longer sends outbound email; visitor workflows still save records locally.
 - Public form submissions rely on request IP headers such as `x-forwarded-for` in production.
-- There is no administration UI. Until a separate CMS is approved, public content changes require Prisma Studio or direct database operations by an authorized operator.
-- Portal tables remain physically present until the separately approved retirement procedure in [`docs/portal-data-retirement.md`](docs/portal-data-retirement.md) is executed.
-- Do not run `prisma migrate dev` against this schema until that retirement plan is approved; Prisma would infer destructive drops for the intentionally unmodeled portal tables.
+
+## Known Baseline Issues
+
+- `npm run test` passes.
+- `npm run typecheck` is currently not clean in the existing repo baseline because of pre-existing generated route type/module-resolution issues and unrelated unused-variable/type errors outside the changes in this task.

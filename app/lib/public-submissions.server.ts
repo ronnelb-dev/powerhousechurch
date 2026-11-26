@@ -63,6 +63,7 @@ type RSVPDeps = {
 
 type ContactDeps = Record<string, never>;
 type PrayerDeps = {
+  userId?: string | null;
   db: {
     prayerRequest: {
       create(args: unknown): Promise<unknown>;
@@ -282,6 +283,7 @@ export async function handlePrayerRequestSubmission(
   const { name, email, request, isPrivate } = result.data;
   await deps.db.prayerRequest.create({
     data: {
+      memberId: deps.userId ?? null,
       name,
       email: email || null,
       request,

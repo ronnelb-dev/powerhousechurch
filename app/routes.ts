@@ -48,4 +48,46 @@ export default [
     ]),
   ]),
 
+  // Auth
+  ...prefix("auth", [
+    route("login", "routes/auth/login.tsx"),
+    route("register", "routes/auth/register.tsx"),
+    route("forgot-password", "routes/auth/forgot-password.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
+    route("logout", "routes/auth/logout.tsx"),
+  ]),
+
+  // Portal Layout
+  layout("routes/portal/_layout.tsx", [
+    ...prefix("portal", [
+      index("routes/portal/_index.tsx"),
+      route("dashboard", "routes/portal/dashboard.tsx"),
+      route("profile", "routes/portal/profile.tsx"),
+      route("directory", "routes/portal/directory.tsx"),
+      route("community", "routes/portal/community.tsx"),
+      route("care", "routes/portal/care.tsx"),
+      route("engagement", "routes/portal/engagement.tsx"),
+      route("attendance", "routes/portal/attendance.tsx"),
+
+      // Admin sub-layout (nested)
+      layout("routes/portal/admin/_layout.tsx", [
+        ...prefix("admin", [
+          index("routes/portal/admin/_index.tsx"),
+          route("cell-groups", "routes/portal/admin/cell-groups.tsx"),
+          route("kids-ministry", "routes/portal/admin/kids-ministry.tsx"),
+          route("communications", "routes/portal/admin/communications.tsx"),
+          route("email-queue", "routes/portal/admin/email-queue.tsx"),
+          route("reports", "routes/portal/admin/reports.tsx"),
+          route("members", "routes/portal/admin/members.tsx"),
+          route("ministries", "routes/portal/admin/ministries.tsx"),
+          route("sermons", "routes/portal/admin/sermons.tsx"),
+          route("events", "routes/portal/admin/events.tsx"),
+          route("visit-plans", "routes/portal/admin/visit-plans.tsx"),
+          route("posts", "routes/portal/admin/posts.tsx"),
+          route("prayers", "routes/portal/admin/prayers.tsx"),
+          route("settings", "routes/portal/admin/settings.tsx"),
+        ]),
+      ]),
+    ]),
+  ]),
 ] satisfies RouteConfig;

@@ -9,6 +9,8 @@ export function loader({ request }: LoaderFunctionArgs) {
 
   const content = `User-agent: *
 Allow: /
+Disallow: /portal/
+Disallow: /auth/
 
 Sitemap: ${host}/sitemap.xml
 `;

@@ -35,7 +35,7 @@ export const meta: MetaFunction = () => [
   {
     name: "description",
     content:
-      "A Spirit-filled church in Masbate City committed to making disciples, building community, and declaring the excellencies of Christ.",
+      "A Spirit-filled church in Cabuyao City committed to making disciples, building community, and declaring the excellencies of Christ.",
   },
   { property: "og:title", content: "Powerhouse Church Christian Fellowship Intl." },
   { property: "og:description", content: "Where Faith Meets Community — Join us every Sunday." },

@@ -183,15 +183,12 @@ export default function SermonDetailPage() {
       )}
 
       {(sermon.weeklyGuide || reflectionPrompts.length > 0 || sermon.scriptureFocus) && (
-        <section
-          id="weekly-guide"
-          className="mt-10 rounded-3xl border border-[var(--border)] bg-[linear-gradient(135deg,var(--muted),var(--card),var(--background))] p-6 md:p-8"
-        >
+        <section className="mt-10 rounded-3xl border border-red-100 bg-linear-to-br from-red-50 via-white to-amber-50 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
-            <div className="h-0.5 w-8 rounded-full bg-[var(--primary)]" aria-hidden="true" />
-            <h2 className="m-0 font-serif text-xl font-bold text-[var(--foreground)]">
-              Weekly Guide
-            </h2>
+            <div className="w-8 h-0.5 bg-red-700 rounded-full" aria-hidden="true" />
+            <h2 className="font-serif text-xl font-bold text-gray-900 m-0">
+                    Community Tie-In
+            </h2> 
           </div>
 
           {sermon.scriptureFocus && (
@@ -233,6 +230,12 @@ export default function SermonDetailPage() {
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/portal/community"
+              className="inline-flex items-center rounded-full bg-red-700 px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-800"
+            >
+                  Reflect in Community
+            </Link>
             <Link
               to="/prayer-request"
               className="inline-flex items-center rounded-full border border-[var(--primary)]/25 bg-[var(--card)] px-4 py-2 text-xs font-sans font-bold uppercase tracking-[0.16em] text-[var(--primary)] transition-colors hover:border-[var(--primary)]/45 hover:bg-[var(--muted)]"
