@@ -52,6 +52,13 @@ function parseCellGroupForm(formData: FormData) {
   });
 }
 
+function isUniqueLeaderConflict(error: unknown) {
+  return Boolean(
+    error && typeof error === "object" && "code" in error && error.code === "P2002" &&
+    "meta" in error && JSON.stringify(error.meta).includes("leaderId"),
+  );
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdmin(request);
 
@@ -69,7 +76,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         createdAt: true,
         _count: {
           select: {
-            members: true,
+            attendeeProfiles: true,
             attendance: true,
             posts: true,
           },
@@ -95,6 +102,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       `${leader.firstName} ${leader.lastName}`,
     ]),
   );
+  const groupsByLeader = new Map<string, string[]>();
+  for (const group of cellGroups) {
+    groupsByLeader.set(group.leaderId, [
+      ...(groupsByLeader.get(group.leaderId) ?? []),
+      group.name,
+    ]);
+  }
 
   return {
     cellGroups: cellGroups.map((group) => ({
@@ -106,7 +120,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
       leaderName: leaderMap.get(group.leaderId) ?? "Former member",
     })),
     leaders,
+    leaderConflicts: [...groupsByLeader.entries()]
+      .filter(([, names]) => names.length > 1)
+      .map(([leaderId, groupNames]) => ({
+        leaderName: leaderMap.get(leaderId) ?? "Former member",
+        groupNames,
+      })),
   };
+}
+
+async function findLeaderAssignment(leaderId: string, excludeId?: string) {
+  return db.cellGroup.findFirst({
+    where: {
+      leaderId,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true, name: true },
+  });
 }
 
 async function findDuplicateCellGroup(args: {
@@ -143,7 +173,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const leader = await db.user.findUnique({
       where: { id: result.data.leaderId },
-      select: { id: true, isActive: true },
+      select: { id: true, firstName: true, lastName: true, isActive: true },
     });
 
     if (!leader?.isActive) {
@@ -151,6 +181,15 @@ export async function action({ request }: ActionFunctionArgs) {
         ok: false,
         intent,
         errors: { leaderId: ["Selected leader is no longer active."] },
+      };
+    }
+
+    const assignedGroup = await findLeaderAssignment(leader.id);
+    if (assignedGroup) {
+      return {
+        ok: false,
+        intent,
+        errors: { leaderId: [`${leader.firstName} ${leader.lastName} already leads ${assignedGroup.name}.`] },
       };
     }
 
@@ -166,12 +205,19 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
-    await db.cellGroup.create({
-      data: {
-        ...result.data,
-        leaderId: leader.id,
-      },
-    });
+    try {
+      await db.cellGroup.create({
+        data: {
+          ...result.data,
+          leaderId: leader.id,
+        },
+      });
+    } catch (error) {
+      if (isUniqueLeaderConflict(error)) {
+        return { ok: false, intent, errors: { leaderId: [`${leader.firstName} ${leader.lastName} is already assigned to another group.`] } };
+      }
+      throw error;
+    }
 
     return { ok: true, intent };
   }
@@ -194,7 +240,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const leader = await db.user.findUnique({
       where: { id: result.data.leaderId },
-      select: { id: true, isActive: true },
+      select: { id: true, firstName: true, lastName: true, isActive: true },
     });
 
     if (!leader?.isActive) {
@@ -203,6 +249,16 @@ export async function action({ request }: ActionFunctionArgs) {
         intent,
         cellGroupId,
         errors: { leaderId: ["Selected leader is no longer active."] },
+      };
+    }
+
+    const assignedGroup = await findLeaderAssignment(leader.id, cellGroupId);
+    if (assignedGroup) {
+      return {
+        ok: false,
+        intent,
+        cellGroupId,
+        errors: { leaderId: [`${leader.firstName} ${leader.lastName} already leads ${assignedGroup.name}.`] },
       };
     }
 
@@ -220,13 +276,20 @@ export async function action({ request }: ActionFunctionArgs) {
       };
     }
 
-    await db.cellGroup.update({
-      where: { id: cellGroupId },
-      data: {
-        ...result.data,
-        leaderId: leader.id,
-      },
-    });
+    try {
+      await db.cellGroup.update({
+        where: { id: cellGroupId },
+        data: {
+          ...result.data,
+          leaderId: leader.id,
+        },
+      });
+    } catch (error) {
+      if (isUniqueLeaderConflict(error)) {
+        return { ok: false, intent, cellGroupId, errors: { leaderId: [`${leader.firstName} ${leader.lastName} is already assigned to another group.`] } };
+      }
+      throw error;
+    }
 
     return { ok: true, intent, cellGroupId };
   }
@@ -469,7 +532,7 @@ function CellGroupRow({
             })}
           </p>
           <p className="mt-2 text-xs font-sans text-gray-500">
-            {cellGroup._count.members} members, {cellGroup._count.attendance} attendance{" "}
+            {cellGroup._count.attendeeProfiles} attendees, {cellGroup._count.attendance} attendance{" "}
             records, {cellGroup._count.posts} posts
           </p>
         </div>
@@ -526,8 +589,8 @@ function CellGroupMobileCard({
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-sans sm:grid-cols-4">
         <div className="rounded-xl bg-gray-50 px-3 py-2">
-          <p className="text-gray-400">Members</p>
-          <p className="mt-1 font-bold text-gray-800">{cellGroup._count.members}</p>
+          <p className="text-gray-400">Attendees</p>
+          <p className="mt-1 font-bold text-gray-800">{cellGroup._count.attendeeProfiles}</p>
         </div>
         <div className="rounded-xl bg-gray-50 px-3 py-2">
           <p className="text-gray-400">Attendance</p>
@@ -555,7 +618,7 @@ function CellGroupMobileCard({
 }
 
 export default function AdminCellGroupsPage() {
-  const { cellGroups, leaders } = useLoaderData<typeof loader>();
+  const { cellGroups, leaders, leaderConflicts } = useLoaderData<typeof loader>();
   const createFetcher = useFetcher<CellGroupActionData>();
   const createFormRef = useRef<HTMLFormElement>(null);
   const seenCreateResultRef = useRef<object | null>(null);
@@ -594,6 +657,18 @@ export default function AdminCellGroupsPage() {
           {cellGroups.length} total groups
         </div>
       </div>
+
+      {leaderConflicts.length > 0 ? (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <h2 className="font-bold">Resolve cell leader assignments</h2>
+          <p className="mt-1">Each leader can be assigned to one group. Resolve these existing conflicts before applying the database migration:</p>
+          <ul className="mt-2 list-disc pl-5">
+            {leaderConflicts.map((conflict) => (
+              <li key={conflict.leaderName}>{conflict.leaderName}: {conflict.groupNames.join(", ")}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-5">

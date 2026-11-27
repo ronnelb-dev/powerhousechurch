@@ -103,6 +103,16 @@ async function main() {
     where: { id: leader.id },
     data:  { cellGroupId: cellGroup.id },
   });
+  await db.attendeeProfile.upsert({
+    where: { linkedUserId: leader.id },
+    update: { cellGroupId: cellGroup.id },
+    create: { linkedUserId: leader.id, firstName: leader.firstName, lastName: leader.lastName, cellGroupId: cellGroup.id },
+  });
+  await db.attendeeProfile.upsert({
+    where: { linkedUserId: admin.id },
+    update: {},
+    create: { linkedUserId: admin.id, firstName: admin.firstName, lastName: admin.lastName },
+  });
   console.log("✅ Cell group seeded:", cellGroup.name);
 
   // ── Members ────────────────────────────────────────────────
@@ -120,6 +130,7 @@ async function main() {
   ];
 
   const members = [];
+  const memberProfiles = [];
   for (const m of memberData) {
     const member = await db.user.upsert({
       where:  { email: m.email },
@@ -132,6 +143,11 @@ async function main() {
       },
     });
     members.push(member);
+    memberProfiles.push(await db.attendeeProfile.upsert({
+      where: { linkedUserId: member.id },
+      update: { cellGroupId: cellGroup.id },
+      create: { linkedUserId: member.id, firstName: member.firstName, lastName: member.lastName, cellGroupId: cellGroup.id },
+    }));
   }
   console.log("✅ Members seeded:", members.length);
 
@@ -332,19 +348,21 @@ async function main() {
 
   for (const [index, sunday] of sundays.entries()) {
     const member = members[2];
+    const attendeeProfile = memberProfiles[2];
     const status = anaStatuses[index];
-    if (!member || !status) continue;
+    if (!member || !attendeeProfile || !status) continue;
 
     await db.attendance.upsert({
       where: {
-        userId_type_date: {
-          userId: member.id,
+        attendeeProfileId_type_date: {
+          attendeeProfileId: attendeeProfile.id,
           type:   "SUNDAY_SERVICE",
           date:   sunday,
         },
       },
       update: {},
       create: {
+        attendeeProfileId: attendeeProfile.id,
         userId:      member.id,
         cellGroupId: cellGroup.id,
         type:        "SUNDAY_SERVICE",

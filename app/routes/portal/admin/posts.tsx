@@ -20,7 +20,7 @@ import { db } from "~/lib/db.server";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 
-export const meta: MetaFunction = () => [{ title: "Community Moderation — Admin" }];
+export const meta: MetaFunction = () => [{ title: "Reflection Review — Admin" }];
 
 type PostActionData =
   | { success: true; message: string }
@@ -83,7 +83,7 @@ export async function action({ request }: ActionFunctionArgs) {
       action: "post.approve",
       entityType: "post",
       entityId: id,
-      summary: `Approved Community post by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
+      summary: `Approved reflection by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
       details: {
         scope: existingPost?.scope ?? null,
         preview: existingPost?.content.slice(0, 140) ?? null,
@@ -100,7 +100,7 @@ export async function action({ request }: ActionFunctionArgs) {
       action: "post.reject",
       entityType: "post",
       entityId: id,
-      summary: `Removed Community post by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
+      summary: `Removed reflection by ${existingPost?.author.firstName ?? "unknown"} ${existingPost?.author.lastName ?? ""}`.trim(),
       details: {
         scope: existingPost?.scope ?? null,
         preview: existingPost?.content.slice(0, 140) ?? null,
@@ -139,7 +139,7 @@ export default function AdminPostsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-serif text-2xl font-bold text-gray-900 mb-1">
-            Community Moderation
+            Reflection Review
           </h1>
           <p className="text-sm text-gray-400 font-sans">
             Review and approve member devotion posts.

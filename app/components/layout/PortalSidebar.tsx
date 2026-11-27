@@ -32,10 +32,10 @@ const UsersIcon = () => (
   </svg>
 );
 
-const BookIcon = () => (
+const QuoteBubbleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-    <path d="M4 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M7 6h4M7 9h4M7 12h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M3 3h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 15 13H8l-4.5 3v-3.5A1.5 1.5 0 0 1 2 11V4.5A1.5 1.5 0 0 1 3.5 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M6 6.5h2v2H6.7c.1.8.5 1.2 1.3 1.3V11c-1.6-.1-2.5-1-2.5-2.6V6.5Zm4.5 0h2v2h-1.3c.1.8.5 1.2 1.3 1.3V11c-1.6-.1-2.5-1-2.5-2.6V6.5Z" fill="currentColor" />
   </svg>
 );
 
@@ -112,7 +112,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/portal/dashboard", label: "Dashboard", icon: <DashIcon /> },
   { to: "/portal/attendance", label: "Attendance", icon: <CheckIcon /> },
   { to: "/portal/directory", label: "Directory", icon: <UsersIcon /> },
-  { to: "/portal/community", label: "Community", icon: <BookIcon /> },
+  { to: "/portal/community", label: "Shared Reflections", icon: <QuoteBubbleIcon /> },
   { to: "/portal/engagement", label: "Engage", icon: <SparkIcon /> },
   { to: "/portal/profile", label: "My Profile", icon: <PersonIcon /> },
 ];
@@ -122,16 +122,17 @@ const ADMIN_NAV = [
   { to: "/portal/admin/cell-groups", label: "Cell Groups", icon: <UsersIcon /> },
   { to: "/portal/admin/email-queue", label: "Email Queue", icon: <MailIcon /> },
   { to: "/portal/admin/members", label: "Members", icon: <PersonIcon /> },
+  { to: "/portal/admin/attendees", label: "Attendee Profiles", icon: <UsersIcon /> },
   { to: "/portal/admin/ministries", label: "Ministries", icon: <MinistryIcon /> },
   { to: "/portal/admin/events", label: "Events", icon: <CalendarIcon /> },
   { to: "/portal/admin/visit-plans", label: "Visit Plans", icon: <ClipboardCheckIcon /> },
-  { to: "/portal/admin/posts", label: "Community", icon: <ChatIcon /> },
+  { to: "/portal/admin/posts", label: "Reflection Review", icon: <ChatIcon /> },
   { to: "/portal/admin/reports", label: "Reports", icon: <ChartIcon /> },
   { to: "/portal/admin/settings", label: "Settings", icon: <SettingsIcon /> },
 ];
 
 interface PortalSidebarProps {
-  userRole: "ADMIN" | "CELL_LEADER" | "MEMBER";
+  userRole: "ADMIN" | "CELL_LEADER" | "USHER" | "MEMBER" | "ATTENDEE";
   userName: string;
 }
 
@@ -150,16 +151,25 @@ function SidebarContent({
       ? "Administrator"
       : userRole === "CELL_LEADER"
         ? "Cell Leader"
-        : "Member";
+        : userRole === "USHER"
+          ? "Usher"
+          : userRole === "ATTENDEE"
+            ? "Attendee"
+            : "Member";
   const initials = userName
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const isMemberPortalRole = userRole === "MEMBER" || userRole === "ATTENDEE";
+  const attendanceNavItem =
+    userRole === "CELL_LEADER"
+      ? NAV_ITEMS[1]!
+      : { ...NAV_ITEMS[1]!, to: "/portal/attendance-entry", label: "Attendance & Check-in" };
   const primaryNavItems = [
     NAV_ITEMS[0]!,
-    ...(userRole === "MEMBER" ? NAV_ITEMS.slice(2) : NAV_ITEMS.slice(1)),
+    ...(isMemberPortalRole ? NAV_ITEMS.slice(2) : [attendanceNavItem, ...NAV_ITEMS.slice(2)]),
   ];
 
   const navLinkClass = (active: boolean) =>

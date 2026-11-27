@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     userId:    user.id,
     firstName: user.firstName,
     lastName:  user.lastName,
-    role:      user.role as "ADMIN" | "CELL_LEADER" | "MEMBER",
+    role:      user.role as "ADMIN" | "CELL_LEADER" | "USHER" | "MEMBER" | "ATTENDEE",
     email:     user.email,
   };
 }

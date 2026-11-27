@@ -3,6 +3,7 @@
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", Georgia, serif;
+  --container-8xl: 88rem;
 }
 
 :root {

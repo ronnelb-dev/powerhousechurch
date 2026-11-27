@@ -13,6 +13,7 @@ interface AttendanceMarkRowProps {
   userId: string;
   firstName: string;
   lastName: string;
+  category?: string | null;
   currentStatus: "PRESENT" | "ABSENT" | null;
   date: string;
   type: "SUNDAY_SERVICE" | "CELL_GROUP";
@@ -25,6 +26,7 @@ export function AttendanceMarkRow({
   userId,
   firstName,
   lastName,
+  category,
   currentStatus,
   date,
   type,
@@ -48,6 +50,13 @@ export function AttendanceMarkRow({
         : currentStatus;
 
   const initials = (firstName[0] ?? "") + (lastName[0] ?? "");
+  const categoryLabel = category === "ADULT"
+    ? "Adult"
+    : category === "YOUNG_PROFESSIONAL"
+      ? "Young Professional"
+      : category === "KIDS"
+        ? "Kids"
+        : category;
 
   useEffect(() => {
     if (fetcher.state !== "idle") {
@@ -128,6 +137,13 @@ export function AttendanceMarkRow({
           <p className="break-words font-sans text-sm font-bold leading-5 text-gray-800 sm:text-base">
             {firstName} {lastName}
           </p>
+          {category ? (
+            <p className="mt-0.5 font-sans text-xs text-gray-500">
+              {categoryLabel}
+            </p>
+          ) : (
+            <p className="mt-0.5 font-sans text-xs text-amber-700">Category not set</p>
+          )}
           {optimisticStatus && (
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <p

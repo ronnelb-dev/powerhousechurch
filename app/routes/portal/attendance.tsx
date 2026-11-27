@@ -90,9 +90,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const selectedDate = calendarDateToUtc(date);
   const isFuture = date > churchToday;
 
-  // Determine which cell group to show
-  // ADMIN sees all members (or can filter); CELL_LEADER sees own group
-  let members: { id: string; firstName: string; lastName: string }[] = [];
+  // Admins can filter members by group, cell leaders stay within their group,
+  // and ushers can mark attendance for every active portal account.
+  let members: { id: string; firstName: string; lastName: string; category: string | null }[] = [];
   const cellGroups =
     user.role === "ADMIN"
       ? await db.cellGroup.findMany({
@@ -108,6 +108,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     validCellGroupIds.has(requestedCellGroupId)
       ? requestedCellGroupId
       : "";
+  const cellGroupName =
+    user.role === "CELL_LEADER" && user.cellGroupId
+      ? (await db.cellGroup.findUnique({
+          where: { id: user.cellGroupId },
+          select: { name: true },
+        }))?.name ?? null
+      : null;
 
   if (
     user.role === "ADMIN" &&
@@ -118,21 +125,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   if (user.role === "ADMIN") {
-    members = await db.user.findMany({
+    members = await db.attendeeProfile.findMany({
       where: {
         isActive: true,
-        role: "MEMBER",
+        OR: [
+          { linkedUserId: null },
+          { linkedUser: { is: { role: { in: ["MEMBER", "ATTENDEE"] } } } },
+        ],
         ...(selectedCellGroupId ? { cellGroupId: selectedCellGroupId } : {}),
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, firstName: true, lastName: true },
+      select: { id: true, firstName: true, lastName: true, category: true },
     });
-  } else {
+  } else if (user.role === "CELL_LEADER") {
     // CELL_LEADER sees their own group only
     if (!user.cellGroupId) {
       return {
+        role: user.role,
         members: [],
         attendanceMap: {},
+        cellGroupName: null,
         date,
         type,
         isFuture,
@@ -142,29 +154,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
         selectedCellGroupId,
       };
     }
-    members = await db.user.findMany({
+    members = await db.attendeeProfile.findMany({
       where: { isActive: true, cellGroupId: user.cellGroupId },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      select: { id: true, firstName: true, lastName: true },
+      select: { id: true, firstName: true, lastName: true, category: true },
+    });
+  } else {
+    members = await db.attendeeProfile.findMany({
+      where: { isActive: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: { id: true, firstName: true, lastName: true, category: true },
     });
   }
 
   // Fetch existing attendance records for the selected date
   const records = await db.attendance.findMany({
     where: {
-      userId: { in: members.map((m) => m.id) },
+      attendeeProfileId: { in: members.map((m) => m.id) },
       type,
       date: selectedDate,
     },
-    select: { userId: true, status: true },
+    select: { attendeeProfileId: true, status: true },
   });
   const attendanceMap = Object.fromEntries(
-    records.map((r) => [r.userId, r.status as "PRESENT" | "ABSENT"])
+    records.map((r) => [String(r.attendeeProfileId), r.status as "PRESENT" | "ABSENT"])
   );
 
   return {
+    role: user.role,
     members,
     attendanceMap,
+    cellGroupName,
     date,
     type,
     isFuture,
@@ -216,7 +236,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!members) {
     return {
       ok: false as const,
-      error: "Some selected members are unavailable or inactive.",
+      error: "Some selected attendees are unavailable or inactive.",
     };
   }
 
@@ -255,8 +275,8 @@ export async function action({ request }: ActionFunctionArgs) {
         ? `${input.type}:${input.date}:bulk`
         : `${userIds[0]}:${input.type}:${input.date}`,
       summary: status
-        ? `Marked ${userIds.length} member${userIds.length === 1 ? "" : "s"} ${status.toLowerCase()} for ${input.date}`
-        : `Cleared attendance for ${result.affectedIds.length} member${result.affectedIds.length === 1 ? "" : "s"} on ${input.date}`,
+        ? `Marked ${userIds.length} attendee${userIds.length === 1 ? "" : "s"} ${status.toLowerCase()} for ${input.date}`
+        : `Cleared attendance for ${result.affectedIds.length} attendee${result.affectedIds.length === 1 ? "" : "s"} on ${input.date}`,
       details: {
         memberIds: userIds,
         attendanceType: input.type,
@@ -268,10 +288,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const message = status
-    ? `Marked ${userIds.length === 1 ? "member" : `${userIds.length} members`} ${status === "PRESENT" ? "present" : "absent"}.`
+    ? `Marked ${userIds.length === 1 ? "attendee" : `${userIds.length} attendees`} ${status === "PRESENT" ? "present" : "absent"}.`
     : result.affectedIds.length > 0
-      ? `Cleared attendance for ${result.affectedIds.length === 1 ? "member" : `${result.affectedIds.length} members`}.`
-      : "The selected member was already unmarked.";
+      ? `Cleared attendance for ${result.affectedIds.length === 1 ? "attendee" : `${result.affectedIds.length} attendees`}.`
+      : "The selected attendee was already unmarked.";
 
   return {
     ok: true as const,
@@ -283,8 +303,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function AttendancePage() {
   const {
+    role,
     members,
     attendanceMap,
+    cellGroupName,
     date,
     type,
     isFuture,
@@ -294,6 +316,8 @@ export default function AttendancePage() {
     selectedCellGroupId,
   } =
     useLoaderData<typeof loader>();
+  const isAdmin = role === "ADMIN";
+  const isUsher = role === "USHER";
   const actionData = useActionData<typeof action>();
   const fetchers = useFetchers();
   const navigation = useNavigation();
@@ -411,13 +435,26 @@ export default function AttendancePage() {
 
   return (
     <PortalPage
-      className={`max-w-3xl ${selectedIds.length > 0 ? "pb-36 md:pb-6" : ""}`}
-      style={{ maxWidth: "48rem" }}
+      className={selectedIds.length > 0 ? "pb-48 md:pb-6" : ""}
     >
       <PortalHeader
-        eyebrow="Members Portal"
-        title="Attendance"
-        subtitle="Mark attendance quickly, correct mistakes, and keep every church day accurate."
+        eyebrow={
+          isAdmin
+            ? "Church-wide records"
+            : isUsher
+              ? "Usher"
+              : cellGroupName ?? "Cell leader"
+        }
+        title={isAdmin ? "Attendance" : "Mark attendance"}
+        subtitle={
+          isAdmin
+            ? "Review and update attendance across the church, or narrow the list to one cell group."
+            : isUsher
+              ? "Record Sunday service or cell group attendance for every active account across the church."
+              : cellGroupName
+                ? `Record Sunday service or cell group attendance for ${cellGroupName}.`
+                : "Your account is not assigned to a cell group yet. Ask an administrator to update your assignment."
+        }
       />
 
       {filterNotice ? (
@@ -431,15 +468,15 @@ export default function AttendancePage() {
 
       <Form
         method="get"
-        className="mb-4 grid gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:grid-cols-2 sm:p-4"
+        className="mb-5 grid gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-5 lg:grid-cols-3"
         aria-label="Attendance context"
       >
-        <div>
+        <div className="min-w-0">
           <label
             htmlFor="date"
-            className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+            className="mb-2 block text-xs font-sans font-bold uppercase tracking-wide text-gray-500"
           >
-            Church date
+            Attendance date
           </label>
           <input
             id="date"
@@ -448,12 +485,12 @@ export default function AttendancePage() {
             defaultValue={date}
             max={churchToday}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="min-h-11 w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+            className="min-h-12 w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-sans text-gray-800 transition focus:border-red-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-200"
           />
         </div>
 
         <fieldset>
-          <legend className="mb-1.5 text-xs font-sans font-bold text-gray-600">
+          <legend className="mb-2 text-xs font-sans font-bold uppercase tracking-wide text-gray-500">
             Gathering
           </legend>
           <div className="grid grid-cols-2 gap-2">
@@ -469,7 +506,7 @@ export default function AttendancePage() {
               />
               <span
                 className={[
-                  "flex min-h-11 items-center justify-center rounded-lg border px-3 py-2.5 text-center text-xs font-sans font-bold",
+                  "flex min-h-12 items-center justify-center rounded-xl border px-3 py-2.5 text-center text-xs font-sans font-bold",
                   "cursor-pointer transition-all peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-red-300 peer-focus-visible:ring-offset-2",
                   type === t
                     ? "bg-red-700 text-white border-red-700"
@@ -483,11 +520,11 @@ export default function AttendancePage() {
           </div>
         </fieldset>
 
-        {cellGroups.length > 0 && (
-          <div className="sm:col-span-2">
+        {isAdmin && cellGroups.length > 0 && (
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
             <label
               htmlFor="cellGroupId"
-              className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+              className="mb-2 block text-xs font-sans font-bold uppercase tracking-wide text-gray-500"
             >
               Cell group
             </label>
@@ -496,7 +533,7 @@ export default function AttendancePage() {
               name="cellGroupId"
               defaultValue={selectedCellGroupId}
               onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              className="min-h-11 w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+              className="min-h-12 w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-sans text-gray-800 transition focus:border-red-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-200"
             >
               <option value="">All Groups</option>
               {cellGroups.map((cg) => (
@@ -509,32 +546,50 @@ export default function AttendancePage() {
 
       {members.length > 0 && (
         <div
-          className="mb-4 grid grid-cols-3 gap-2 text-center font-sans text-xs sm:text-sm"
+          className="mb-5 grid grid-cols-3 gap-2.5 font-sans text-xs sm:gap-3 sm:text-sm"
           aria-live="polite"
+          aria-label="Attendance summary"
         >
-          <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2.5">
-            <p className="font-bold text-green-700">{presentCount}</p>
-            <p className="mt-0.5 text-green-600">Present</p>
+          <div className="rounded-2xl border border-green-100 bg-green-50/80 p-3 sm:p-4">
+            <p className="text-xl font-bold leading-none text-green-800 sm:text-2xl">{presentCount}</p>
+            <p className="mt-2 font-semibold text-green-700">Present</p>
           </div>
-          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5">
-            <p className="font-bold text-red-700">{absentCount}</p>
-            <p className="mt-0.5 text-red-600">Absent</p>
+          <div className="rounded-2xl border border-red-100 bg-red-50/80 p-3 sm:p-4">
+            <p className="text-xl font-bold leading-none text-red-800 sm:text-2xl">{absentCount}</p>
+            <p className="mt-2 font-semibold text-red-700">Absent</p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-            <p className="font-bold text-gray-700">{unmarkedCount}</p>
-            <p className="mt-0.5 text-gray-500">Unmarked</p>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+            <p className="text-xl font-bold leading-none text-gray-800 sm:text-2xl">{unmarkedCount}</p>
+            <p className="mt-2 font-semibold text-gray-600">Unmarked</p>
           </div>
         </div>
       )}
 
       {members.length > 0 && (
         <>
-          <section className="mb-4 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
+          <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-sans text-base font-bold text-gray-900">Member list</h2>
+                <p className="mt-1 text-xs font-sans text-gray-500">
+                  {isAdmin
+                    ? selectedCellGroupId
+                      ? "Showing attendees in the selected cell group."
+                      : "Showing active attendees across all cell groups."
+                    : isUsher
+                      ? "Showing all active portal accounts across the church."
+                      : `Showing active attendees in ${cellGroupName ?? "your assigned cell group"}.`}
+                </p>
+              </div>
+              <p className="text-xs font-sans font-semibold text-gray-500">
+                {visibleMembers.length} of {members.length} attendees
+              </p>
+            </div>
             <label
               htmlFor="attendance-search"
-              className="mb-1.5 block text-xs font-sans font-bold text-gray-600"
+              className="mb-2 block text-xs font-sans font-bold uppercase tracking-wide text-gray-500"
             >
-              Find a member
+              Find an attendee
             </label>
             <input
               id="attendance-search"
@@ -542,13 +597,13 @@ export default function AttendancePage() {
               value={search}
               onChange={(event) => setSearch(event.currentTarget.value)}
               placeholder="Search first or last name"
-              className="min-h-11 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+              className="min-h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-sans text-gray-800 transition focus:border-red-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-200"
             />
 
             <div
               className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"
               role="group"
-              aria-label="Filter members by attendance status"
+              aria-label="Filter attendees by attendance status"
             >
               {statusTabs.map((tab) => (
                 <button
@@ -568,7 +623,7 @@ export default function AttendancePage() {
               ))}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
               <button
                 type="button"
                 onClick={() =>
@@ -701,6 +756,7 @@ export default function AttendancePage() {
                 userId={member.id}
                 firstName={member.firstName}
                 lastName={member.lastName}
+                category={member.category}
                 currentStatus={projectedAttendanceMap[member.id] ?? null}
                 date={date}
                 type={type}
@@ -718,11 +774,23 @@ export default function AttendancePage() {
             message="Try a different name or attendance status filter."
           />
         )
+      ) : role === "CELL_LEADER" && !cellGroupName ? (
+        <EmptyState
+          icon="members"
+          title="No cell group assigned"
+          message="Ask an administrator to assign your cell group before taking attendance."
+        />
       ) : (
         <EmptyState
           icon="members"
-          title="No members to mark"
-          message="No members are assigned to this group yet. Contact your administrator."
+          title={isUsher ? "No active accounts to mark" : isAdmin ? "No members to mark" : "No members in this group yet"}
+          message={
+            isUsher
+              ? "There are no active portal accounts available for attendance."
+              : isAdmin
+              ? "There are no active members in the selected group. Try another group or choose All Groups."
+              : "No active members are assigned to this group yet. Contact your administrator."
+          }
         />
       )}
     </PortalPage>
@@ -774,7 +842,7 @@ export function ErrorBoundary() {
         message={
           isRouteErrorResponse(error)
             ? error.status === 403
-              ? "Only cell leaders and admins can mark attendance."
+              ? "Only ushers, cell leaders, and admins can mark attendance."
               : error.data
             : "Please refresh the page."
         }

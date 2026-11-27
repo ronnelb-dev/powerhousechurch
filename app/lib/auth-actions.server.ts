@@ -27,6 +27,10 @@ const registerSchema = z
     age: z.coerce.number().int().min(5, "Age must be at least 5").max(120),
     gender: z.enum(["MALE", "FEMALE"], { message: "Select a gender" }),
     birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use format YYYY-MM-DD"),
+    category: z.preprocess(
+      (value) => value === "" ? undefined : value,
+      z.enum(["ADULT", "YOUNG_PROFESSIONAL", "KIDS"]).optional(),
+    ),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -43,6 +47,7 @@ type RegisterFields = {
   age: string;
   gender: string;
   birthday: string;
+  category?: string;
 };
 
 type LoginFields = {
@@ -53,13 +58,15 @@ type LoginFields = {
 type UserRecord = {
   id: string;
   email: string | null;
+  username?: string | null;
   phone: string | null;
+  isEmailVerified?: boolean;
   passwordHash: string;
   firstName: string;
   lastName: string;
-  age: number;
-  gender: string;
-  birthday: Date;
+  age: number | null;
+  gender: string | null;
+  birthday: Date | null;
 };
 
 export type RegisterActionData =
@@ -107,7 +114,7 @@ export async function handleRegisterSubmission(
     } satisfies RegisterActionData;
   }
 
-  const { firstName, lastName, email, phone, password, age, gender, birthday } =
+  const { firstName, lastName, email, phone, password, age, gender, birthday, category } =
     result.data;
 
   const existing = await deps.db.user.findFirst({
@@ -137,6 +144,13 @@ export async function handleRegisterSubmission(
       gender,
       birthday: new Date(birthday),
       role: "MEMBER",
+      attendeeProfile: {
+        create: {
+          firstName,
+          lastName,
+          category: category ?? null,
+        },
+      },
     },
   });
 
@@ -150,17 +164,21 @@ export async function handleLoginSubmission(
   const identifier = raw.identifier.trim();
 
   if (!identifier || !raw.password) {
-    return { error: "Email/phone and password are required." } satisfies LoginActionData;
+    return { error: "Username, email, or phone and password are required." } satisfies LoginActionData;
   }
 
   const user = await deps.db.user.findFirst({
     where: {
       isActive: true,
-      OR: [{ email: identifier }, { phone: identifier }],
+      OR: [
+        { email: identifier },
+        { phone: identifier },
+        { username: identifier.toLowerCase() },
+      ],
     },
   });
 
-  if (!user) {
+  if (!user || user.isEmailVerified === false) {
     return { error: "Invalid credentials. Please try again." } satisfies LoginActionData;
   }
 

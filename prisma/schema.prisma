@@ -14,18 +14,20 @@ model User {
   firstName      String
   lastName       String
   email          String?    @unique
+  username       String?    @unique
   isEmailVerified Boolean   @default(true)
   emailVerifiedAt DateTime?
   phone          String?    @unique
   passwordHash   String
-  age            Int
-  gender         String
-  birthday       DateTime
+  age            Int?
+  gender         String?
+  birthday       DateTime?
   role           String     @default("MEMBER")
   isActive       Boolean    @default(true)
   profilePhoto   String?
   cellGroupId    String?
   cellGroup      CellGroup? @relation(fields: [cellGroupId], references: [id])
+  attendeeProfile AttendeeProfile?
   sessions       Session[]
   attendance     Attendance[]
   posts          Post[]
@@ -67,6 +69,7 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String   @unique
   expiresAt DateTime
+  purpose   String   @default("PASSWORD_RESET")
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -85,37 +88,67 @@ model Session {
 model CellGroup {
   id          String       @id @default(cuid())
   name        String
-  leaderId    String
+  leaderId    String       @unique
   meetingDay  String?
   meetingTime String?
   barangay    String?
   isActive    Boolean      @default(true)
   members     User[]
+  attendeeProfiles AttendeeProfile[]
   attendance  Attendance[]
   posts       Post[]
   createdAt   DateTime     @default(now())
 
   @@index([isActive])
-  @@index([leaderId])
 }
 
 model Attendance {
   id          String     @id @default(cuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  attendeeProfileId String
+  attendeeProfile AttendeeProfile @relation(fields: [attendeeProfileId], references: [id], onDelete: Restrict)
   cellGroupId String?
   cellGroup   CellGroup? @relation(fields: [cellGroupId], references: [id])
   type        String
   status      String
+  categorySnapshot String?
   date        DateTime
   markedById  String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@unique([userId, type, date])
+  @@unique([attendeeProfileId, type, date])
   @@index([userId, date])
   @@index([cellGroupId, date])
   @@index([date, type])
+}
+
+// A person who can be included in church attendance, whether or not they have
+// credentials to sign in to the portal. User remains the authentication identity.
+model AttendeeProfile {
+  id                String   @id @default(cuid())
+  firstName         String
+  lastName          String
+  category          String?
+  phone             String?
+  isActive          Boolean  @default(true)
+  cellGroupId       String?
+  cellGroup         CellGroup? @relation(fields: [cellGroupId], references: [id], onDelete: SetNull)
+  linkedUserId      String?  @unique
+  linkedUser        User?    @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  guardianProfileId String?
+  guardianProfile   AttendeeProfile? @relation("AttendeeGuardian", fields: [guardianProfileId], references: [id], onDelete: SetNull)
+  dependents        AttendeeProfile[] @relation("AttendeeGuardian")
+  attendance        Attendance[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([cellGroupId, isActive])
+  @@index([category, isActive])
+  @@index([guardianProfileId])
 }
 
 model Event {

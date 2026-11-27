@@ -145,7 +145,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (intent === "updateRole") {
     const role = String(formData.get("role") ?? "");
-    if (!["ADMIN", "CELL_LEADER", "MEMBER"].includes(role)) {
+    if (!["ADMIN", "CELL_LEADER", "USHER", "MEMBER", "ATTENDEE"].includes(role)) {
       return { error: "Invalid role." };
     }
     await db.user.update({ where: { id: userId }, data: { role } });
@@ -158,6 +158,7 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { id: userId },
       data: { cellGroupId: cellGroupId || null },
     });
+    await db.attendeeProfile.updateMany({ where: { linkedUserId: userId }, data: { cellGroupId: cellGroupId || null } });
     return { success: "Cell group updated." };
   }
 
@@ -171,6 +172,7 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { id: userId },
       data: { isActive: !current.isActive },
     });
+    await db.attendeeProfile.updateMany({ where: { linkedUserId: userId }, data: { isActive: !current.isActive } });
     return { success: "Member status updated." };
   }
 
@@ -184,6 +186,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
     await db.user.updateMany({
       where: { id: { in: selectedUserIds } },
+      data: { cellGroupId: targetCellGroupId || null },
+    });
+    await db.attendeeProfile.updateMany({
+      where: { linkedUserId: { in: selectedUserIds } },
       data: { cellGroupId: targetCellGroupId || null },
     });
 
@@ -305,7 +311,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
 const ROLE_OPTIONS = [
   { value: "MEMBER", label: "Member" },
+  { value: "ATTENDEE", label: "Attendee" },
   { value: "CELL_LEADER", label: "Cell Leader" },
+  { value: "USHER", label: "Usher" },
   { value: "ADMIN", label: "Admin" },
 ];
 

@@ -14,9 +14,14 @@ import { z } from "zod";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { describedBy, useFocusFirstInvalidField, ValidationSummary } from "~/components/ui/FormAccessibility";
 import { PendingButton } from "~/components/ui/PendingButton";
+import { PortalHeader, portalButtonClasses } from "~/components/ui/Portal";
 import { requireAdmin } from "~/lib/auth.server";
 import { uploadImageToCloudinary } from "~/lib/cloudinary.server";
 import { db } from "~/lib/db.server";
+import {
+  matchesAdminEventFilter,
+  type AdminEventFilter,
+} from "~/lib/event-admin-filters";
 
 const prisma = db as any;
 
@@ -777,6 +782,9 @@ export default function AdminEventsPage() {
   const { events } = useLoaderData<typeof loader>();
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<AdminEvent | null>(null);
+  const [filter, setFilter] = useState<AdminEventFilter>("all");
+  const [search, setSearch] = useState("");
+  const now = new Date();
 
   const totalRegistrations = events.reduce(
     (sum: number, event: AdminEvent) => sum + event.counts.total,
@@ -790,30 +798,54 @@ export default function AdminEventsPage() {
     (sum: number, event: AdminEvent) => sum + event.counts.waitlist,
     0,
   );
+  const upcomingCount = events.filter(
+    (event: AdminEvent) => new Date(event.startDate) >= now,
+  ).length;
+  const filters: { id: AdminEventFilter; label: string }[] = [
+    { id: "all", label: "All events" },
+    { id: "upcoming", label: "Upcoming" },
+    { id: "past", label: "Past" },
+    { id: "drafts", label: "Drafts" },
+  ];
+  const filterCounts = Object.fromEntries(
+    filters.map(({ id }) => [
+      id,
+      events.filter((event: AdminEvent) =>
+        matchesAdminEventFilter(event, id, "", now),
+      ).length,
+    ]),
+  ) as Record<AdminEventFilter, number>;
+  const filteredEvents = events.filter((event: AdminEvent) =>
+    matchesAdminEventFilter(event, filter, search, now),
+  );
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="mb-1 font-serif text-2xl font-bold text-gray-900">Events</h1>
-          <p className="text-sm text-gray-400">
-            {events.length} total · {totalRegistrations} registrations · {totalCheckedIn} checked in
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setEditEvent(null);
-            setShowForm(true);
-          }}
-          className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          + Add Event
-        </button>
-      </div>
+    <div className="space-y-6">
+      <PortalHeader
+        eyebrow="Admin workspace"
+        title="Events"
+        subtitle="Create events, follow registrations, and manage attendance from one place."
+        actions={
+          <button
+            onClick={() => {
+              setEditEvent(null);
+              setShowForm(true);
+            }}
+            className={portalButtonClasses({
+              variant: "primary",
+              className: "w-full bg-red-700 hover:bg-red-800 focus:ring-red-400 sm:w-auto",
+            })}
+          >
+            <span aria-hidden="true" className="mr-2 text-base">+</span>
+            Add event
+          </button>
+        }
+      />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <MetricCard label="Upcoming events" value={String(upcomingCount)} />
         <MetricCard label="Registrations" value={String(totalRegistrations)} />
-        <MetricCard label="Checked In" value={String(totalCheckedIn)} />
+        <MetricCard label="Checked in" value={String(totalCheckedIn)} />
         <MetricCard label="Waitlisted" value={String(totalWaitlisted)} />
       </div>
 
@@ -829,20 +861,103 @@ export default function AdminEventsPage() {
       )}
 
       {events.length > 0 ? (
-        <div className="space-y-4">
-          {events.map((event: AdminEvent) => (
-            <AdminEventCard
-              key={event.id}
-              event={event}
-              onEdit={(nextEvent) => setEditEvent(nextEvent)}
-            />
-          ))}
-        </div>
+        <section aria-labelledby="event-list-heading" className="space-y-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="event-search" className="mb-1.5 block text-sm font-bold text-gray-800">
+                  Find an event
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="event-search"
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.currentTarget.value)}
+                    placeholder="Search title, location, or details"
+                    className="min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                  />
+                  {search ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className={portalButtonClasses({ variant: "secondary", className: "px-3" })}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <p className="text-sm text-gray-500" aria-live="polite">
+                Showing <span className="font-bold text-gray-900">{filteredEvents.length}</span> of {events.length} events
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Filter events">
+              {filters.map(({ id, label }) => {
+                const isSelected = filter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setFilter(id)}
+                    className={portalButtonClasses({
+                      variant: isSelected ? "primary" : "secondary",
+                      className: isSelected
+                        ? "min-h-10 bg-gray-900 px-3 focus:ring-gray-400"
+                        : "min-h-10 px-3",
+                    })}
+                  >
+                    {label}
+                    <span className="ml-2 text-xs opacity-75">{filterCounts[id]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <h2 id="event-list-heading" className="sr-only">Event list</h2>
+          {filteredEvents.length > 0 ? (
+            <div className="space-y-4">
+              {filteredEvents.map((event: AdminEvent) => (
+                <AdminEventCard
+                  key={event.id}
+                  event={event}
+                  onEdit={(nextEvent) => setEditEvent(nextEvent)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-5 py-12 text-center" role="status">
+              <h3 className="font-serif text-xl font-semibold text-gray-900">
+                {search || filter !== "all" ? "No matching events" : "No events yet"}
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
+                {search || filter !== "all"
+                  ? "Try a different search or clear the selected filters."
+                  : "Create your first event to start managing registrations and attendance."}
+              </p>
+              {search || filter !== "all" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setFilter("all");
+                  }}
+                  className={portalButtonClasses({ variant: "secondary", className: "mt-4" })}
+                >
+                  Clear search and filters
+                </button>
+              ) : null}
+            </div>
+          )}
+        </section>
       ) : (
         <EmptyState
           icon="events"
           title="No events yet"
-          message="Add your first event to get started."
+          message="Create your first event to start managing registrations and attendance."
         />
       )}
     </div>
@@ -889,158 +1004,179 @@ function AdminEventCard({
     }
   }, [deleteFetcher, toggleFetcher, reminderFetcher]);
 
+  const eventDate = new Date(event.startDate);
+
   return (
-    <div
-      className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-red-100 sm:p-5 ${
-        isPast ? "opacity-70" : ""
-      }`}
-    >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="break-words text-lg font-serif font-bold text-gray-900">{event.title}</p>
-            <toggleFetcher.Form method="post">
-              <input type="hidden" name="intent" value="togglePublished" />
-              <input type="hidden" name="id" value={event.id} />
-              <PendingButton
-                type="submit"
-                isPending={isToggling}
-                pendingText="Saving..."
-                className={[
-                  "rounded-full border px-2 py-0.5 text-xs font-bold disabled:opacity-60",
-                  event.isPublished
-                    ? "border-green-200 bg-green-50 text-green-700"
-                    : "border-gray-200 bg-gray-50 text-gray-500",
-                ].join(" ")}
-              >
-                {event.isPublished ? "Live" : "Draft"}
-              </PendingButton>
-            </toggleFetcher.Form>
-            {event.requiresRegistration && (
-              <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
-                RSVP on
-              </span>
-            )}
-            {isPast && (
-              <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-400">
-                Past
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-gray-500">
-            {new Date(event.startDate).toLocaleString("en-PH", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            })}{" "}
-            · {event.location}
-          </p>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-            {event.description}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {!isPast && (
-            <reminderFetcher.Form method="post">
-              <input type="hidden" name="intent" value="sendReminder" />
-              <input type="hidden" name="id" value={event.id} />
-              <PendingButton
-                type="submit"
-                isPending={isSendingReminder}
-                pendingText="Sending..."
-                className="w-full rounded-lg border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60"
-              >
-                Send reminder
-              </PendingButton>
-            </reminderFetcher.Form>
-          )}
-          <Form method="post" reloadDocument>
-            <input type="hidden" name="intent" value="exportRegistrations" />
-            <input type="hidden" name="eventId" value={event.id} />
-            <button
-              type="submit"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
+    <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-red-200 hover:shadow-md">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
+            <div
+              aria-hidden="true"
+              className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-800 sm:h-20 sm:w-20"
             >
-              Export roster
-            </button>
-          </Form>
-          <button
-            onClick={() => onEdit(event)}
-            className="w-full rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-600 transition-all hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            Edit
-          </button>
-          <deleteFetcher.Form method="post">
-            <input type="hidden" name="intent" value="delete" />
-            <input type="hidden" name="id" value={event.id} />
-            <PendingButton
-              type="submit"
-              isPending={isDeleting}
-              pendingText="Deleting..."
-              onClick={(e) => {
-                if (!confirm(`Delete "${event.title}"?`)) {
-                  e.preventDefault();
-                }
-              }}
-              className="w-full rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
-            >
-              Delete
-            </PendingButton>
-          </deleteFetcher.Form>
-        </div>
-      </div>
+              <span className="text-[10px] font-bold uppercase tracking-wide">
+                {eventDate.toLocaleString("en-PH", { month: "short" })}
+              </span>
+              <span className="font-serif text-2xl font-bold leading-none">
+                {eventDate.toLocaleString("en-PH", { day: "numeric" })}
+              </span>
+            </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatPill label="Confirmed" value={String(event.counts.confirmed)} tone="slate" />
-        <StatPill label="Checked in" value={String(event.counts.checkedIn)} tone="emerald" />
-        <StatPill label="Waitlist" value={String(event.counts.waitlist)} tone="amber" />
-        <StatPill
-          label={typeof event.capacity === "number" ? "Seats left" : "Capacity"}
-          value={typeof event.capacity === "number" ? String(seatsLeft) : "Open"}
-          tone="gray"
-        />
-      </div>
-
-      {event.requiresRegistration ? (
-        <details className="group mt-5 rounded-xl border border-gray-100 bg-gray-50">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-            <div>
-              <p className="text-sm font-bold text-gray-800">Registrant roster</p>
-              <p className="text-xs text-gray-500">
-                Manage check-in, exports, and waitlist promotions for this event.
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <h3 className="break-words font-serif text-lg font-bold text-gray-900 sm:text-xl">
+                  {event.title}
+                </h3>
+                <toggleFetcher.Form method="post">
+                  <input type="hidden" name="intent" value="togglePublished" />
+                  <input type="hidden" name="id" value={event.id} />
+                  <PendingButton
+                    type="submit"
+                    isPending={isToggling}
+                    pendingText="Saving..."
+                    aria-label={`${event.isPublished ? "Move to draft" : "Publish"} ${event.title}`}
+                    className={[
+                      "min-h-7 rounded-full border px-2.5 py-1 text-xs font-bold disabled:opacity-60",
+                      event.isPublished
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-900",
+                    ].join(" ")}
+                  >
+                    {event.isPublished ? "Live" : "Draft"}
+                  </PendingButton>
+                </toggleFetcher.Form>
+                <span className={[
+                  "rounded-full border px-2.5 py-1 text-xs font-bold",
+                  isPast
+                    ? "border-gray-200 bg-gray-50 text-gray-600"
+                    : "border-blue-200 bg-blue-50 text-blue-800",
+                ].join(" ")}>
+                  {isPast ? "Past" : "Upcoming"}
+                </span>
+                {event.requiresRegistration && (
+                  <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-800">
+                    RSVP on
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                {eventDate.toLocaleString("en-PH", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+                <span className="mx-1.5 text-gray-300" aria-hidden="true">·</span>
+                <span className="break-words">{event.location}</span>
+              </p>
+              <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-gray-600">
+                {event.description}
               </p>
             </div>
-            <span className="text-xs font-bold uppercase tracking-[0.12em] text-red-700 group-open:hidden">
-              Show
-            </span>
-            <span className="hidden text-xs font-bold uppercase tracking-[0.12em] text-red-700 group-open:inline">
-              Hide
-            </span>
-          </summary>
-
-          <div className="border-t border-gray-100 bg-white">
-            {event.registrations.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {event.registrations.map((registration: AdminRegistration) => (
-                  <RegistrationRow
-                    key={registration.id}
-                    eventId={event.id}
-                    registration={registration}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="px-4 py-5 text-sm text-gray-500">
-                No registrations yet.
-              </div>
-            )}
           </div>
-        </details>
-      ) : null}
-    </div>
+
+          <div className="grid w-full grid-cols-2 gap-2 xl:flex xl:w-auto xl:max-w-[27rem] xl:flex-wrap xl:justify-end">
+            {!isPast && (
+              <reminderFetcher.Form method="post">
+                <input type="hidden" name="intent" value="sendReminder" />
+                <input type="hidden" name="id" value={event.id} />
+                <PendingButton
+                  type="submit"
+                  isPending={isSendingReminder}
+                  pendingText="Sending..."
+                  className="min-h-10 w-full rounded-lg border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60 xl:w-auto"
+                >
+                  Send reminder
+                </PendingButton>
+              </reminderFetcher.Form>
+            )}
+            <Form method="post" reloadDocument>
+              <input type="hidden" name="intent" value="exportRegistrations" />
+              <input type="hidden" name="eventId" value={event.id} />
+              <button
+                type="submit"
+                className="min-h-10 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 xl:w-auto"
+              >
+                Export roster
+              </button>
+            </Form>
+            <button
+              onClick={() => onEdit(event)}
+              className="min-h-10 w-full rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 xl:w-auto"
+            >
+              Edit
+            </button>
+            <deleteFetcher.Form method="post">
+              <input type="hidden" name="intent" value="delete" />
+              <input type="hidden" name="id" value={event.id} />
+              <PendingButton
+                type="submit"
+                isPending={isDeleting}
+                pendingText="Deleting..."
+                onClick={(e) => {
+                  if (!confirm(`Delete "${event.title}"?`)) {
+                    e.preventDefault();
+                  }
+                }}
+                className="min-h-10 w-full rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60 xl:w-auto"
+              >
+                Delete
+              </PendingButton>
+            </deleteFetcher.Form>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          <StatPill label="Confirmed" value={String(event.counts.confirmed)} tone="slate" />
+          <StatPill label="Checked in" value={String(event.counts.checkedIn)} tone="emerald" />
+          <StatPill label="Waitlist" value={String(event.counts.waitlist)} tone="amber" />
+          <StatPill
+            label={typeof event.capacity === "number" ? "Seats left" : "Capacity"}
+            value={typeof event.capacity === "number" ? String(seatsLeft) : "Open"}
+            tone="gray"
+          />
+        </div>
+
+        {event.requiresRegistration ? (
+          <details className="group mt-4 rounded-xl border border-gray-200 bg-gray-50">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Registrant roster</p>
+                <p className="text-xs text-gray-600">
+                  Check in attendees and manage the waitlist.
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-bold uppercase tracking-[0.12em] text-red-800 group-open:hidden">
+                Show
+              </span>
+              <span className="hidden shrink-0 text-xs font-bold uppercase tracking-[0.12em] text-red-800 group-open:inline">
+                Hide
+              </span>
+            </summary>
+
+            <div className="border-t border-gray-200 bg-white">
+              {event.registrations.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {event.registrations.map((registration: AdminRegistration) => (
+                    <RegistrationRow
+                      key={registration.id}
+                      eventId={event.id}
+                      registration={registration}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="px-4 py-5 text-sm text-gray-600">
+                  No registrations yet.
+                </div>
+              )}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </article>
   );
 }
 

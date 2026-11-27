@@ -108,7 +108,7 @@ export default function LoginPage() {
                 htmlFor="identifier"
                 className="block text-sm font-sans font-bold text-gray-700 mb-1.5"
               >
-                Email or Phone Number
+                Username, Email, or Phone Number
               </label>
               <input
                 id="identifier"
@@ -119,7 +119,7 @@ export default function LoginPage() {
                 required
                 aria-required="true"
                 className={inputClass}
-                placeholder="your@email.com or 09XX XXX XXXX"
+                placeholder="username, your@email.com, or 09XX XXX XXXX"
               />
             </div>
 

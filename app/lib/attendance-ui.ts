@@ -5,6 +5,7 @@ export type AttendanceListMember = {
   id: string;
   firstName: string;
   lastName: string;
+  category?: string | null;
 };
 
 type PendingSubmission = {

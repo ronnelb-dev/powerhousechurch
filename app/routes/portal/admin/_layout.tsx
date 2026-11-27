@@ -5,7 +5,6 @@
 import {
   Outlet,
   Link,
-  useLocation,
   isRouteErrorResponse,
   useRouteError,
   type LoaderFunctionArgs,
@@ -18,49 +17,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return null;
 }
 
-const ADMIN_NAV = [
-  { to: "/portal/admin/prayers", label: "Prayer Requests" },
-  { to: "/portal/admin/cell-groups", label: "Cell Groups"   },
-  { to: "/portal/admin/email-queue", label: "Email Queue" },
-  { to: "/portal/admin/members",  label: "Members"       },
-  { to: "/portal/admin/ministries", label: "Ministries"    },
-  { to: "/portal/admin/events",   label: "Events"        },
-  { to: "/portal/admin/visit-plans", label: "Visit Plans" },
-  { to: "/portal/admin/posts",    label: "Community"   },
-  { to: "/portal/admin/reports",  label: "Reports"       },
-  { to: "/portal/admin/settings", label: "Settings"      },
-];
-
 export default function AdminLayout() {
-  const location = useLocation();
-  const isActive = (to: string) => location.pathname.startsWith(to);
-  const currentSection = ADMIN_NAV.find(({ to }) => isActive(to))?.label ?? "Overview";
-
   return (
     <div className="min-h-full">
-      {/* Admin sub-header */}
-      <div className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900">
-        <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <div className="min-w-0">
-            <p className="text-[0.68rem] font-sans font-bold uppercase tracking-[0.18em] text-yellow-400">
-              Admin Panel
-            </p>
-            <p className="mt-1 truncate font-sans text-sm text-gray-300">
-              {currentSection}
-            </p>
-          </div>
-
-          <Link
-            to="/portal/dashboard"
-            className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-gray-700 px-3 py-2 text-xs font-sans font-bold text-gray-300 transition-colors hover:bg-gray-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
-          >
-            Portal
-          </Link>
-        </div>
-      </div>
-
       {/* Admin page content */}
-      <div className="max-w-6xl p-4 sm:p-6 md:p-8">
+      <div className="mx-auto w-full max-w-8xl p-4 sm:p-6 md:p-8">
         <Outlet />
       </div>
     </div>

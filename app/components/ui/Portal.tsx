@@ -6,7 +6,7 @@ export function PortalPage({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("max-w-6xl p-4 sm:p-5 md:p-6", className)}
+      className={cn("mx-auto w-full max-w-8xl p-4 sm:p-5 md:p-6", className)}
       {...props}
     />
   );

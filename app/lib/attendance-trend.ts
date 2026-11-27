@@ -17,7 +17,12 @@ export function buildAttendanceTrend({
   totalMembers,
 }: {
   sundaySeries: Date[];
-  records: Array<{ date: Date; status: string; user: { isActive: boolean } }>;
+  records: Array<{
+    date: Date;
+    status: string;
+    user?: { isActive: boolean } | null;
+    attendeeProfile?: { isActive: boolean } | null;
+  }>;
   totalMembers: number;
 }): AttendanceTrendPoint[] {
   const bucket = new Map<
@@ -26,7 +31,7 @@ export function buildAttendanceTrend({
   >();
 
   for (const record of records) {
-    if (!record.user.isActive) continue;
+    if (!(record.attendeeProfile?.isActive ?? record.user?.isActive)) continue;
     const key = utcDateToCalendarDate(record.date);
     const counts = bucket.get(key) ?? {
       presentCount: 0,

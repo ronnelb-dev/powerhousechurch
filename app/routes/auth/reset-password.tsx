@@ -37,7 +37,7 @@ const ResetPasswordSchema = z
   });
 
 type LoaderData =
-  | { token: string; tokenValid: true }
+  | { token: string; tokenValid: true; purpose: string }
   | { token: string; tokenValid: false; tokenError: string };
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
@@ -64,7 +64,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     };
   }
 
-  return { token, tokenValid: true };
+  return { token, tokenValid: true, purpose: result.record.purpose };
 }
 
 type ActionData =
@@ -121,7 +121,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
   return {
     success: true,
-    message: "Your password has been reset. You can sign in with your new password now.",
+    message: result.purpose === "ACCOUNT_SETUP"
+      ? "Your account is set up. You can sign in with your username and new password now."
+      : "Your password has been reset. You can sign in with your new password now.",
   } satisfies ActionData;
 }
 

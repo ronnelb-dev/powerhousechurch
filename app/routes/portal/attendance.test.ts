@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireUserMock = vi.fn();
 const recordAdminAuditEventMock = vi.fn();
 const dbMock = {
+  attendeeProfile: {
+    findMany: vi.fn(),
+  },
   user: {
     findMany: vi.fn(),
   },
@@ -13,6 +16,7 @@ const dbMock = {
   },
   cellGroup: {
     findMany: vi.fn(),
+    findUnique: vi.fn(),
   },
   $transaction: vi.fn(),
 };
@@ -59,10 +63,19 @@ describe("portal attendance action", () => {
     dbMock.user.findMany.mockResolvedValue([
       { id: "member_1", cellGroupId: "cg-member" },
     ]);
+    dbMock.attendeeProfile.findMany.mockImplementation(async () => {
+      const rows = await dbMock.user.findMany();
+      return rows.map((row: { id: string; cellGroupId?: string | null; firstName?: string; lastName?: string }) => ({
+        ...row,
+        linkedUserId: row.id,
+        category: null,
+      }));
+    });
     dbMock.attendance.findMany.mockResolvedValue([]);
     dbMock.attendance.upsert.mockResolvedValue({});
     dbMock.attendance.deleteMany.mockResolvedValue({ count: 1 });
     dbMock.cellGroup.findMany.mockResolvedValue([]);
+    dbMock.cellGroup.findUnique.mockResolvedValue(null);
     dbMock.$transaction.mockImplementation(
       async (callback: (transaction: typeof dbMock) => Promise<unknown>) =>
         callback(dbMock),
@@ -96,6 +109,122 @@ describe("portal attendance action", () => {
     expect(result.filterNotice).toContain("cell group is unavailable");
   });
 
+  it("shows a cell leader their assigned group and only its members", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      user: { id: "leader_1", role: "CELL_LEADER", cellGroupId: "cg-alpha" },
+    });
+    dbMock.cellGroup.findUnique.mockResolvedValueOnce({ name: "North Cell" });
+    dbMock.user.findMany.mockResolvedValueOnce([
+      { id: "member_alpha", firstName: "Ada", lastName: "Member" },
+    ]);
+    const { loader } = await import("~/routes/portal/attendance");
+
+    const result = await loader({
+      request: new Request("https://church.test/portal/attendance"),
+      params: {},
+      context: {},
+      unstable_url: new URL("https://church.test/portal/attendance"),
+      unstable_pattern: "/portal/attendance",
+    });
+
+    expect(result).toMatchObject({
+      role: "CELL_LEADER",
+      cellGroupName: "North Cell",
+      members: [{ id: "member_alpha" }],
+      cellGroups: [],
+    });
+    expect(dbMock.attendeeProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { isActive: true, cellGroupId: "cg-alpha" },
+      }),
+    );
+  });
+
+  it("loads every active account for ushers without a group or role filter", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      user: { id: "usher_1", role: "USHER", cellGroupId: null },
+    });
+    dbMock.user.findMany.mockResolvedValueOnce([
+      { id: "member_1", firstName: "Ada", lastName: "Member" },
+      { id: "leader_1", firstName: "Sam", lastName: "Leader" },
+      { id: "admin_1", firstName: "Alex", lastName: "Admin" },
+    ]);
+    const { loader } = await import("~/routes/portal/attendance");
+
+    const result = await loader({
+      request: new Request("https://church.test/portal/attendance"),
+      params: {},
+      context: {},
+      unstable_url: new URL("https://church.test/portal/attendance"),
+      unstable_pattern: "/portal/attendance",
+    });
+
+    expect(result).toMatchObject({
+      role: "USHER",
+      cellGroupName: null,
+      cellGroups: [],
+      members: [{ id: "member_1" }, { id: "leader_1" }, { id: "admin_1" }],
+    });
+    expect(dbMock.attendeeProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ isActive: true }) }),
+    );
+  });
+
+  it("allows ushers to mark active accounts across roles and cell groups", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      user: { id: "usher_1", role: "USHER", cellGroupId: null },
+    });
+    dbMock.user.findMany.mockResolvedValueOnce([
+      { id: "member_1", cellGroupId: "cg-alpha" },
+      { id: "leader_1", cellGroupId: "cg-beta" },
+      { id: "admin_1", cellGroupId: null },
+    ]);
+
+    const result = await submitAttendance([
+      ["intent", "bulkMarkPresent"],
+      ["date", "2025-04-06"],
+      ["type", "SUNDAY_SERVICE"],
+      ["userIds", "member_1"],
+      ["userIds", "leader_1"],
+      ["userIds", "admin_1"],
+    ]);
+
+    expect(result).toMatchObject({
+      ok: true,
+      affectedIds: ["member_1", "leader_1", "admin_1"],
+      status: "PRESENT",
+    });
+    expect(dbMock.attendeeProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isActive: true }),
+      }),
+    );
+    expect(recordAdminAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ actorRole: "USHER", action: "attendance.mark.bulk" }),
+    );
+  });
+
+  it("rejects inactive account selections from ushers", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      user: { id: "usher_1", role: "USHER", cellGroupId: null },
+    });
+    dbMock.user.findMany.mockResolvedValueOnce([]);
+
+    const result = await submitAttendance([
+      ["intent", "markAttendance"],
+      ["date", "2025-04-06"],
+      ["type", "SUNDAY_SERVICE"],
+      ["userId", "inactive_member"],
+      ["status", "PRESENT"],
+    ]);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Some selected attendees are unavailable or inactive.",
+    });
+    expect(dbMock.attendance.upsert).not.toHaveBeenCalled();
+  });
+
   it("uses the selected member cell group when marking one member", async () => {
     const result = await submitAttendance([
       ["intent", "markAttendance"],
@@ -107,7 +236,7 @@ describe("portal attendance action", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "Marked member present.",
+      message: "Marked attendee present.",
       affectedIds: ["member_1"],
       status: "PRESENT",
     });
@@ -143,7 +272,7 @@ describe("portal attendance action", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "Marked 2 members absent.",
+      message: "Marked 2 attendees absent.",
       affectedIds: ["member_1", "member_2"],
       status: "ABSENT",
     });
@@ -171,7 +300,7 @@ describe("portal attendance action", () => {
 
   it("clears a marked member and audits the previous status", async () => {
     dbMock.attendance.findMany.mockResolvedValue([
-      { userId: "member_1", status: "PRESENT" },
+      { attendeeProfileId: "member_1", status: "PRESENT" },
     ]);
 
     const result = await submitAttendance([
@@ -183,7 +312,7 @@ describe("portal attendance action", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "Cleared attendance for member.",
+      message: "Cleared attendance for attendee.",
       affectedIds: ["member_1"],
       status: null,
     });
@@ -209,7 +338,7 @@ describe("portal attendance action", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "The selected member was already unmarked.",
+      message: "The selected attendee was already unmarked.",
       affectedIds: [],
       status: null,
     });
@@ -307,7 +436,7 @@ describe("portal attendance action", () => {
     ]);
     expect(result).toEqual({
       ok: false,
-      error: "Some selected members are unavailable or inactive.",
+      error: "Some selected attendees are unavailable or inactive.",
     });
   });
 

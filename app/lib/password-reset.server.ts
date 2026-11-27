@@ -56,7 +56,12 @@ export async function resetPasswordWithToken(token: string, password: string) {
   await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: validated.record.userId },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        ...(validated.record.purpose === "ACCOUNT_SETUP"
+          ? { isEmailVerified: true, emailVerifiedAt: new Date() }
+          : {}),
+      },
     });
 
     await tx.passwordResetToken.deleteMany({
@@ -68,5 +73,5 @@ export async function resetPasswordWithToken(token: string, password: string) {
     });
   });
 
-  return { ok: true as const };
+  return { ok: true as const, purpose: validated.record.purpose };
 }

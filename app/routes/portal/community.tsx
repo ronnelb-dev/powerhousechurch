@@ -28,7 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
 export const meta: MetaFunction = () => [
-  { title: "Community — Powerhouse Church Portal" },
+  { title: "Shared Reflections — Powerhouse Church Portal" },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -242,70 +242,99 @@ export default function CommunityPage() {
   }, [actionData, isPosting, navigation.state]);
 
   return (
-    <PortalPage className="max-w-2xl">
+    <PortalPage>
       <PortalHeader
         eyebrow="Members Portal"
-        title="Community"
+        title="Shared Reflections"
         subtitle="Share what God is speaking to you through His Word."
       />
 
-      {/* Admin approval queue */}
-      {userRole === "ADMIN" && pendingPosts.length > 0 && (
-        <PortalSection className="mb-5 border-amber-200 bg-amber-50">
-          <PortalSectionHeading
-            eyebrow="Admin Review"
-            title={`Pending Approval (${pendingPosts.length})`}
-            subtitle="Review submitted reflections before they appear in the community feed."
-          />
-          <div className="space-y-3">
-            {pendingPosts.map((p) => (
-              <PortalPanel
-                key={p.id}
-                className="flex items-start justify-between gap-4 border-amber-100 bg-white"
-              >
-                <div className="flex-1 min-w-0">
-                  {p.bibleVerse && (
-                    <p className="text-xs font-bold text-amber-700 mb-1">
-                      {p.bibleVerse}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-600 font-sans">{p.content}</p>
-                  <p className="text-xs text-gray-400 font-sans mt-1">
-                    by {p.author.firstName} {p.author.lastName}
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="approvePost" />
-                    <input type="hidden" name="postId" value={p.id} />
-                    <button
-                      type="submit"
-                      className={portalButtonClasses({
-                        className: "min-h-9 bg-green-700 px-3 py-1.5 text-xs hover:bg-green-800",
-                      })}
-                    >
-                      Approve
-                    </button>
-                  </Form>
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="rejectPost" />
-                    <input type="hidden" name="postId" value={p.id} />
-                    <button
-                      type="submit"
-                      className={portalButtonClasses({
-                        variant: "danger",
-                        className: "min-h-9 px-3 py-1.5 text-xs",
-                      })}
-                    >
-                      Remove
-                    </button>
-                  </Form>
-                </div>
-              </PortalPanel>
-            ))}
+      <div className="mx-auto w-full max-w-5xl">
+        <section className="relative mb-6 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-red-950 via-red-900 to-amber-800 px-5 py-7 text-white shadow-sm sm:px-8 sm:py-9">
+          <div className="relative z-10 max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-100">Scripture · Reflection · Fellowship</p>
+            <h2 className="mt-3 font-serif text-2xl font-bold leading-tight text-white sm:text-3xl">Faith grows when we share it.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-red-50 sm:text-base">
+              Read reflections from your church family, find encouragement in Scripture, and share what God is teaching you.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowComposer(true)}
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-red-950 shadow-sm transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-900"
+              aria-expanded={showComposer}
+              aria-controls="community-reflection-form"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              Share a reflection
+            </button>
           </div>
-        </PortalSection>
-      )}
+          <svg className="pointer-events-none absolute -bottom-10 -right-6 h-44 w-44 text-white/10 sm:bottom-0 sm:right-8 sm:h-56 sm:w-56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.7" aria-hidden="true">
+            <path d="M3 5.5c3.3-.9 6.3-.3 9 1.7v13c-2.7-2-5.7-2.6-9-1.7z" />
+            <path d="M21 5.5c-3.3-.9-6.3-.3-9 1.7v13c2.7-2 5.7-2.6 9-1.7z" />
+            <path d="M12 7.2v13" />
+          </svg>
+        </section>
+
+        {/* Admin approval queue */}
+        {userRole === "ADMIN" && pendingPosts.length > 0 && (
+          <PortalSection className="mb-6 border-amber-200 bg-amber-50/80">
+            <PortalSectionHeading
+              eyebrow="Admin review"
+              title={`Pending approval · ${pendingPosts.length}`}
+              subtitle="Review submitted reflections before they appear in the church feed."
+            />
+            <div className="grid gap-3 lg:grid-cols-2">
+              {pendingPosts.map((p) => (
+                <PortalPanel
+                  key={p.id}
+                  className="flex min-w-0 flex-col justify-between gap-4 border-amber-100 bg-white sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1">
+                    {p.bibleVerse && (
+                      <p className="mb-1 text-xs font-bold text-amber-700">
+                        {p.bibleVerse}
+                      </p>
+                    )}
+                    <p className="break-words text-sm leading-6 text-gray-700">{p.content}</p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Shared by {p.author.firstName} {p.author.lastName}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Form method="post">
+                      <input type="hidden" name="intent" value="approvePost" />
+                      <input type="hidden" name="postId" value={p.id} />
+                      <button
+                        type="submit"
+                        className={portalButtonClasses({
+                          className: "min-h-10 bg-green-700 px-3 text-xs hover:bg-green-800",
+                        })}
+                      >
+                        Approve
+                      </button>
+                    </Form>
+                    <Form method="post">
+                      <input type="hidden" name="intent" value="rejectPost" />
+                      <input type="hidden" name="postId" value={p.id} />
+                      <button
+                        type="submit"
+                        className={portalButtonClasses({
+                          variant: "danger",
+                          className: "min-h-10 px-3 text-xs",
+                        })}
+                      >
+                        Remove
+                      </button>
+                    </Form>
+                  </div>
+                </PortalPanel>
+              ))}
+            </div>
+          </PortalSection>
+        )}
 
       <Sheet open={showComposer} onOpenChange={setShowComposer}>
         <div className="absolute inset-x-4 top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[1.75rem] border border-white/70 bg-white p-5 shadow-2xl sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-6">
@@ -415,38 +444,34 @@ export default function CommunityPage() {
         </div>
       </Sheet>
 
-      <button
-        type="button"
-        onClick={() => setShowComposer(true)}
-        className="fixed bottom-6 right-4 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-red-700 px-4 py-3 text-sm font-sans font-bold text-white shadow-[0_18px_35px_-18px_rgba(146,18,28,0.8)] transition-all hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-400 md:bottom-8 md:right-8"
-        aria-expanded={showComposer}
-        aria-controls="community-reflection-form"
-        aria-label="Share a reflection"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M12 5v14" />
-          <path d="M5 12h14" />
-        </svg>
-        <span>Share</span>
-      </button>
-
-      {/* Feed */}
-      {posts.length > 0 ? (
-        <div className="space-y-4">
-          {posts.map((post) => (
-            <DevotionPost
-              key={post.id}
-              post={post}
+        {/* Feed */}
+        <section aria-labelledby="community-feed-heading">
+          <div className="mb-4 flex flex-col gap-1 border-b border-gray-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">From your church family</p>
+              <h2 id="community-feed-heading" className="mt-1 text-xl font-bold text-gray-900 sm:text-2xl">Latest reflections</h2>
+              <p className="mt-1 text-sm text-gray-500">Scripture and encouragement shared across the church.</p>
+            </div>
+            {posts.length > 0 ? <span className="text-sm text-gray-500">Showing {posts.length} recent {posts.length === 1 ? "reflection" : "reflections"}</span> : null}
+          </div>
+          {posts.length > 0 ? (
+            <div className="mx-auto max-w-3xl space-y-4">
+              {posts.map((post) => (
+                <DevotionPost
+                  key={post.id}
+                  post={post}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon="devotion"
+              title="No reflections yet"
+              message="Be the first to share what God is speaking to you today."
             />
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon="devotion"
-          title="No reflections yet"
-          message="Be the first to share what God is speaking to you today."
-        />
-      )}
+          )}
+        </section>
+      </div>
     </PortalPage>
   );
 }
@@ -457,7 +482,7 @@ export function ErrorBoundary() {
     <div className="p-8">
       <EmptyState
         icon="devotion"
-        title="Community unavailable"
+        title="Shared Reflections unavailable"
         message={
           isRouteErrorResponse(error) ? error.data : "Please refresh the page."
         }

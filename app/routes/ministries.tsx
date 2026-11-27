@@ -25,7 +25,7 @@ export async function loader() {
   await ensureSampleMinistries();
   const ministries = await db.ministry.findMany({
     where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   return { ministries };
 }

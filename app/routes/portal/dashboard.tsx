@@ -36,6 +36,16 @@ export const meta: MetaFunction = () => [
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user } = await requireUser(request);
   const churchToday = getChurchCalendarDate();
+  const upcomingEventsPromise = db.event
+    .findMany({
+      where: { isPublished: true, startDate: { gt: new Date() } },
+      orderBy: { startDate: "asc" },
+      take: 3,
+      select: { id: true, title: true, location: true, startDate: true },
+    })
+    .then((events) =>
+      events.map((event) => ({ ...event, startDate: event.startDate.toISOString() })),
+    );
   const last12 = getRecentSundayDates(12, churchToday)
     .reverse()
     .map(calendarDateToUtc);
@@ -46,8 +56,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const dayAfterLastSunday = calendarDateToUtc(
       addCalendarDays(utcDateToCalendarDate(lastSunday), 1),
     );
-    const [activeMembers, activeGroups, records] = await Promise.all([
-      db.user.count({ where: { isActive: true } }),
+    const [activeMembers, activeGroups, records, upcomingEvents] = await Promise.all([
+      db.attendeeProfile.count({ where: { isActive: true } }),
       db.cellGroup.count({ where: { isActive: true } }),
       db.attendance.findMany({
         where: {
@@ -57,9 +67,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         select: {
           date: true,
           status: true,
-          user: { select: { isActive: true } },
+          attendeeProfile: { select: { isActive: true } },
         },
       }),
+      upcomingEventsPromise,
     ]);
 
     const attendanceTrend = buildAttendanceTrend({
@@ -83,6 +94,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       latestServingStatus: null,
       churchToday,
       adminSummary: { activeMembers, activeGroups, attendanceTrend },
+      upcomingEvents,
     };
   }
 
@@ -94,7 +106,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let latestPrayerStatus: string | null = null;
   let latestServingStatus: string | null = null;
 
-  if (user.cellGroupId) {
+  if (user.cellGroupId && user.role !== "USHER") {
     cellGroup = await db.cellGroup.findUnique({
       where: { id: user.cellGroupId },
       select: {
@@ -106,7 +118,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         barangay: true,
       },
     });
-    memberCount = await db.user.count({
+    memberCount = await db.attendeeProfile.count({
       where: { cellGroupId: user.cellGroupId, isActive: true },
     });
   }
@@ -120,7 +132,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           type: "SUNDAY_SERVICE",
           status: "PRESENT",
           date: thisSunday,
-          user: { isActive: true },
+          attendeeProfile: { isActive: true },
         },
       }),
       db.attendance.count({
@@ -128,7 +140,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           cellGroupId: user.cellGroupId,
           type: "SUNDAY_SERVICE",
           date: thisSunday,
-          user: { isActive: true },
+          attendeeProfile: { isActive: true },
         },
       }),
     ]);
@@ -141,7 +153,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }
 
-  if (user.role === "MEMBER") {
+  if (user.role === "MEMBER" || user.role === "ATTENDEE") {
     const [prayerRequestCount, servingInterestCount, prayerRequest, servingInterest, attendanceRecords] =
       await Promise.all([
         db.prayerRequest.count({ where: { memberId: user.id } }),
@@ -210,7 +222,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     latestPrayerStatus,
     latestServingStatus,
     adminSummary: null,
+    upcomingEvents: await upcomingEventsPromise,
   };
+}
+
+function formatDashboardEventDate(startDate: string) {
+  return new Intl.DateTimeFormat("en-PH", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Manila",
+  }).format(new Date(startDate));
 }
 
 function MetricCard({
@@ -304,13 +329,18 @@ export default function DashboardPage() {
     latestServingStatus,
     adminSummary,
     churchToday,
+    upcomingEvents,
   } = useLoaderData<typeof loader>();
   const roleLabel =
     user.role === "ADMIN"
       ? "Administrator"
       : user.role === "CELL_LEADER"
         ? "Cell Leader"
-        : "Member";
+        : user.role === "USHER"
+          ? "Usher"
+          : user.role === "ATTENDEE"
+            ? "Attendee"
+            : "Member";
   const today = calendarDateToUtc(churchToday).toLocaleDateString("en-PH", {
     timeZone: "UTC",
     weekday: "long",
@@ -331,7 +361,7 @@ export default function DashboardPage() {
   const memberActions = [
     {
       to: "/portal/community",
-      title: "Community Feed",
+      title: "Shared Reflections",
       description: "Read reflections, weekly prompts, and encouragement from the church.",
       tone: "neutral" as const,
     },
@@ -361,9 +391,9 @@ export default function DashboardPage() {
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <MetricCard
-              label="Active Members"
+              label="Active Attendees"
               value={adminSummary.activeMembers.toLocaleString()}
-              note="Active accounts across the church"
+              note="Active roster profiles"
             />
             <MetricCard
               label="Cell Groups"
@@ -470,7 +500,7 @@ export default function DashboardPage() {
                   <MetricCard
                     label="People in Group"
                     value={memberCount.toLocaleString()}
-                    note="Active group members"
+                    note="Active group attendees"
                   />
                   <MetricCard
                     label="Present Sunday"
@@ -499,7 +529,7 @@ export default function DashboardPage() {
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <QuickActionCard
                 to="/portal/community"
-                title="Community Feed"
+                title="Shared Reflections"
                 description="Read reflections and encouragement from the church."
               />
               <QuickActionCard
@@ -518,7 +548,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {user.role === "MEMBER" ? (
+      {user.role === "MEMBER" || user.role === "ATTENDEE" ? (
         <div className="space-y-5">
           <PortalSection>
             <PortalSectionHeading
@@ -578,8 +608,8 @@ export default function DashboardPage() {
             <EmptyState
               icon="members"
               title="You haven't been assigned to a cell group yet"
-              message="Your Sunday attendance and personal activity stay available here. In the meantime, explore the Community devotion feed and member directory."
-              action={{ label: "Browse Community", to: "/portal/community" }}
+              message="Your Sunday attendance and personal activity stay available here. In the meantime, explore Shared Reflections and the member directory."
+              action={{ label: "Browse Shared Reflections", to: "/portal/community" }}
             />
           ) : (
             <PortalPanel>
@@ -593,6 +623,92 @@ export default function DashboardPage() {
           )}
         </div>
       ) : null}
+
+      {user.role === "USHER" ? (
+        <div className="space-y-5">
+          <PortalSection>
+            <PortalSectionHeading
+              eyebrow="Attendance team"
+              title="Church-wide attendance"
+              subtitle="Record Sunday service or cell group attendance for every active portal account."
+              actions={
+                <Link to="/portal/attendance" className={portalButtonClasses()}>
+                  Open Attendance
+                </Link>
+              }
+            />
+            <PortalPanel>
+              <p className="text-sm font-sans text-gray-600">
+                You can mark attendance across all cell groups. Member and admin management tools remain restricted to administrators.
+              </p>
+            </PortalPanel>
+          </PortalSection>
+        </div>
+      ) : null}
+
+      <PortalSection className="mt-5">
+        <PortalSectionHeading
+          eyebrow="Church calendar"
+          title="Upcoming Events"
+          subtitle="See what’s coming up across the church."
+          actions={
+            <Link to="/events" className={portalButtonClasses({ variant: "secondary" })}>
+              View all events
+            </Link>
+          }
+        />
+        {upcomingEvents.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {upcomingEvents.map((event) => {
+              const startDate = new Date(event.startDate);
+              const month = startDate
+                .toLocaleDateString("en-PH", { month: "short", timeZone: "Asia/Manila" })
+                .toUpperCase();
+              const day = startDate.toLocaleDateString("en-PH", {
+                day: "numeric",
+                timeZone: "Asia/Manila",
+              });
+
+              return (
+                <article
+                  key={event.id}
+                  className="flex min-w-0 gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4"
+                >
+                  <time
+                    dateTime={event.startDate}
+                    aria-label={formatDashboardEventDate(event.startDate)}
+                    className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-md border border-red-100 bg-red-50 text-red-800 sm:h-16 sm:w-16"
+                  >
+                    <span aria-hidden="true" className="text-[0.65rem] font-sans font-bold uppercase tracking-[0.1em]">
+                      {month}
+                    </span>
+                    <span aria-hidden="true" className="font-sans text-xl font-bold leading-6">
+                      {day}
+                    </span>
+                  </time>
+                  <div className="min-w-0">
+                    <h3 className="break-words font-sans text-sm font-bold text-gray-900">
+                      {event.title}
+                    </h3>
+                    <p className="mt-1 text-xs font-sans leading-5 text-gray-600">
+                      {formatDashboardEventDate(event.startDate)}
+                    </p>
+                    <p className="mt-1 break-words text-xs font-sans text-gray-600">
+                      {event.location}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <PortalPanel role="status">
+            <p className="text-sm font-sans text-gray-600">
+              No upcoming events are scheduled right now.
+            </p>
+          </PortalPanel>
+        )}
+      </PortalSection>
     </PortalPage>
   );
 }

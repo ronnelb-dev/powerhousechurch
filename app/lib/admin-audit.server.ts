@@ -1,7 +1,7 @@
 import { db } from "~/lib/db.server";
 import { getClientIpAddress } from "~/lib/rate-limit.server";
 
-type AuditActorRole = "ADMIN" | "CELL_LEADER" | "MEMBER";
+type AuditActorRole = "ADMIN" | "CELL_LEADER" | "USHER" | "MEMBER" | "ATTENDEE";
 
 type AuditEventInput = {
   request: Request;

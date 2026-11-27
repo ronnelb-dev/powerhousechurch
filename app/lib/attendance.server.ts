@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "./db.server";
 import { calendarDateToUtc } from "./calendar-date";
 
@@ -14,12 +15,18 @@ export type AttendanceActor = {
 export type AttendanceMember = {
   id: string;
   cellGroupId: string | null;
+  linkedUserId: string | null;
+  category: string | null;
 };
 
 export function assertAttendanceRole(
   actor: AttendanceActor,
-): asserts actor is AttendanceActor & { role: "ADMIN" | "CELL_LEADER" } {
-  if (actor.role !== "ADMIN" && actor.role !== "CELL_LEADER") {
+): asserts actor is AttendanceActor & { role: "ADMIN" | "CELL_LEADER" | "USHER" } {
+  if (
+    actor.role !== "ADMIN" &&
+    actor.role !== "CELL_LEADER" &&
+    actor.role !== "USHER"
+  ) {
     throw new Response("Forbidden", { status: 403 });
   }
 }
@@ -38,17 +45,31 @@ export async function resolveAttendanceMembers({
     throw new Response("Forbidden", { status: 403 });
   }
 
-  const members = await db.user.findMany({
+  const scopeFilters: Prisma.AttendeeProfileWhereInput[] = [
+    {
+      OR: [
+        { id: { in: userIds } },
+        { linkedUserId: { in: userIds } },
+      ],
+    },
+  ];
+  if (actor.role === "ADMIN" && adminMembersOnly) {
+    scopeFilters.push({
+      OR: [
+        { linkedUserId: null },
+        { linkedUser: { is: { role: { in: ["MEMBER", "ATTENDEE"] } } } },
+      ],
+    });
+  }
+  const members = await db.attendeeProfile.findMany({
     where: {
-      id: { in: userIds },
       isActive: true,
+      AND: scopeFilters,
       ...(actor.role === "CELL_LEADER"
         ? { cellGroupId: actor.cellGroupId ?? "__no_group__" }
-        : adminMembersOnly
-          ? { role: "MEMBER" }
-          : {}),
+        : {}),
     },
-    select: { id: true, cellGroupId: true },
+    select: { id: true, cellGroupId: true, linkedUserId: true, category: true },
   });
 
   if (members.length !== userIds.length) {
@@ -84,14 +105,14 @@ export async function updateAttendanceRecords({
     previousStatuses = await db.$transaction(async (transaction) => {
       const existingRecords = await transaction.attendance.findMany({
         where: {
-          userId: { in: userIds },
+          attendeeProfileId: { in: userIds },
           type,
           date: selectedDate,
         },
-        select: { userId: true, status: true },
+        select: { attendeeProfileId: true, status: true },
       });
       const statuses = Object.fromEntries(
-        existingRecords.map((record) => [record.userId, record.status]),
+        existingRecords.map((record) => [record.attendeeProfileId, record.status]),
       );
 
       if (status) {
@@ -99,8 +120,8 @@ export async function updateAttendanceRecords({
           members.map((member) =>
             transaction.attendance.upsert({
               where: {
-                userId_type_date: {
-                  userId: member.id,
+                attendeeProfileId_type_date: {
+                  attendeeProfileId: member.id,
                   type,
                   date: selectedDate,
                 },
@@ -109,14 +130,18 @@ export async function updateAttendanceRecords({
                 status,
                 markedById: actorId,
                 cellGroupId: member.cellGroupId,
+                userId: member.linkedUserId,
+                categorySnapshot: member.category,
               },
               create: {
-                userId: member.id,
+                attendeeProfileId: member.id,
+                userId: member.linkedUserId,
                 type,
                 status,
                 date: selectedDate,
                 markedById: actorId,
                 cellGroupId: member.cellGroupId,
+                categorySnapshot: member.category,
               },
             }),
           ),
@@ -124,7 +149,7 @@ export async function updateAttendanceRecords({
       } else {
         await transaction.attendance.deleteMany({
           where: {
-            userId: { in: userIds },
+            attendeeProfileId: { in: userIds },
             type,
             date: selectedDate,
           },
@@ -136,21 +161,21 @@ export async function updateAttendanceRecords({
   } else if (members[0]) {
     const existingRecords = await db.attendance.findMany({
       where: {
-        userId: { in: userIds },
+        attendeeProfileId: { in: userIds },
         type,
         date: selectedDate,
       },
-      select: { userId: true, status: true },
+      select: { attendeeProfileId: true, status: true },
     });
     previousStatuses = Object.fromEntries(
-      existingRecords.map((record) => [record.userId, record.status]),
+      existingRecords.map((record) => [record.attendeeProfileId, record.status]),
     );
     const member = members[0];
     if (status) {
       await db.attendance.upsert({
         where: {
-          userId_type_date: {
-            userId: member.id,
+          attendeeProfileId_type_date: {
+            attendeeProfileId: member.id,
             type,
             date: selectedDate,
           },
@@ -159,20 +184,24 @@ export async function updateAttendanceRecords({
           status,
           markedById: actorId,
           cellGroupId: member.cellGroupId,
+          userId: member.linkedUserId,
+          categorySnapshot: member.category,
         },
         create: {
-          userId: member.id,
+          attendeeProfileId: member.id,
+          userId: member.linkedUserId,
           type,
           status,
           date: selectedDate,
           markedById: actorId,
           cellGroupId: member.cellGroupId,
+          categorySnapshot: member.category,
         },
       });
     } else {
       await db.attendance.deleteMany({
         where: {
-          userId: member.id,
+          attendeeProfileId: member.id,
           type,
           date: selectedDate,
         },

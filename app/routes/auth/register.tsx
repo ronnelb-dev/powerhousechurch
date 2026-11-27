@@ -55,6 +55,7 @@ export async function action({ request }: ActionFunctionArgs) {
       age: (formData.get("age") as string) ?? "",
       gender: (formData.get("gender") as string) ?? "",
       birthday: (formData.get("birthday") as string) ?? "",
+      category: (formData.get("category") as string) ?? "",
     },
     {
       db,
@@ -100,6 +101,7 @@ export default function RegisterPage() {
       "age",
       "gender",
       "birthday",
+      "category",
       "password",
       "confirmPassword",
     ],
@@ -237,6 +239,25 @@ export default function RegisterPage() {
                 />
                 <FieldError id="register-birthday-error" errors={errors?.birthday} />
               </div>
+            </div>
+
+            <div className="mb-5">
+              <label htmlFor="category" className={labelClass}>
+                Attendee Category <span className="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <select
+                id="category" name="category" required aria-required="true"
+                aria-invalid={!!errors?.category}
+                aria-describedby={describedBy(errors?.category && "register-category-error")}
+                className={`${inputClass} cursor-pointer ${errors?.category ? "border-red-300" : ""}`}
+                defaultValue=""
+              >
+                <option value="" disabled>Select category</option>
+                <option value="ADULT">Adult</option>
+                <option value="YOUNG_PROFESSIONAL">Young Professional</option>
+                <option value="KIDS">Kids</option>
+              </select>
+              <FieldError id="register-category-error" errors={errors?.category} />
             </div>
 
             <div className="mb-5">

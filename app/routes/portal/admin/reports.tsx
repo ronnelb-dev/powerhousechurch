@@ -12,6 +12,12 @@ import { requireAdmin } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { recordAdminAuditEvent } from "~/lib/admin-audit.server";
 import {
+  PortalHeader,
+  PortalSection,
+  PortalSectionHeading,
+  portalButtonClasses,
+} from "~/components/ui/Portal";
+import {
   buildAttendanceTrend,
   type AttendanceTrendPoint,
 } from "~/lib/attendance-trend";
@@ -92,7 +98,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    db.user.count({ where: { isActive: true } }),
+    db.attendeeProfile.count({ where: { isActive: true } }),
     db.attendance.count(),
     db.prayerRequest.count(),
     db.attendance.findMany({
@@ -103,7 +109,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       select: {
         date: true,
         status: true,
-        user: { select: { isActive: true } },
+        attendeeProfile: { select: { isActive: true } },
       },
     }),
     db.user.findMany({
@@ -184,15 +190,16 @@ export async function action({ request }: ActionFunctionArgs) {
       ...(cellGroupId ? { cellGroupId } : {}),
     },
     include: {
-      user: {
-        select: { firstName: true, lastName: true, email: true, phone: true },
+      user: { select: { email: true, phone: true } },
+      attendeeProfile: {
+        select: { firstName: true, lastName: true, phone: true },
       },
       cellGroup: { select: { name: true } },
     },
-    orderBy: [{ date: "asc" }, { user: { lastName: "asc" } }],
+    orderBy: [{ date: "asc" }, { attendeeProfile: { lastName: "asc" } }],
   });
 
-  const header = "Date,Last Name,First Name,Email,Phone,Cell Group,Type,Status";
+  const header = "Date,Last Name,First Name,Category,Email,Phone,Cell Group,Type,Status";
   const rows = records.map((record) => {
     const date =
       record.date instanceof Date
@@ -200,10 +207,11 @@ export async function action({ request }: ActionFunctionArgs) {
         : String(record.date).slice(0, 10);
     return [
       date,
-      record.user.lastName,
-      record.user.firstName,
-      record.user.email ?? "",
-      record.user.phone ?? "",
+      record.attendeeProfile?.lastName ?? "",
+      record.attendeeProfile?.firstName ?? "",
+      record.categorySnapshot ?? "Unclassified",
+      record.user?.email ?? "",
+      record.attendeeProfile?.phone ?? record.user?.phone ?? "",
       record.cellGroup?.name ?? "Unassigned",
       record.type,
       record.status,
@@ -221,7 +229,7 @@ export async function action({ request }: ActionFunctionArgs) {
     actorRole: user.role,
     action: "report.export",
     entityType: "attendance_report",
-    summary: `Exported adult attendance report for ${type}`,
+    summary: `Exported attendee attendance report for ${type}`,
     details: {
       type,
       cellGroupId: cellGroupId ?? null,
@@ -347,10 +355,8 @@ export default function AdminReportsPage() {
   const averageAttendance =
     attendanceTrend.length > 0
       ? Math.round(
-          attendanceTrend.reduce(
-            (sum, point) => sum + point.presentCount,
-            0,
-          ) / attendanceTrend.length,
+          attendanceTrend.reduce((sum, point) => sum + point.presentCount, 0) /
+            attendanceTrend.length,
         )
       : 0;
   const bestAttendance =
@@ -365,71 +371,61 @@ export default function AdminReportsPage() {
     (sum, point) => sum + point.newMembers,
     0,
   );
+  const hasAttendanceMarks = attendanceTrend.some((point) => point.markedCount > 0);
+  const hasActiveMembers = (latestGrowthPoint?.totalMembers ?? 0) > 0;
 
   return (
-    <div className="space-y-12">
-      <div>
-        <h1 className="mb-2 font-serif text-2xl font-bold text-gray-900">
-          Reports & Analytics
-        </h1>
-        <p className="max-w-3xl text-sm leading-6 text-gray-500 font-sans">
-          Track attendance momentum and member growth from one leadership dashboard,
-          then export raw records whenever you need to dig deeper.
+    <div className="min-w-0 space-y-6 sm:space-y-8">
+      <PortalHeader
+        eyebrow="Admin"
+        title="Reports & Analytics"
+        subtitle="Track attendance momentum and member growth, then export records for deeper review."
+      />
+
+      <section aria-label="Summary metrics">
+        <p className="mb-3 text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+          At a glance
         </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        {[
-          { label: "Active Members", value: totalMembers },
-          { label: "Adult Attendance", value: totalAttendance },
-          { label: "Prayer Requests", value: totalPrayers },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-xl border border-gray-100 bg-white p-5">
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400 font-sans">
-              {label}
-            </p>
-            <p className="font-serif text-3xl font-bold text-gray-900">
-              {value.toLocaleString()}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <section className="space-y-6">
-        <div className="rounded-xl border border-gray-100 bg-white p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-red-600 font-sans">
-                12-Week Attendance Trend
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            { label: "Active Attendees", value: totalMembers },
+            { label: "Attendance Records", value: totalAttendance },
+            { label: "Prayer Requests", value: totalPrayers },
+          ].map(({ label, value }) => (
+            <div key={label} className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-gray-500 font-sans">
+                {label}
               </p>
-              <h2 className="mt-3 font-serif text-xl font-bold text-gray-900">
-                Adult Sunday attendance over the last 12 Sundays
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-gray-500 font-sans">
-                This trend uses the same week-by-week Sunday attendance history already
-                reflected elsewhere in the portal, but rolls it up for leadership visibility.
+              <p className="font-sans text-2xl font-bold text-gray-900 sm:text-3xl">
+                {value.toLocaleString()}
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[26rem]">
-              <MetricTile label="Average attendance" value={`${averageAttendance}`} note="Per Sunday" />
-              <MetricTile
-                label="Latest Sunday"
-                value={latestAttendance ? `${latestAttendance.attendanceRate}%` : "0%"}
-                note={
-                  latestAttendance
-                    ? `${latestAttendance.presentCount} present`
-                    : "No recent marks"
-                }
-              />
-              <MetricTile
-                label="Best week"
-                value={bestAttendance ? `${bestAttendance.presentCount}` : "0"}
-                note={bestAttendance ? bestAttendance.shortLabel : "No data"}
-              />
-            </div>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          <div className="mt-8">
+      <PortalSection className="min-w-0 p-4 sm:p-5 lg:p-6">
+        <PortalSectionHeading
+          eyebrow="12-week trend"
+          title="Adult Sunday attendance"
+          subtitle="Attendance across the last 12 Sundays, with weekly counts and active-member rate."
+        />
+        <div className="grid min-w-0 gap-3 sm:grid-cols-3">
+          <MetricTile label="Average attendance" value={String(averageAttendance)} note="Per Sunday" />
+          <MetricTile
+            label="Latest Sunday"
+            value={latestAttendance ? String(latestAttendance.attendanceRate) + "%" : "0%"}
+            note={latestAttendance ? String(latestAttendance.presentCount) + " present" : "No recent marks"}
+          />
+          <MetricTile
+            label="Best week"
+            value={bestAttendance ? String(bestAttendance.presentCount) : "0"}
+            note={bestAttendance ? bestAttendance.shortLabel : "No data"}
+          />
+        </div>
+
+        <div className="mt-6 min-w-0">
+          {hasAttendanceMarks ? (
             <TrendChart
               id="attendance-trend"
               ariaLabel="Adult attendance for the last 12 Sundays"
@@ -437,252 +433,263 @@ export default function AdminReportsPage() {
                 label: point.shortLabel,
                 fullLabel: point.fullLabel,
                 value: point.presentCount,
-                detail: `${point.attendanceRate}% of active members`,
+                detail: String(point.attendanceRate) + "% of active members",
               }))}
               stroke="#923034"
               fillFrom="rgba(146,48,52,0.24)"
               fillTo="rgba(146,48,52,0.03)"
-              valueFormatter={(value) => `${value} attendees`}
+              valueFormatter={(value) => String(value) + " attendees"}
             />
-          </div>
-
-          <div className="mt-6 grid grid-cols-3 gap-2 md:grid-cols-6 xl:grid-cols-12">
-            {attendanceTrend.map((point) => (
-              <div
-                key={point.dateKey}
-                className="rounded-lg border border-gray-100 bg-gray-50 p-2"
-                title={`${point.fullLabel}: ${point.presentCount} present, ${point.unmarkedCount} unmarked`}
-              >
-                <div className={`h-2 rounded-full ${getAttendanceTone(point.attendanceRate)}`} />
-                <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 font-sans">
-                  {point.shortLabel}
-                </p>
-                <p className="mt-1 font-serif text-lg font-bold text-gray-900">
-                  {point.presentCount}
-                </p>
-                <p className="text-[11px] text-gray-500 font-sans">
-                  {point.attendanceRate}% rate
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="rounded-xl border border-gray-100 bg-white p-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-600 font-sans">
-                  Member Growth
-                </p>
-                <h2 className="mt-3 font-serif text-xl font-bold text-gray-900">
-                  Active member growth curve
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-gray-500 font-sans">
-                  This curve shows the cumulative rise in active members across the last
-                  12 months, anchored by each member&apos;s join date.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:min-w-[16rem]">
-                <MetricTile
-                  label="Current active"
-                  value={latestGrowthPoint ? `${latestGrowthPoint.totalMembers}` : "0"}
-                  note="Members in the portal"
-                />
-                <MetricTile
-                  label="Added this year"
-                  value={`${newMembersLast12Months}`}
-                  note={
-                    firstGrowthPoint && latestGrowthPoint
-                      ? `${firstGrowthPoint.totalMembers} → ${latestGrowthPoint.totalMembers}`
-                      : "No change"
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <TrendChart
-                id="member-growth"
-                ariaLabel="Active member growth over the last 12 months"
-                data={memberGrowth.map((point) => ({
-                  label: point.shortLabel,
-                  fullLabel: point.fullLabel,
-                  value: point.totalMembers,
-                  detail: `${point.newMembers} new members`,
-                }))}
-                stroke="#2563eb"
-                fillFrom="rgba(37,99,235,0.20)"
-                fillTo="rgba(37,99,235,0.03)"
-                valueFormatter={(value) => `${value} active members`}
-              />
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {memberGrowth.slice(-4).map((point) => (
-                <div
-                  key={point.monthKey}
-                  className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2"
-                >
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-700 font-sans">
-                    {point.shortLabel}
-                  </p>
-                  <p className="mt-1 font-serif text-lg font-bold text-blue-950">
-                    {point.totalMembers}
-                  </p>
-                  <p className="text-[11px] text-blue-700 font-sans">
-                    +{point.newMembers} joined
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-xl rounded-xl border border-gray-100 bg-white p-7">
-        <h2 className="mb-2 font-serif text-lg font-bold text-gray-800">
-          Export Attendance (CSV)
-        </h2>
-        <p className="mb-6 text-sm leading-6 text-gray-500 font-sans">
-          Download adult attendance for deeper review in Excel or Google Sheets.
-        </p>
-
-        <Form method="post" aria-label="Attendance export form">
-          <div className="mb-4 grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="startDate" className={labelClass}>
-                Start Date *
-              </label>
-              <input
-                id="startDate"
-                type="date"
-                name="startDate"
-                defaultValue={thirtyAgo}
-                required
-                max={today}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="endDate" className={labelClass}>
-                End Date *
-              </label>
-              <input
-                id="endDate"
-                type="date"
-                name="endDate"
-                defaultValue={today}
-                required
-                max={today}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="report-type" className={labelClass}>
-              Attendance Type
-            </label>
-            <select id="report-type" name="type" className={inputClass}>
-              <option value="SUNDAY_SERVICE">Sunday Service</option>
-              <option value="CELL_GROUP">Cell Group</option>
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label htmlFor="report-cellGroup" className={labelClass}>
-              Cell Group
-            </label>
-            <select id="report-cellGroup" name="cellGroupId" className={inputClass}>
-              <option value="">All Groups</option>
-              {cellGroups.map((cellGroup) => (
-                <option key={cellGroup.id} value={cellGroup.id}>
-                  {cellGroup.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isGenerating}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-700 py-3 text-sm font-bold text-white transition-all hover:bg-red-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-400 font-sans"
-          >
-            {isGenerating ? (
-              "Generating…"
-            ) : (
-              <>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Download CSV
-              </>
-            )}
-          </button>
-        </Form>
-
-        <p className="mt-4 text-xs text-gray-400 font-sans">
-          The CSV will download directly to your browser for spreadsheet analysis.
-        </p>
-      </div>
-
-      <section className="rounded-xl border border-gray-100 bg-white p-7">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-serif text-lg font-bold text-gray-800">
-              Recent Admin Audit Activity
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500 font-sans">
-              A quick view of the latest sensitive actions recorded across admin and leadership workflows.
-            </p>
-          </div>
-          <div className="rounded-full bg-gray-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-gray-600">
-            Last {recentAuditLogs.length}
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {recentAuditLogs.length > 0 ? (
-            recentAuditLogs.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-gray-800">{entry.summary}</p>
-                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">
-                    {entry.actorRole}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-gray-500 font-sans">
-                  {entry.actorName} · {entry.action} · {new Date(entry.createdAt).toLocaleString("en-PH", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-            ))
           ) : (
-            <p className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
-              Audit activity will appear here after admins start using the tracked workflows.
+            <p role="status" className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm leading-6 text-gray-600">
+              No attendance has been marked for the last 12 Sundays yet. The trend will appear here when records are available.
             </p>
           )}
         </div>
-      </section>
+
+        <div className="mt-5 grid min-w-0 grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12">
+          {attendanceTrend.map((point) => (
+            <div
+              key={point.dateKey}
+              className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 p-2"
+              title={point.fullLabel + ": " + point.presentCount + " present, " + point.unmarkedCount + " unmarked"}
+            >
+              <div className={"h-2 rounded-full " + getAttendanceTone(point.attendanceRate)} />
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-600 font-sans sm:text-[11px]">
+                {point.shortLabel}
+              </p>
+              <p className="mt-1 font-sans text-base font-bold text-gray-900 sm:text-lg">
+                {point.presentCount}
+              </p>
+              <p className="text-[10px] text-gray-600 font-sans sm:text-[11px]">
+                {point.attendanceRate}% rate
+              </p>
+            </div>
+          ))}
+        </div>
+      </PortalSection>
+
+      <PortalSection className="min-w-0 p-4 sm:p-5 lg:p-6">
+        <PortalSectionHeading
+          eyebrow="12-month trend"
+          title="Active member growth"
+          subtitle="Cumulative active-member totals across the last 12 months, based on join dates."
+        />
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <MetricTile
+            label="Current active"
+            value={latestGrowthPoint ? String(latestGrowthPoint.totalMembers) : "0"}
+            note="Members in the portal"
+          />
+          <MetricTile
+            label="Added this year"
+            value={String(newMembersLast12Months)}
+            note={
+              firstGrowthPoint && latestGrowthPoint
+                ? String(firstGrowthPoint.totalMembers) + " → " + String(latestGrowthPoint.totalMembers)
+                : "No change"
+            }
+          />
+        </div>
+
+        <div className="mt-6 min-w-0">
+          {hasActiveMembers ? (
+            <TrendChart
+              id="member-growth"
+              ariaLabel="Active member growth over the last 12 months"
+              data={memberGrowth.map((point) => ({
+                label: point.shortLabel,
+                fullLabel: point.fullLabel,
+                value: point.totalMembers,
+                detail: String(point.newMembers) + " new members",
+              }))}
+              stroke="#2563eb"
+              fillFrom="rgba(37,99,235,0.20)"
+              fillTo="rgba(37,99,235,0.03)"
+              valueFormatter={(value) => String(value) + " active members"}
+            />
+          ) : (
+            <p role="status" className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm leading-6 text-gray-600">
+              Active-member growth will appear here once active member records are available.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-5 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          {hasActiveMembers ? memberGrowth.slice(-4).map((point) => (
+            <div
+              key={point.monthKey}
+              className="min-w-0 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-800 font-sans">
+                {point.shortLabel}
+              </p>
+              <p className="mt-1 font-sans text-lg font-bold text-blue-950">
+                {point.totalMembers}
+              </p>
+              <p className="text-[11px] text-blue-800 font-sans">
+                +{point.newMembers} joined
+              </p>
+            </div>
+          )) : (
+            <p className="col-span-2 text-sm text-gray-600 sm:col-span-4">
+              No monthly figures are available yet.
+            </p>
+          )}
+        </div>
+      </PortalSection>
+
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
+        <PortalSection className="min-w-0 p-4 sm:p-5">
+          <PortalSectionHeading
+            eyebrow="Download data"
+            title="Export attendance (CSV)"
+            subtitle="Download attendance records for review in a spreadsheet."
+          />
+
+          <Form method="post" aria-label="Attendance export form">
+            <div className="mb-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="startDate" className={labelClass}>
+                  Start Date *
+                </label>
+                <input
+                  id="startDate"
+                  type="date"
+                  name="startDate"
+                  defaultValue={thirtyAgo}
+                  required
+                  max={today}
+                  className={inputClass + " min-h-11"}
+                />
+              </div>
+              <div>
+                <label htmlFor="endDate" className={labelClass}>
+                  End Date *
+                </label>
+                <input
+                  id="endDate"
+                  type="date"
+                  name="endDate"
+                  defaultValue={today}
+                  required
+                  max={today}
+                  className={inputClass + " min-h-11"}
+                />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="report-type" className={labelClass}>
+                Attendance Type
+              </label>
+              <select id="report-type" name="type" className={inputClass + " min-h-11"}>
+                <option value="SUNDAY_SERVICE">Sunday Service</option>
+                <option value="CELL_GROUP">Cell Group</option>
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="report-cellGroup" className={labelClass}>
+                Cell Group
+              </label>
+              <select id="report-cellGroup" name="cellGroupId" className={inputClass + " min-h-11"}>
+                <option value="">All Groups</option>
+                {cellGroups.map((cellGroup) => (
+                  <option key={cellGroup.id} value={cellGroup.id}>
+                    {cellGroup.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isGenerating}
+              aria-busy={isGenerating}
+              className={portalButtonClasses({
+                className: "min-h-11 w-full bg-red-700 text-white hover:bg-red-800 focus:ring-red-400",
+              })}
+            >
+              {isGenerating ? (
+                "Generating…"
+              ) : (
+                <>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download CSV
+                </>
+              )}
+            </button>
+          </Form>
+
+          <p aria-live="polite" className="mt-4 text-xs text-gray-600 font-sans">
+            {isGenerating
+              ? "Preparing your CSV download…"
+              : "The CSV will download directly to your browser for spreadsheet analysis."}
+          </p>
+        </PortalSection>
+
+        <PortalSection className="min-w-0 p-4 sm:p-5">
+          <PortalSectionHeading
+            eyebrow="Admin activity"
+            title="Recent audit activity"
+            subtitle="Recent sensitive actions recorded across admin and leadership workflows."
+            actions={
+              <div
+                className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700"
+                aria-label={recentAuditLogs.length + " recent audit entries"}
+              >
+                Last {recentAuditLogs.length}
+              </div>
+            }
+          />
+
+          <div className="space-y-3">
+            {recentAuditLogs.length > 0 ? (
+              recentAuditLogs.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-4 sm:px-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="min-w-0 break-words text-sm font-bold text-gray-900">
+                      {entry.summary}
+                    </p>
+                    <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-700">
+                      {entry.actorRole}
+                    </span>
+                  </div>
+                  <p className="mt-2 break-words text-xs text-gray-600 font-sans">
+                    {entry.actorName} · {entry.action} · {new Date(entry.createdAt).toLocaleString("en-PH", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p role="status" className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm leading-6 text-gray-600">
+                Audit activity will appear here after admins start using the tracked workflows.
+              </p>
+            )}
+          </div>
+        </PortalSection>
+      </div>
     </div>
   );
 }

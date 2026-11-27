@@ -7,7 +7,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useFetchers,
   useLocation,
   useNavigation,
 } from "react-router";
@@ -15,6 +14,7 @@ import {
 import type { Route } from "./+types/root";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { RouteLoadingSkeleton } from "./components/ui/RouteLoadingSkeleton";
+import { getRouteSkeletonPage, shouldShowRouteSkeleton } from "./lib/route-loading";
 import { getSettings } from "./lib/settings.server";
 import "react-toastify/dist/ReactToastify.css";
 import "./app.css";
@@ -66,7 +66,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const navigation = useNavigation();
-  const fetchers = useFetchers();
   const location = useLocation();
 
   const navigationMethod = navigation.formMethod?.toLowerCase();
@@ -76,28 +75,17 @@ export default function App() {
   const isActionNavigation =
     navigation.state !== "idle" &&
     Boolean(navigationMethod && navigationMethod !== "get");
-  const isFetcherLoading = fetchers.some((fetcher) => {
-    if (fetcher.state === "idle") {
-      return false;
-    }
-
-    const method = fetcher.formMethod?.toLowerCase();
-    return !method || method === "get";
+  const shouldShowSkeleton = shouldShowRouteSkeleton({
+    navigationState: navigation.state,
+    formMethod: navigationMethod,
+    currentPath: location.pathname,
+    nextPath: navigation.location?.pathname,
   });
-  const isSamePathNavigation =
-    isContentNavigation &&
-    navigation.location?.pathname === location.pathname;
-  const shouldShowSkeleton =
-    (isContentNavigation && !isSamePathNavigation) || isFetcherLoading;
   const shouldShowSpinner = isActionNavigation;
   const shouldShowOverlay = shouldShowSkeleton || shouldShowSpinner;
   const [isLoading, setIsLoading] = useState(false);
   const loadingPath = navigation.location?.pathname ?? location.pathname;
-  const skeletonVariant = loadingPath.startsWith("/portal/admin")
-    ? "admin"
-    : loadingPath.startsWith("/portal")
-      ? "portal"
-      : "public";
+  const skeletonPage = getRouteSkeletonPage(loadingPath);
 
   useEffect(() => {
     if (!shouldShowOverlay) {
@@ -127,7 +115,7 @@ export default function App() {
       <Outlet />
       <RouteLoadingSkeleton
         isLoading={isLoading && shouldShowSkeleton}
-        variant={skeletonVariant}
+        page={skeletonPage}
         label={isContentNavigation ? "Loading page" : "Loading content"}
       />
       <LoadingSpinner isLoading={isLoading && shouldShowSpinner} label="Processing" />

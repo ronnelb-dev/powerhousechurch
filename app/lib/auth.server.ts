@@ -29,7 +29,7 @@ declare module "lucia" {
       email: string | null;
       firstName: string;
       lastName: string;
-      role: "ADMIN" | "CELL_LEADER" | "MEMBER";
+      role: "ADMIN" | "CELL_LEADER" | "USHER" | "MEMBER" | "ATTENDEE";
       cellGroupId: string | null;
     };
   }
@@ -41,12 +41,24 @@ declare module "lucia" {
  */
 export async function getSession(request: Request) {
   const cookieHeader = request.headers.get("Cookie") ?? "";
-  const sessionId = lucia.readSessionCookie(cookieHeader);
+  const bearerToken = request.headers
+    .get("Authorization")
+    ?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const sessionId = bearerToken ?? lucia.readSessionCookie(cookieHeader);
 
   if (!sessionId) return { user: null, session: null };
 
   const result = await lucia.validateSession(sessionId);
   return result;
+}
+
+/** API authentication accepts the same Lucia session in a cookie or bearer header. */
+export async function requireApiUser(request: Request) {
+  const { user, session } = await getSession(request);
+  if (!user || !session) {
+    throw Response.json({ error: "Authentication required." }, { status: 401 });
+  }
+  return { user, session };
 }
 
 /**

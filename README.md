@@ -103,10 +103,14 @@ This is a practical first layer for spam reduction and abuse control. Because it
 ## Deployment Notes
 
 - Production is configured for Neon/PostgreSQL through Prisma.
-- The app no longer sends outbound email; visitor workflows still save records locally.
+- Attendee account setup emails use Resend. Configure `RESEND_API_KEY` and
+  `EMAIL_FROM` before creating Adult or Young Professional portal logins from
+  check-in. Without these values, roster-only profiles can still be created.
+- Other visitor workflows still save records locally and do not send email.
 - Public form submissions rely on request IP headers such as `x-forwarded-for` in production.
 
-## Known Baseline Issues
+## Validation
 
-- `npm run test` passes.
-- `npm run typecheck` is currently not clean in the existing repo baseline because of pre-existing generated route type/module-resolution issues and unrelated unused-variable/type errors outside the changes in this task.
+- `npm run typecheck` checks the current TypeScript source.
+- `npm run build` produces the client and server bundles.
+- Relevant portal tests cover attendance, role access, and attendee username generation.

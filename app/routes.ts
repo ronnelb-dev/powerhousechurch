@@ -8,6 +8,12 @@ import {
 
 export default [
   // Resource Routes
+  ...prefix("api/v1", [
+    route("auth/login", "routes/api/v1/auth.login.ts"),
+    route("auth/logout", "routes/api/v1/auth.logout.ts"),
+    route("attendees", "routes/api/v1/attendees.ts"),
+    route("attendance", "routes/api/v1/attendance.ts"),
+  ]),
   route("robots.txt", "routes/robots[.txt].tsx"),
   route("sitemap.xml", "routes/sitemap[.xml].tsx"),
   route("events/:eventId/calendar.ics", "routes/events.$eventId.calendar.ts"),
@@ -64,6 +70,7 @@ export default [
       route("care", "routes/portal/care.tsx"),
       route("engagement", "routes/portal/engagement.tsx"),
       route("attendance", "routes/portal/attendance.tsx"),
+      route("attendance-entry", "routes/portal/attendance-entry.tsx"),
 
       // Admin sub-layout (nested)
       layout("routes/portal/admin/_layout.tsx", [
@@ -73,6 +80,7 @@ export default [
           route("email-queue", "routes/portal/admin/email-queue.tsx"),
           route("reports", "routes/portal/admin/reports.tsx"),
           route("members", "routes/portal/admin/members.tsx"),
+          route("attendees", "routes/portal/admin/attendees.tsx"),
           route("ministries", "routes/portal/admin/ministries.tsx"),
           route("events", "routes/portal/admin/events.tsx"),
           route("visit-plans", "routes/portal/admin/visit-plans.tsx"),

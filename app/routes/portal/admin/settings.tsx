@@ -207,7 +207,7 @@ export default function AdminSettingsPage() {
   }, [actionData, navigation.state]);
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-2xl">
+    <div className="w-full p-4 sm:p-6 md:p-8">
       <h1 className="font-serif text-2xl font-bold text-gray-900 mb-1">
         Church Settings
       </h1>

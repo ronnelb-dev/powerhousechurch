@@ -9,7 +9,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { MetaFunction } from "react-router";
 import { toast } from "react-toastify";
 import { z } from "zod";
@@ -273,6 +273,31 @@ const inputClass =
   "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 " +
   "focus:outline-none focus:ring-2 focus:ring-red-300";
 
+function SummaryCard({
+  label,
+  value,
+  note,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  note: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700" aria-hidden="true">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-gray-500">{label}</p>
+        <p className="mt-1 truncate font-serif text-2xl font-bold text-gray-900">{value}</p>
+        <p className="mt-1 text-xs leading-5 text-gray-500">{note}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function EngagementPage() {
   const {
     user,
@@ -314,45 +339,55 @@ export default function EngagementPage() {
       : {};
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl">
+    <div className="mx-auto w-full max-w-8xl p-6 md:p-8">
       <SectionHeader
         eyebrow="Members Portal"
         title="Engagement Hub"
         subtitle="Keep your prayers, serving interests, and communication preferences in one place."
       />
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
-            Prayer History
-          </p>
-          <p className="mt-2 font-serif text-3xl font-bold text-gray-900">
-            {prayerRequests.length}
-          </p>
+      <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-red-950 via-red-900 to-amber-800 px-5 py-6 text-white shadow-sm sm:px-7 sm:py-7" aria-label="Engagement overview">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-100">Your next steps</p>
+        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="font-serif text-2xl font-bold text-white sm:text-3xl">Care for one another. Find a place to serve.</h2>
+            <p className="mt-2 text-sm leading-6 text-red-50">Keep track of prayer requests, share how you would like to help, and choose the updates you receive.</p>
+          </div>
+          <nav aria-label="Engagement sections" className="flex flex-wrap gap-2">
+            <a href="#prayer-requests" className="inline-flex min-h-10 items-center rounded-full border border-white/35 px-3 text-xs font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">Prayer</a>
+            <a href="#serving-interest" className="inline-flex min-h-10 items-center rounded-full border border-white/35 px-3 text-xs font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">Serving</a>
+            <a href="#notification-preferences" className="inline-flex min-h-10 items-center rounded-full border border-white/35 px-3 text-xs font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">Preferences</a>
+          </nav>
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
-            Serving Forms
-          </p>
-          <p className="mt-2 font-serif text-3xl font-bold text-gray-900">
-            {servingInterests.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
-            Profile Email
-          </p>
-          <p className="mt-2 text-sm font-sans font-bold text-gray-800">
-            {user.email ?? "Add one in your profile"}
-          </p>
-        </div>
+      </section>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <SummaryCard
+          label="Prayer history"
+          value={prayerRequests.length}
+          note="Requests you have shared"
+          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-4.4-9-9.2C1 7.4 3.5 4 7.1 4c2.1 0 3.8 1.1 4.9 2.7C13.1 5.1 14.8 4 16.9 4 20.5 4 23 7.4 21 11.8 19 16.6 12 21 12 21Z"/><path d="M12 8v7M8.5 11.5h7"/></svg>}
+        />
+        <SummaryCard
+          label="Serving interests"
+          value={servingInterests.length}
+          note="Ways you have offered to help"
+          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 2.4 5 5.5.8-4 3.9.9 5.5-4.8-2.6-4.8 2.6.9-5.5-4-3.9 5.5-.8L12 3Z"/><path d="m5 18-1 3M19 18l1 3"/></svg>}
+        />
+        <SummaryCard
+          label="Profile email"
+          value={user.email ?? "Add one in your profile"}
+          note="Used for church updates"
+          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>}
+        />
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <section className="rounded-3xl border border-gray-100 bg-white p-6">
-          <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:items-start">
+        <section id="prayer-requests" aria-labelledby="prayer-requests-heading" className="scroll-mt-6 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="font-serif text-2xl font-bold text-gray-900">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-red-700">Pastoral care</p>
+              <h2 id="prayer-requests-heading" className="mt-1 font-serif text-2xl font-bold text-gray-900">
                 Prayer Requests
               </h2>
               <p className="mt-1 text-sm font-sans text-gray-500">
@@ -361,7 +396,7 @@ export default function EngagementPage() {
             </div>
             <Link
               to="/prayer-request"
-              className="rounded-full border border-red-200 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-red-700 hover:bg-red-50"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-red-700 hover:bg-red-50"
             >
               Public form
             </Link>
@@ -369,10 +404,10 @@ export default function EngagementPage() {
 
           <SectionMessage actionData={actionData} intent="submitPrayerRequest" />
 
-          <Form method="post" className="rounded-2xl border border-red-100 bg-red-50/60 p-5">
+          <Form method="post" className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 to-white p-4 sm:p-5">
             <input type="hidden" name="intent" value="submitPrayerRequest" />
             <ValidationSummary errors={prayerErrors} />
-            <label className="block text-xs font-bold uppercase tracking-[0.14em] text-red-700">
+            <label htmlFor="engagement-prayer-request" className="block text-xs font-bold uppercase tracking-[0.14em] text-red-700">
               New request
             </label>
             <textarea
@@ -407,7 +442,12 @@ export default function EngagementPage() {
             </PendingButton>
           </Form>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-gray-900">Your recent requests</h3>
+              <span className="text-xs text-gray-500">Latest {prayerRequests.length}</span>
+            </div>
+            <div className="space-y-3">
             {prayerRequests.length > 0 ? (
               prayerRequests.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
@@ -437,12 +477,14 @@ export default function EngagementPage() {
                 message="Your submitted prayer requests will appear here."
               />
             )}
+            </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-gray-100 bg-white p-6">
+        <section id="notification-preferences" aria-labelledby="notification-preferences-heading" className="scroll-mt-6 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
           <div className="mb-5">
-            <h2 className="font-serif text-2xl font-bold text-gray-900">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-700">Stay informed</p>
+            <h2 id="notification-preferences-heading" className="mt-1 font-serif text-2xl font-bold text-gray-900">
               Notification Preferences
             </h2>
             <p className="mt-1 text-sm font-sans text-gray-500">
@@ -452,30 +494,34 @@ export default function EngagementPage() {
 
           <SectionMessage actionData={actionData} intent="saveNotificationPreferences" />
 
-          <Form method="post" className="space-y-3">
+          <Form method="post">
             <input type="hidden" name="intent" value="saveNotificationPreferences" />
-
-            {[
-              ["prayerUpdatesEmail", "Email me about updates to my prayer requests."],
-              ["servingOpportunities", "Notify me when serving opportunities open up."],
-              ["eventReminders", "Keep me updated on church events and reminders."],
-              ["smsUrgentCare", "Text me for urgent pastoral care follow-up."],
-            ].map(([name, label]) => (
-              <label key={name} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name={name}
-                  defaultChecked={notificationPreference[name as keyof typeof notificationPreference]}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-300"
-                />
-                <span>{label}</span>
-              </label>
-            ))}
+            <fieldset>
+              <legend className="mb-3 text-sm font-semibold text-gray-700">Choose the updates you would like to receive</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["prayerUpdatesEmail", "Email me about updates to my prayer requests."],
+                  ["servingOpportunities", "Notify me when serving opportunities open up."],
+                  ["eventReminders", "Keep me updated on church events and reminders."],
+                  ["smsUrgentCare", "Text me for urgent pastoral care follow-up."],
+                ].map(([name, label]) => (
+                  <label key={name} className="flex min-h-16 items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-700 transition hover:border-red-100 hover:bg-red-50/40">
+                    <input
+                      type="checkbox"
+                      name={name}
+                      defaultChecked={notificationPreference[name as keyof typeof notificationPreference]}
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-red-700 focus:ring-red-300"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
             <button
               type="submit"
               disabled={navigation.state === "submitting"}
-              className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-black disabled:opacity-60"
+              className="mt-4 min-h-11 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-black disabled:opacity-60"
             >
               Save preferences
             </button>
@@ -483,9 +529,10 @@ export default function EngagementPage() {
         </section>
       </div>
 
-      <section className="mt-6 rounded-3xl border border-gray-100 bg-white p-6">
+      <section id="serving-interest" aria-labelledby="serving-interest-heading" className="mt-5 scroll-mt-6 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-5">
-          <h2 className="font-serif text-2xl font-bold text-gray-900">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Find your place to help</p>
+          <h2 id="serving-interest-heading" className="mt-1 font-serif text-2xl font-bold text-gray-900">
             Serving Interest
           </h2>
           <p className="mt-1 text-sm font-sans text-gray-500">
@@ -496,13 +543,13 @@ export default function EngagementPage() {
         <SectionMessage actionData={actionData} intent="submitServingInterest" />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <Form method="post" className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+          <Form method="post" className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
             <input type="hidden" name="intent" value="submitServingInterest" />
             <ValidationSummary errors={servingErrors} />
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
+                <label htmlFor="serving-ministry" className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                   Ministry
                 </label>
                 <select id="serving-ministry" name="ministryId" className={inputClass}>
@@ -516,7 +563,7 @@ export default function EngagementPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
+                <label htmlFor="serving-areaOfInterest" className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                   Area of interest
                 </label>
                 <input
@@ -533,7 +580,7 @@ export default function EngagementPage() {
             </div>
 
             <div className="mt-4">
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
+              <label htmlFor="serving-availability" className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                 Availability
               </label>
               <input
@@ -549,7 +596,7 @@ export default function EngagementPage() {
             </div>
 
             <div className="mt-4">
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
+              <label htmlFor="serving-experience" className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                 Experience or strengths
               </label>
               <textarea
@@ -565,7 +612,7 @@ export default function EngagementPage() {
             </div>
 
             <div className="mt-4">
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
+              <label htmlFor="serving-message" className="mb-1.5 block text-xs font-bold uppercase tracking-[0.14em] text-gray-500">
                 Why you want to serve
               </label>
               <textarea
