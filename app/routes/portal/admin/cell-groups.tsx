@@ -6,7 +6,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { MetaFunction } from "react-router";
 import { toast } from "react-toastify";
 import { z } from "zod";
@@ -27,6 +27,25 @@ type CellGroupActionData = {
   errors?: Record<string, string[] | undefined>;
 };
 
+const meetingDays = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+const meetingTimes = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 4) + 1;
+  const minute = (index % 4) * 15;
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+});
+
+const selectClassName =
+  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300";
+
 const cellGroupSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100, "Name is too long."),
   leaderId: z.string().trim().min(1, "Please choose a leader."),
@@ -42,14 +61,110 @@ function normalizeField(value: FormDataEntryValue | null) {
 }
 
 function parseCellGroupForm(formData: FormData) {
-  return cellGroupSchema.safeParse({
+  const selectedTime = normalizeField(formData.get("meetingTime"));
+  const selectedPeriod = normalizeField(formData.get("meetingTimePeriod"));
+  const needsPeriod = Boolean(selectedTime && selectedTime !== "__current__" && !selectedPeriod);
+  const meetingTime = selectedTime === "__current__"
+    ? normalizeField(formData.get("meetingTimeLegacy"))
+    : selectedTime && selectedPeriod
+      ? `${selectedTime} ${selectedPeriod}`
+      : undefined;
+  const parsed = cellGroupSchema.safeParse({
     name: formData.get("name"),
     leaderId: formData.get("leaderId"),
     meetingDay: normalizeField(formData.get("meetingDay")),
-    meetingTime: normalizeField(formData.get("meetingTime")),
+    meetingTime,
     barangay: normalizeField(formData.get("barangay")),
     isActive: formData.get("isActive") === "on",
   });
+
+  if (needsPeriod) {
+    return {
+      success: false as const,
+      error: new z.ZodError([
+        {
+          code: z.ZodIssueCode.custom,
+          path: ["meetingTime"],
+          message: "Select AM or PM.",
+        },
+      ]),
+    };
+  }
+
+  return parsed;
+}
+
+function MeetingDaySelect({
+  id,
+  defaultValue,
+  className = selectClassName,
+}: {
+  id: string;
+  defaultValue?: string | null;
+  className?: string;
+}) {
+  const currentDay = defaultValue ?? "";
+  const isKnownDay = meetingDays.includes(currentDay);
+
+  return (
+    <select id={id} name="meetingDay" defaultValue={currentDay} className={className}>
+      <option value="">Select a day</option>
+      {!isKnownDay && currentDay ? (
+        <option value={currentDay}>Current: {currentDay}</option>
+      ) : null}
+      {meetingDays.map((day) => (
+        <option key={day} value={day}>{day}</option>
+      ))}
+    </select>
+  );
+}
+
+function MeetingTimeFields({
+  idPrefix,
+  defaultValue,
+  className = selectClassName,
+}: {
+  idPrefix: string;
+  defaultValue?: string | null;
+  className?: string;
+}) {
+  const currentTime = defaultValue?.trim() ?? "";
+  const parsedTime = currentTime.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  const clockTime = parsedTime?.[1] ?? "";
+  const period = parsedTime?.[2]?.toUpperCase() ?? "";
+  const isKnownTime = meetingTimes.includes(clockTime) && Boolean(period);
+  const hasLegacyTime = Boolean(currentTime) && !isKnownTime;
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+      <select
+        id={`${idPrefix}-time`}
+        name="meetingTime"
+        defaultValue={hasLegacyTime ? "__current__" : clockTime}
+        className={className}
+      >
+        <option value="">Select time</option>
+        {hasLegacyTime ? <option value="__current__">Current: {currentTime}</option> : null}
+        {meetingTimes.map((time) => (
+          <option key={time} value={time}>{time}</option>
+        ))}
+      </select>
+      <select
+        id={`${idPrefix}-period`}
+        name="meetingTimePeriod"
+        defaultValue={isKnownTime ? period : ""}
+        aria-label="AM or PM"
+        className={className}
+      >
+        <option value="">AM/PM</option>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+      {hasLegacyTime ? (
+        <input type="hidden" name="meetingTimeLegacy" value={currentTime} />
+      ) : null}
+    </div>
+  );
 }
 
 function isUniqueLeaderConflict(error: unknown) {
@@ -354,6 +469,7 @@ function CellGroupEditor({
 }) {
   const updateFetcher = useFetcher<CellGroupActionData>();
   const deleteFetcher = useFetcher<CellGroupActionData>();
+  const meetingFieldsId = useId();
   const seenResultsRef = useRef(new WeakSet<object>());
 
   const updateErrors =
@@ -428,28 +544,22 @@ function CellGroupEditor({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+            <label htmlFor={`${meetingFieldsId}-day`} className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
               Meeting Day
             </label>
-            <input
-              type="text"
-              name="meetingDay"
-              defaultValue={cellGroup.meetingDay ?? ""}
-              placeholder="Meeting day"
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            <MeetingDaySelect
+              id={`${meetingFieldsId}-day`}
+              defaultValue={cellGroup.meetingDay}
             />
             <FieldError message={updateErrors?.meetingDay?.[0]} />
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+            <label htmlFor={`${meetingFieldsId}-time`} className="mb-1 block text-[11px] font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
               Meeting Time
             </label>
-            <input
-              type="text"
-              name="meetingTime"
-              defaultValue={cellGroup.meetingTime ?? ""}
-              placeholder="Meeting time"
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
+            <MeetingTimeFields
+              idPrefix={meetingFieldsId}
+              defaultValue={cellGroup.meetingTime}
             />
             <FieldError message={updateErrors?.meetingTime?.[0]} />
           </div>
@@ -724,26 +834,22 @@ export default function AdminCellGroupsPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+                <label htmlFor="create-meeting-day" className="mb-1 block text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Meeting Day
                 </label>
-                <input
-                  type="text"
-                  name="meetingDay"
-                  placeholder="Friday"
+                <MeetingDaySelect
+                  id="create-meeting-day"
                   className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
                 <FieldError message={createErrors?.meetingDay?.[0]} />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
+                <label htmlFor="create-meeting-time-time" className="mb-1 block text-xs font-sans font-bold uppercase tracking-[0.12em] text-gray-500">
                   Meeting Time
                 </label>
-                <input
-                  type="text"
-                  name="meetingTime"
-                  placeholder="6:30 PM"
+                <MeetingTimeFields
+                  idPrefix="create-meeting-time"
                   className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-sans text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
                 <FieldError message={createErrors?.meetingTime?.[0]} />
